@@ -1,26 +1,30 @@
-import { Hero } from "@/components/sections/hero";
-import { BlindSpot } from "@/components/sections/blind-spot";
-import { WalkGate } from "@/components/sections/walk-gate";
-import { GateExplorerSection } from "@/components/sections/gate-explorer-section";
-import { Results } from "@/components/sections/results";
-import { Pipeline } from "@/components/sections/pipeline";
-import { SeenFromAbove } from "@/components/sections/seen-from-above";
-import { EthicsSection } from "@/components/sections/ethics-section";
-import { RunIt } from "@/components/sections/run-it";
-import { CtaBand } from "@/components/sections/cta-band";
+import { CtaBand } from '@/components/sections/cta-band';
+import { EthicsSection } from '@/components/sections/ethics';
+import { GateExplorer } from '@/components/sections/gate-explorer';
+import { Hero } from '@/components/sections/hero';
+import { MapBand } from '@/components/sections/map-band';
+import { Pipeline } from '@/components/sections/pipeline';
+import { Process } from '@/components/sections/process';
+import { Results } from '@/components/sections/results';
+import { TwinCameras } from '@/components/sections/twin-cameras';
+import { WalkTheGate } from '@/components/sections/walk-the-gate';
 
+/**
+ * Landing page structure (FRONTEND_SPEC.md section 7), build phase 3: every section is laid out at four breakpoints with
+ * wireframe regions, no copy beyond headings, no motion. Content arrives in phase 4, motion in phase 6, WebGL in phase 7.
+ */
 export default function HomePage() {
   return (
-    <main>
+    <main id="main">
       <Hero />
-      <BlindSpot />
-      <WalkGate />
-      <GateExplorerSection />
+      <TwinCameras />
+      <WalkTheGate />
+      <GateExplorer />
       <Results />
       <Pipeline />
-      <SeenFromAbove />
+      <MapBand />
       <EthicsSection />
-      <RunIt />
+      <Process />
       <CtaBand />
     </main>
   );

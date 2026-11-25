@@ -8,6 +8,11 @@ CITY_AREAS = {
     "Mumbai": 603,
     "Delhi": 1484,
     "Bangalore": 741,
+    "Hyderabad": 650,
+    "Chennai": 426,
+    "Kolkata": 206,
+    "Pune": 516,
+    "Ahmedabad": 505,
 }
 
 
@@ -16,7 +21,9 @@ def _calculate_surveillance_score(devices: list, city: str) -> dict | None:
     if not devices:
         return None
 
-    area = CITY_AREAS.get(city, 500)
+    area = sum(CITY_AREAS.values()) if city in ("All India", "All", "all") else CITY_AREAS.get(city)
+    if not area:
+        return None
     total = len(devices)
 
     owner_counts = {"government": 0, "corporate": 0, "telecom": 0, "unknown": 0}

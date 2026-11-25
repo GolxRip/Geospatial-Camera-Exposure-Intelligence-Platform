@@ -1,4 +1,7 @@
-/** The only z-index scale (spec 5.4). Nothing else is allowed. Mirrored as CSS variables in tokens.css. */
+/**
+ * The z-index scale (FRONTEND_SPEC.md section 5.4). Nothing else is allowed.
+ * Mirrored as --z-* custom properties in src/styles/tokens.css; tests/unit/tokens.test.ts keeps them equal.
+ */
 export const Z = {
   canvas: 0,
   map: 5,
@@ -11,4 +14,5 @@ export const Z = {
   toast: 50,
   grain: 60,
 } as const;
+
 export type ZLayer = keyof typeof Z;

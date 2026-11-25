@@ -1,26 +1,37 @@
-import { factSource, type FactKey } from "@/lib/content/facts";
-import { REPO_URL } from "@/lib/api/config";
-import { cn } from "@/lib/utils";
+'use client';
+
+import { ArrowUpRight } from '@phosphor-icons/react/dist/ssr';
+import type { Fact } from '@/lib/content/facts.generated';
+import { repoFileUrl } from '@/lib/env';
+import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
 
 /**
- * Footnote marker that links a number to its section in paper/results.md (ground rule 3).
- * The title and accessible name carry the exact source path.
+ * Footnote marker that links a number to the section of paper/results.md it came from
+ * (FRONTEND_SPEC.md section 5.6). It takes the Fact object itself, so a number and its source cannot drift apart.
  */
-export function SourceNote({ fact, className }: { fact: FactKey; className?: string }) {
-  const { source, section } = factSource(fact);
+export function SourceNote({
+  fact,
+}: {
+  fact: Pick<Fact<unknown>, 'source' | 'section' | 'anchor'>;
+}) {
+  const href = repoFileUrl('paper/results.md', fact.anchor);
   return (
-    <a
-      href={`${REPO_URL}/blob/main/paper/results.md`}
-      target="_blank"
-      rel="noreferrer noopener"
-      title={`${section}. Source: ${source}`}
-      aria-label={`Source: ${section}`}
-      className={cn(
-        "num inline-flex h-4 min-w-4 items-center justify-center rounded-chip border border-line-strong px-1 text-[0.625rem] leading-none text-bone-2 no-underline transition-colors duration-[160ms] hover:border-signal hover:text-signal",
-        className,
-      )}
-    >
-      src
-    </a>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Source: paper/results.md, ${fact.section}`}
+          className="ml-1 inline-flex align-super text-bone-2 transition-surface hover:text-signal"
+        >
+          <ArrowUpRight aria-hidden size={12} weight="regular" />
+        </a>
+      </TooltipTrigger>
+      <TooltipContent>
+        <span className="block text-bone">paper/results.md, {fact.section}</span>
+        <span className="mt-1 block break-all font-mono text-bone-2">{fact.source}</span>
+      </TooltipContent>
+    </Tooltip>
   );
 }

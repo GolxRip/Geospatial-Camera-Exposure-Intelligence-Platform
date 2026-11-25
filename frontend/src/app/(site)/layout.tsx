@@ -1,15 +1,15 @@
-import { Nav } from "@/components/sections/nav";
-import { Footer } from "@/components/sections/footer";
-import { FeedLayer } from "@/components/three/feed-layer";
+import { Grain } from '@/components/brand/grain';
+import { SiteFooter } from '@/components/layout/site-footer';
+import { SiteNav } from '@/components/layout/site-nav';
 
-/** Marketing shell: floating nav, fixed feed field behind, footer. The console has its own shell. */
-export default function SiteLayout({ children }: { children: React.ReactNode }) {
+/** Marketing and reference pages. The console gets its own layout without the grain (FRONTEND_SPEC.md section 5.3). */
+export default function SiteLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <>
-      <FeedLayer />
-      <Nav />
-      <div id="main" tabIndex={-1} className="outline-none">{children}</div>
-      <Footer />
+      <SiteNav />
+      {children}
+      <SiteFooter />
+      <Grain />
     </>
   );
 }

@@ -1,23 +1,29 @@
-"use client";
-import * as React from "react";
-import { Tooltip as TooltipPrimitive } from "radix-ui";
-import { cn } from "@/lib/utils";
+'use client';
+
+import * as React from 'react';
+import * as TooltipPrimitive from '@radix-ui/react-tooltip';
+import { cn } from '@/lib/utils';
 
 export const TooltipProvider = TooltipPrimitive.Provider;
 export const Tooltip = TooltipPrimitive.Root;
 export const TooltipTrigger = TooltipPrimitive.Trigger;
 
-export function TooltipContent({ className, sideOffset = 8, ...props }: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+/** Tooltips sit above every other layer except the grain (z-toast). Solid surface, no glow. */
+export const TooltipContent = React.forwardRef<
+  React.ComponentRef<typeof TooltipPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
+>(function TooltipContent({ className, sideOffset = 6, ...props }, ref) {
   return (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Content
+        ref={ref}
         sideOffset={sideOffset}
         className={cn(
-          "z-panel max-w-xs rounded-input border border-line-strong bg-ink-2 px-3 py-2 text-xs leading-snug text-bone shadow-[var(--inner-highlight)]",
+          'z-toast surface-elevated max-w-xs rounded-input border border-line-strong px-3 py-2 text-xs leading-5 text-bone',
           className,
         )}
         {...props}
       />
     </TooltipPrimitive.Portal>
   );
-}
+});

@@ -3,7 +3,7 @@ import json
 from fastapi import APIRouter, HTTPException
 from services.shodan_service import fetch_and_cache_city, devices_to_geojson
 from services.trust_score_service import compute_ig_dctf_trust_score
-from config import CITIES
+from config import CITIES, mask_ip_for_public
 
 router = APIRouter()
 
@@ -52,9 +52,12 @@ def _enrich_with_posture(devices: list, geojson: dict) -> dict:
         except Exception:
             # A malformed row must not take the whole device list down.
             pass
+        props["ip"] = mask_ip_for_public(props.get("ip"))
         props["city"] = device.get("city")
         props["cves"] = cve_ids
         props["firmware_version"] = device.get("firmware_version")
+        gs = device.get("geo_source") or "synthetic_demo"
+        props["geo_precision"] = "node" if gs == "osm_verified" else "city" if gs in ("shodan_live", "censys_live", "censys_dataset") else "simulated"
     return geojson
 
 

@@ -48,7 +48,9 @@ from routes.alerts import set_connection_manager
 # BTP Module E: audit ledger persistence
 from services.audit_ledger import load_from_db as load_audit_ledger
 # BTP new routers
-from routes import audit_router, decay_router, heartbeat_router, analytics_router
+# heartbeat_router REMOVED: actively pings camera IPs — passive-only boundary (master plan rule 4)
+from routes import audit_router, decay_router, analytics_router
+from routes import censys_router
 from routes import integrity_router
 from routes import attack_simulator_router, nl_query_router
 from routes import config_router, scenarios_router
@@ -142,7 +144,8 @@ app.include_router(alerts_router.router, prefix="/api")
 # BTP new routers (Modules A, D, E, G)
 app.include_router(audit_router.router, prefix="/api")
 app.include_router(decay_router.router, prefix="/api")
-app.include_router(heartbeat_router.router, prefix="/api")
+# heartbeat_router REMOVED: actively pings camera IPs — passive-only boundary (master plan rule 4)
+# app.include_router(heartbeat_router.router, prefix="/api")
 app.include_router(analytics_router.router, prefix="/api")
 # Module G: IG-DCTF integrity gate REST endpoints
 app.include_router(integrity_router.router, prefix="/api")
@@ -152,6 +155,8 @@ app.include_router(nl_query_router.router, prefix="/api")
 # Public read-only config (thresholds) and the clearly-labelled demo scenario runner
 app.include_router(config_router.router, prefix="/api")
 app.include_router(scenarios_router.router, prefix="/api")
+# Censys aggregate snapshots, dataset provenance, and paper results.json
+app.include_router(censys_router.router, prefix="/api")
 
 
 # ---------------------------------------------------------------------------

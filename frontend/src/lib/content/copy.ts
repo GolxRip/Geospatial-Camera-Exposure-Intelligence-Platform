@@ -36,10 +36,10 @@ export function limitLines() {
   const t1 = fact("res.tier1");
   const sw = fact("res.sweep");
   return [
-    { id: "C1", text: `The corpus is synthetic and hand-authored. Labels for the ${c.n - c.withChannelB} attribute-only scenarios follow the intended tier.` },
-    { id: "C4, C5", text: `All of the gain comes from the ${c.withChannelB} scenarios that carry Channel B fields. On the other ${c.n - c.withChannelB}, IG-DCTF equals the CVE-only model.` },
+    { id: "C1", text: `The corpus is synthetic and hand-authored. Labels for the ${c.n_direct - c.n_with_signal_fields} attribute-only scenarios follow the intended tier.` },
+    { id: "C4, C5", text: `All of the gain comes from the ${c.n_with_signal_fields} scenarios that carry Channel B fields. On the other ${c.n_direct - c.n_with_signal_fields}, IG-DCTF equals the CVE-only model.` },
     { id: "C7", text: `The corpus cannot choose the gate thresholds: all ${sw.total} grid points in the sweep sit within 0.01 of the best F1.` },
-    { id: "C8, C10", text: `Tier 1 was benchmarked on ${t1.distinctCases} distinct cases. Tier 2 used synthetic frames, with weights revised after seeing the benchmark.` },
+    { id: "C8, C10", text: `Tier 1 was benchmarked on ${(t1 as { distinct_cases: number }).distinct_cases} distinct cases. Tier 2 used synthetic frames, with weights revised after seeing the benchmark.` },
     { id: "C14", text: "A loop of real footage has natural motion and is not caught by the frozen-frame rule." },
     { id: "C17", text: "There is no field data. Real-world effectiveness is unverified." },
   ];

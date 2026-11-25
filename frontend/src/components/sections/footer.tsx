@@ -8,7 +8,7 @@ export function Footer() {
     <footer className="relative z-content border-t border-line bg-ink-0/80">
       <div className="mx-auto flex max-w-[1360px] flex-col gap-8 px-5 py-12 md:flex-row md:items-start md:justify-between md:px-8">
         <div className="flex max-w-sm flex-col gap-3">
-          <Logo size={34} />
+          <Logo markSize={34} />
           <p className="text-sm text-bone-2">Trust scores for exposed cameras: vulnerability posture, gated by signal integrity.</p>
         </div>
         <nav aria-label="Footer" className="grid grid-cols-2 gap-x-12 gap-y-2 text-sm">

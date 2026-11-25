@@ -238,7 +238,7 @@ export default function MapView(props: MapViewProps) {
       <div className="flex min-w-[210px] flex-col gap-2 text-[0.8125rem]">
         <div className="flex items-center justify-between gap-3">
           <span className="num text-bone">{maskIp(d.ip)}</span>
-          <HoodGauge gate={d.integrity_gate_tripped ? 0.3 : 1} score={d.trust_score ?? 100} size={44} />
+          <HoodGauge gate={d.integrity_gate_tripped ? 0.3 : 1} trust={d.trust_score ?? 100} size={44} />
         </div>
         <div className="text-bone-2">{d.manufacturer ?? "Unknown manufacturer"} · {d.owner_type ?? "unknown owner"}</div>
         <div className="text-bone-2">{d.integrity_gate_tripped ? "Gate tripped" : `${tierLabel(d.action_tier)} trust`}{d.trust_score !== undefined ? ` · ${d.trust_score}` : ""}</div>

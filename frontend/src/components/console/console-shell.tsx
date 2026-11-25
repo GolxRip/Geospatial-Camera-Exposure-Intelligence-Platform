@@ -1,193 +1,212 @@
-"use client";
-import * as React from "react";
-import dynamic from "next/dynamic";
-import { AlertStream } from "@/components/console/alert-stream";
-import { AnalyticsDrawer } from "@/components/console/analytics-drawer";
-import { CommandPalette } from "@/components/console/command-palette";
-import { Inspector } from "@/components/console/inspector";
-import { LiveConnection } from "@/components/console/live-connection";
-import { TopBar } from "@/components/console/top-bar";
-import { ZoneBrief } from "@/components/console/zone-brief";
-import { EmptyState } from "@/components/ui/empty-state";
-import { InlineError } from "@/components/ui/inline-error";
-import { OfflineState } from "@/components/ui/offline-state";
-import { Skeleton } from "@/components/ui/skeleton";
-import { TierShape } from "@/components/ui/tier-tag";
-import { geoProvenance } from "@/lib/api/normalize";
-import type { Zone } from "@/components/map/map-view";
-import { useDevices } from "@/lib/api/hooks";
-import { useHeat, useRunScenario } from "@/lib/api/console-hooks";
-import { ApiError } from "@/lib/api/errors";
-import { useConsoleStore } from "@/lib/state/console-store";
-import { CITY_VIEW } from "@/lib/constants/cities";
-import { cn } from "@/lib/utils";
+'use client';
 
-const MapView = dynamic(() => import("@/components/map/map-view"), { ssr: false, loading: () => <Skeleton className="size-full rounded-none" /> });
+import * as React from 'react';
+import { deviceRoute } from '@/lib/constants/routes';
+import type { ConsoleActions, ConsoleData } from '@/lib/data/types';
+import { cn } from '@/lib/utils';
+import { AlertStream } from './alert-stream';
+import { AnalyticsDrawer } from './analytics-drawer';
+import { CommandPalette } from './command-palette';
+import { Inspector } from './inspector';
+import { MapPane } from './map-pane';
+import { TopBar } from './top-bar';
 
-type Pane = "map" | "stream" | "detail";
+type View = 'map' | 'stream' | 'detail';
 
-function Legend() {
+function SwitchButton({
+  pressed,
+  onClick,
+  children,
+}: {
+  pressed: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <ul aria-label="Marker legend" className="pointer-events-none absolute bottom-7 right-3 flex flex-col gap-1.5 rounded-input border border-line bg-ink-0/85 px-3 py-2 text-xs text-bone-2">
-      <li className="flex items-center gap-2"><TierShape tier="high_trust" size={14} /> High</li>
-      <li className="flex items-center gap-2"><TierShape tier="medium_trust" size={14} /> Medium</li>
-      <li className="flex items-center gap-2"><TierShape tier="low_trust" size={14} /> Low</li>
-      <li className="flex items-center gap-2"><TierShape gateTripped size={14} /> Gate tripped</li>
-    </ul>
+    <button
+      type="button"
+      aria-pressed={pressed}
+      onClick={onClick}
+      className="inline-flex h-10 flex-1 items-center justify-center rounded-control border border-line px-5 text-sm text-bone-2 transition-surface hover:text-bone aria-pressed:border-line-strong aria-pressed:bg-ink-3 aria-pressed:text-bone"
+    >
+      {children}
+    </button>
   );
 }
 
-/** What the loaded positions and records actually are, from each device's `geo_source` (ground rule 7). */
-function Provenance({ devices }: { devices: { geo_source?: string | null }[] }) {
-  if (devices.length === 0) return null;
-  const counts = new Map<string, number>();
-  for (const d of devices) counts.set(geoProvenance(d.geo_source).label, (counts.get(geoProvenance(d.geo_source).label) ?? 0) + 1);
-  const seeded = devices.filter((d) => geoProvenance(d.geo_source).seeded).length;
-  return (
-    <p className="pointer-events-none absolute bottom-14 left-3 max-w-[34ch] rounded-chip border border-line bg-ink-0/85 px-2.5 py-1.5 text-[0.6875rem] leading-snug text-bone-2">
-      Positions: {[...counts].map(([k, n]) => `${n} ${k}`).join(", ")}.{seeded > 0 ? " Seeded records, not scan results." : ""}
-    </p>
-  );
+export interface ConsoleShellProps {
+  data: ConsoleData;
+  actions?: ConsoleActions;
+  selectedDeviceId: string | null;
+  onSelectDevice: (id: string | null) => void;
+  city: string;
+  onCityChange: (city: string) => void;
+  /** MapLibre style URL for the basemap. Omit for a plain dark canvas. */
+  mapStyleUrl?: string;
+  /** Where "Open forensics" goes for a device. Defaults to the device route. */
+  deviceHref?: (id: string) => string;
+  /** Rendered above the top bar, for example the demo-data banner. */
+  banner?: React.ReactNode;
 }
 
-function Announcer() {
-  const t = useConsoleStore((s) => s.lastGateTripAt);
-  const alerts = useConsoleStore((s) => s.alerts);
-  const [msg, setMsg] = React.useState("");
-  const last = React.useRef(0);
-  React.useEffect(() => {
-    if (!t || Date.now() - last.current < 5000) return;
-    last.current = Date.now();
-    const a = alerts.find((x) => x.integrity_gate_tripped);
-    const id = setTimeout(() => setMsg(`Gate tripped${a?.city ? ` in ${a.city}` : ""}`), 0);
-    return () => clearTimeout(id);
-  }, [t, alerts]);
-  return <div role="status" aria-live="polite" className="sr-only">{msg}</div>;
-}
-
-export function ConsoleShell() {
-  const city = useConsoleStore((s) => s.city);
-  const selectedId = useConsoleStore((s) => s.selectedDeviceId);
-  const select = useConsoleStore((s) => s.selectDevice);
-  const query = useConsoleStore((s) => s.query);
-  const devicesQ = useDevices(city);
-  const selectedInCity = !!selectedId && !!devicesQ.data?.devices.some((d) => d.id === selectedId);
-  const allQ = useDevices("All India", !!selectedId && devicesQ.isSuccess && !selectedInCity);
-  const [pane, setPane] = React.useState<Pane>("map");
-  const [palette, setPalette] = React.useState(false);
-  const [analytics, setAnalytics] = React.useState(false);
-  const [heatOn, setHeatOn] = React.useState(false);
-  const [zoneMode, setZoneMode] = React.useState(false);
-  const [zone, setZone] = React.useState<Zone | null>(null);
-  const [focus, setFocus] = React.useState<{ center: [number, number]; zoom: number; key: number }>({ ...CITY_VIEW["Mumbai"]!, key: 0 });
-  const [runMsg, setRunMsg] = React.useState<string | null>(null);
-  const run = useRunScenario();
-  const heat = useHeat(city, heatOn);
-
-  const devices = React.useMemo(() => {
-    const all = devicesQ.data?.devices ?? [];
-    if (!query) return all;
-    const text = query.text?.toLowerCase();
-    return all.filter((d) =>
-      (!query.ownerType || d.owner_type === query.ownerType) &&
-      (query.authRequired === null || !!d.auth_required === query.authRequired) &&
-      (query.hasCve === null || ((d.known_cve_count ?? 0) > 0) === query.hasCve) &&
-      (!text || `${d.manufacturer ?? ""} ${d.device_type ?? ""} ${d.owner_type ?? ""} ${d.id}`.toLowerCase().includes(text)));
-  }, [devicesQ.data, query]);
-
-  // fly to the city when it changes
-  React.useEffect(() => {
-    const v = CITY_VIEW[city] ?? CITY_VIEW["All India"]!;
-    const id = setTimeout(() => setFocus((f) => ({ ...v, key: f.key + 1 })), 0);
-    return () => clearTimeout(id);
-  }, [city]);
-
-  // fly to a selected device and show its details
-  React.useEffect(() => {
-    if (!selectedId) return;
-    const d = devicesQ.data?.devices.find((x) => x.id === selectedId) ?? allQ.data?.devices.find((x) => x.id === selectedId);
-    const id = setTimeout(() => {
-      setPane((p) => (p === "map" || p === "stream" ? "detail" : p));
-      if (d) setFocus((f) => ({ center: [d.lon, d.lat], zoom: Math.max(13, city === "All India" ? 13 : 13), key: f.key + 1 }));
-    }, 0);
-    return () => clearTimeout(id);
-  }, [selectedId, devicesQ.data, allQ.data, city]);
+/**
+ * Console layout (FRONTEND_SPEC.md sections 10.1 and 21), as a controlled component: it renders `data` and calls back; it never
+ * fetches. Selection and city are owned by the parent.
+ *   1280 and up    three panes: stream 3, map 6, inspector 3 columns
+ *   1024 to 1279   three panes, narrower inspector
+ *   768 to 1023    two panes: the map and one side pane, chosen with a segmented control (stream or inspector)
+ *   below 768      one pane at a time, chosen with three buttons (map, stream, detail)
+ * Hidden panes are display: none, so they leave the accessibility tree; each is one control away. The shell is a tool surface:
+ * it fills the viewport and scrolls inside its panes. Selecting a device on a narrow screen opens the detail pane.
+ */
+export function ConsoleShell({
+  data,
+  actions,
+  selectedDeviceId,
+  onSelectDevice,
+  city,
+  onCityChange,
+  mapStyleUrl,
+  deviceHref = deviceRoute,
+  banner,
+}: ConsoleShellProps) {
+  const [view, setView] = React.useState<View>('map');
+  const [analyticsOpen, setAnalyticsOpen] = React.useState(false);
+  const [paletteOpen, setPaletteOpen] = React.useState(false);
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setPalette((o) => !o); }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  async function runScenario() {
-    setRunMsg(null);
-    try {
-      const r = await run.mutateAsync();
-      setRunMsg(r.message ?? `${r.events} demo events started`);
-    } catch (e) {
-      setRunMsg(e instanceof ApiError ? `${e.status === 0 ? "Offline" : e.status}: ${e.detail}` : "Could not start the scenario");
-    }
-  }
+  const select = (id: string) => {
+    onSelectDevice(id);
+    setView('detail');
+  };
 
-  const offline = devicesQ.error instanceof ApiError && devicesQ.error.offline;
-  const segs: [Pane, string][] = [["map", "Map"], ["stream", "Stream"], ["detail", "Detail"]];
+  const gauge =
+    data.detail.status === 'ready' && data.detail.data
+      ? { multiplier: data.detail.data.gate.multiplier, score: data.detail.data.score }
+      : null;
+
+  const pane = 'min-h-0 flex-col border-line';
+  const mapClass = cn(
+    pane,
+    'md:col-start-1 md:row-start-1 lg:col-start-2',
+    view === 'map' ? 'flex' : 'hidden md:flex',
+  );
+  const streamClass = cn(
+    pane,
+    'md:col-start-2 md:row-start-1 md:border-l lg:col-start-1 lg:border-l-0 lg:border-r',
+    view === 'stream' ? 'flex' : view === 'detail' ? 'hidden lg:flex' : 'hidden md:flex',
+  );
+  const detailClass = cn(
+    pane,
+    'md:col-start-2 md:row-start-1 md:border-l lg:col-start-3',
+    view === 'detail' ? 'flex' : 'hidden lg:flex',
+  );
 
   return (
-    <div data-console className="flex h-dvh flex-col bg-ink-0">
-      <LiveConnection />
-      <Announcer />
-      <TopBar onRun={runScenario} running={run.isPending} onAnalytics={() => setAnalytics(true)} onPalette={() => setPalette(true)} runMessage={runMsg} />
-      {runMsg && <p role="status" className="border-b border-line bg-ink-1 px-3 py-1.5 text-xs text-bone-2 lg:hidden">{runMsg}</p>}
+    <main id="main" className="flex h-[100dvh] flex-col">
+      {banner}
+      <TopBar
+        connection={data.connection}
+        counts={data.counts}
+        cities={data.cities}
+        city={city}
+        onCityChange={onCityChange}
+        onRunScenario={actions?.onRunScenario}
+        onOpenPalette={() => setPaletteOpen(true)}
+        analyticsOpen={analyticsOpen}
+        onToggleAnalytics={() => setAnalyticsOpen((v) => !v)}
+        gauge={gauge}
+      />
 
-      <div role="tablist" aria-label="Console panes" className="flex gap-1 border-b border-line p-2 xl:hidden">
-        {segs.map(([k, label]) => (
-          <button key={k} role="tab" type="button" aria-selected={pane === k} onClick={() => setPane(k)} className={cn("h-9 flex-1 rounded-full text-sm text-bone-2 transition-colors duration-[160ms]", pane === k && "bg-ink-3 text-bone")}>{label}</button>
+      <div
+        role="group"
+        aria-label="Panes"
+        className="flex gap-2 border-b border-line px-3 py-2 md:hidden"
+      >
+        {(['map', 'stream', 'detail'] as const).map((v) => (
+          <SwitchButton key={v} pressed={view === v} onClick={() => setView(v)}>
+            {v === 'map' ? 'Map' : v === 'stream' ? 'Stream' : 'Detail'}
+          </SwitchButton>
         ))}
       </div>
-
-      <main id="main" className="grid min-h-0 flex-1 xl:grid-cols-[minmax(300px,3fr)_minmax(0,6fr)_minmax(320px,3fr)]">
-        <div className={cn("min-h-0 border-r border-line xl:flex xl:flex-col", pane === "stream" ? "flex flex-col" : "hidden")}>
-          <AlertStream className="min-h-0 flex-1" />
+      <div
+        role="group"
+        aria-label="Side pane"
+        className="hidden justify-end gap-2 border-b border-line px-4 py-2 md:flex lg:hidden"
+      >
+        <div className="flex w-72 gap-2">
+          <SwitchButton pressed={view !== 'detail'} onClick={() => setView('stream')}>
+            Stream
+          </SwitchButton>
+          <SwitchButton pressed={view === 'detail'} onClick={() => setView('detail')}>
+            Detail
+          </SwitchButton>
         </div>
+      </div>
 
-        <div className={cn("relative min-h-0 xl:block", pane === "map" ? "block" : "hidden")}>
-          {offline ? (
-            <div className="grid size-full place-items-center p-5"><OfflineState className="max-w-xl" /></div>
-          ) : devicesQ.error ? (
-            <div className="p-5"><InlineError title="Devices could not be loaded">{devicesQ.error instanceof ApiError ? devicesQ.error.detail : "Unexpected error"}</InlineError></div>
-          ) : (
-            <MapView devices={devices} selectedId={selectedId} onSelect={select} view={focus} flyKey={focus.key} heat={heatOn ? heat.data ?? null : null}
-              zoneMode={zoneMode} zone={zone} onZone={(z) => { setZone(z); setZoneMode(false); if (z) setPane("detail"); }} label="Map of exposed devices" />
-          )}
-          {!offline && (
-            <div className="absolute left-3 top-3 flex flex-wrap items-center gap-2">
-              <button type="button" aria-pressed={heatOn} onClick={() => setHeatOn((h) => !h)} className={cn("h-8 rounded-full border border-line bg-ink-1/90 px-3 text-xs text-bone-2 hover:text-bone", heatOn && "border-signal/60 bg-signal-dim text-bone")}>Heat</button>
-              <button type="button" aria-pressed={zoneMode} onClick={() => setZoneMode((z) => !z)} className={cn("h-8 rounded-full border border-line bg-ink-1/90 px-3 text-xs text-bone-2 hover:text-bone", zoneMode && "border-signal/60 bg-signal-dim text-bone")}>{zoneMode ? "Drag on the map" : "Draw zone"}</button>
-              {query && <button type="button" onClick={() => useConsoleStore.getState().setQuery(null)} className="h-8 rounded-full border border-signal/50 bg-signal-dim px-3 text-xs text-bone" title={query.explanation}>Filtered: {query.parsedByAi ? "parsed query" : "text"} (clear)</button>}
-              {devicesQ.isPending && <span className="text-xs text-bone-2">Loading devices</span>}
-              {devicesQ.isSuccess && devices.length === 0 && <span className="rounded-input border border-line bg-ink-1/90 px-3 py-1.5 text-xs text-bone-2">No devices match.</span>}
-            </div>
-          )}
-          <Legend />
-          {!offline && <Provenance devices={devices} />}
-        </div>
+      <div
+        className={cn(
+          'grid min-h-0 flex-1 grid-cols-1',
+          'md:grid-cols-[minmax(0,1fr)_20rem]',
+          'lg:grid-cols-[minmax(15rem,3fr)_minmax(0,6fr)_minmax(14rem,2.2fr)]',
+          'xl:grid-cols-[minmax(0,3fr)_minmax(0,6fr)_minmax(0,3fr)]',
+        )}
+      >
+        <AlertStream
+          alerts={data.alerts}
+          selectedDeviceId={selectedDeviceId}
+          onSelectDevice={select}
+          onRunScenario={actions?.onRunScenario}
+          className={streamClass}
+        />
+        <MapPane
+          devices={data.devices}
+          selectedId={selectedDeviceId}
+          onSelect={select}
+          styleUrl={mapStyleUrl}
+          className={mapClass}
+        />
+        <section aria-labelledby="inspector-title" className={detailClass}>
+          <div className="border-b border-line p-3">
+            <h2 id="inspector-title" className="text-base font-semibold tracking-tight">
+              Inspector
+            </h2>
+          </div>
+          <div
+            role="region"
+            aria-label="Inspector sections"
+            tabIndex={0}
+            className="min-h-0 flex-1 overflow-y-auto p-3"
+          >
+            <Inspector detail={data.detail} actions={actions} deviceHref={deviceHref} />
+          </div>
+        </section>
+      </div>
 
-        <aside aria-label="Detail" className={cn("min-h-0 overflow-y-auto border-l border-line xl:block", pane === "detail" ? "block" : "hidden")}>
-          {zone ? (
-            <ZoneBrief zone={zone} devices={devicesQ.data?.devices ?? []} city={city} onClear={() => setZone(null)} />
-          ) : selectedId ? (
-            <Inspector deviceId={selectedId} city={city} />
-          ) : (
-            <div className="p-4"><EmptyState title="Nothing selected.">Select a device on the map or in the stream to inspect its score, gate and audit trail.</EmptyState></div>
-          )}
-        </aside>
-      </main>
+      {analyticsOpen ? (
+        <AnalyticsDrawer id="analytics-drawer" analytics={data.analytics} actions={actions} />
+      ) : null}
 
-      <AnalyticsDrawer open={analytics} onOpenChange={setAnalytics} />
-      <CommandPalette open={palette} onOpenChange={setPalette} devices={devicesQ.data?.devices ?? []}
-        actions={{ runScenario, openAnalytics: () => setAnalytics(true), toggleHeat: () => setHeatOn((h) => !h), toggleZone: () => setZoneMode((z) => !z) }} />
-    </div>
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        cities={data.cities}
+        onCityChange={onCityChange}
+        devices={data.devices.status === 'ready' ? data.devices.data : []}
+        onSelectDevice={select}
+        onRunScenario={actions?.onRunScenario}
+        onToggleAnalytics={() => setAnalyticsOpen((v) => !v)}
+      />
+    </main>
   );
 }

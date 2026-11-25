@@ -27,9 +27,10 @@ export function splitSseBuffer(buffer: string): { events: string[]; rest: string
  * event are swallowed, never transport or HTTP errors (a bug in the previous integration).
  */
 export async function* streamBrief(body: BriefBody, signal?: AbortSignal): AsyncGenerator<BriefStreamMessage> {
+  const url = `${API_BASE}/api/brief/stream`;
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}/api/brief/stream`, {
+    res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
       body: JSON.stringify(body),
@@ -37,7 +38,7 @@ export async function* streamBrief(body: BriefBody, signal?: AbortSignal): Async
     });
   } catch (e) {
     if (e instanceof DOMException && e.name === "AbortError") throw e;
-    throw new ApiError(0, `Backend not reachable at ${API_BASE}.`, true);
+    throw new ApiError(0, `Backend not reachable at ${API_BASE}.`, url);
   }
   if (!res.ok) {
     let payload: unknown;
@@ -46,9 +47,9 @@ export async function* streamBrief(body: BriefBody, signal?: AbortSignal): Async
     } catch {
       payload = undefined;
     }
-    throw new ApiError(res.status, detailFrom(payload, res.statusText || "Request failed"));
+    throw new ApiError(res.status, detailFrom(payload, res.statusText || "Request failed"), url);
   }
-  if (!res.body) throw new ApiError(502, "The brief stream returned no body.");
+  if (!res.body) throw new ApiError(502, "The brief stream returned no body.", url);
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();

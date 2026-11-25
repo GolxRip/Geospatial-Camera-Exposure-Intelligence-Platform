@@ -5,7 +5,7 @@ import glowVert from "@/shaders/glow.vert";
 import glowFrag from "@/shaders/glow.frag";
 import framesVert from "@/shaders/frames.vert";
 import framesFrag from "@/shaders/frames.frag";
-import { HOOD } from "@/lib/brand/hood";
+import { FULL_SPAN_DEG, GAP_DEG, HOOD, RIB_COUNT } from "@/lib/brand/hood";
 import { configFor, lowerTier, type Tier } from "./quality";
 import { RenderLoop } from "./loop";
 
@@ -38,7 +38,7 @@ export type HoodState = {
 }
 
 export const defaultHoodState = (): HoodState => ({
-  spread: HOOD.fullSpreadDeg, from: 70.8, prog: 1, stagger: 0, eye: 1, ribs: 1, ringA: 0, ringB: 0,
+  spread: FULL_SPAN_DEG, from: FULL_SPAN_DEG * 0.3, prog: 1, stagger: 0, eye: 1, ribs: 1, ringA: 0, ringB: 0,
   arcs: 0, overlap: 0, frames: 0.8, block: 0, dolly: 8.2, px: 0, py: 0, shiftX: 0,
 });
 
@@ -63,7 +63,7 @@ function buildRibGeometry(seg = 18): THREE.BufferGeometry {
     return base++;
   };
   const quad = (a: number, b: number, c: number, d: number) => index.push(a, b, c, b, d, c);
-  for (let i = 0; i < HOOD.ribCount; i++) {
+  for (let i = 0; i < RIB_COUNT; i++) {
     // front and back faces, outer and inner walls
     for (const [k, zz, rr0, rr1] of [[0, zF, rIn, rOut], [1, zB, rIn, rOut]] as const) {
       let prev: [number, number] | null = null;
@@ -178,7 +178,7 @@ export class HoodEngine {
       side: THREE.DoubleSide,
       transparent: true,
       uniforms: {
-        uSpread: { value: 236 }, uFrom: { value: 70.8 }, uProg: { value: 1 }, uStagger: { value: 0 }, uGap: { value: HOOD.gapDeg },
+        uSpread: { value: 236 }, uFrom: { value: 70.8 }, uProg: { value: 1 }, uStagger: { value: 0 }, uGap: { value: GAP_DEG },
         uBone: { value: hex(HOOD.colors.bone) }, uAmber: { value: hex(HOOD.colors.signal) }, uEye: { value: 1 }, uOpacity: { value: 1 },
         uLightDir: { value: new THREE.Vector3(-0.4, 0.7, 0.9) }, uHighlight: { value: new Array(9).fill(0) },
       },

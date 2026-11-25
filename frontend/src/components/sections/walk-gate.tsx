@@ -6,6 +6,8 @@ import { SourceNote } from "@/components/ui/source-note";
 import { Badge } from "@/components/ui/badge";
 import { WALK_PANELS } from "@/lib/content/copy";
 import { fact } from "@/lib/content/facts";
+import { facts } from "@/lib/content/facts.generated";
+import { manualFacts } from "@/lib/content/facts.manual";
 import { useThresholds } from "@/lib/api/hooks";
 import { animateNumbers, type TweenHandle } from "@/lib/animations";
 import { spreadForGate } from "@/lib/brand/hood";
@@ -112,12 +114,12 @@ export function WalkGate() {
                 <h3 id={`walk-${p.id}`} className="text-3xl font-semibold tracking-tight md:text-4xl">{p.title}</h3>
                 <p className="t-body text-bone-2">{p.body}</p>
                 {i === 0 && <p className="num text-sm text-bone-2">T_cve, tiers from {thresholds.tiers.high_min} and {thresholds.tiers.medium_min}</p>}
-                {i === 1 && <p className="num text-sm text-bone-2">drift threshold {fact("method.tier1").driftThreshold.toFixed(2)}, L = 1 - max(w1 Freeze, w2 q, w3 m)</p>}
+                {i === 1 && <p className="num text-sm text-bone-2">drift threshold {(manualFacts["const.tier1.drift_threshold"].value as number).toFixed(2)}, L = 1 - max(w1 Freeze, w2 q, w3 m)</p>}
                 {i === 2 && <p className="num text-sm text-bone-2">P(secure and authentic)</p>}
                 {i === 3 && (
                   <div className="flex flex-col gap-2">
                     <p className="num text-sm text-bone">G(s) = 1 above {g.theta_high.toFixed(2)}, tapers to {g.floor_multiplier.toFixed(1)} at {g.theta_low.toFixed(2)}, cap {g.hard_cap} below</p>
-                    <div><Badge dashed={source === "static"}>{source === "live" ? "Live thresholds" : "Static thresholds (backend offline)"}</Badge></div>
+                    <div><Badge>{source === "live" ? "Live thresholds" : "Static thresholds (backend offline)"}</Badge></div>
                   </div>
                 )}
                 {i === 4 && (
@@ -126,13 +128,13 @@ export function WalkGate() {
                       {G_STATES.map((s, k) => (
                         <button key={s.id} type="button" aria-pressed={stateIdx === k} onClick={() => { setStateIdx(k); }}
                           className={cn("flex flex-col items-center gap-2 rounded-card border border-line px-4 py-3 text-sm text-bone-2 transition-colors duration-[160ms] hover:bg-ink-2", stateIdx === k && "border-signal/60 bg-signal-dim text-bone")}>
-                          <HoodGauge gate={s.g} score={Math.round(s.g * 100)} size={72} />
+                          <HoodGauge gate={s.g} trust={Math.round(s.g * 100)} size={72} />
                           {s.label}
                         </button>
                       ))}
                     </div>
                     <p className="num text-sm text-bone-2">
-                      IG-DCTF F1 {ex.f1.toFixed(3)} <SourceNote fact="res.model.igdctf" /> on the synthetic corpus
+                      IG-DCTF F1 {ex.f1.toFixed(3)} <SourceNote fact={facts["res.model.igdctf"] as { source: string; section: string; anchor: string | null }} /> on the synthetic corpus
                     </p>
                   </div>
                 )}

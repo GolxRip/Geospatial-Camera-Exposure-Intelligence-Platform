@@ -1,230 +1,539 @@
-"use client";
-import * as React from "react";
-import Link from "next/link";
-import { scaleLinear } from "d3-scale";
-import { line } from "d3-shape";
-import { HoodGauge } from "@/components/ui/hood-gauge";
-import { TierTag } from "@/components/ui/tier-tag";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { InlineError } from "@/components/ui/inline-error";
-import { OfflineState } from "@/components/ui/offline-state";
-import { Skeleton } from "@/components/ui/skeleton";
-import { DemoTag } from "@/components/ui/demo-tag";
-import { GateCurve } from "@/components/lab/gate-explorer";
-import { maskIp } from "@/lib/api/mask-ip";
-import { geoProvenance, prettifyFactor } from "@/lib/api/normalize";
-import { ApiError } from "@/lib/api/errors";
-import { useDevices, useThresholds, useTrustScore } from "@/lib/api/hooks";
-import { useAuditTrail, useDecay, useVerdict } from "@/lib/api/console-hooks";
-import { useConsoleStore } from "@/lib/state/console-store";
-import { fact } from "@/lib/content/facts";
-import { ROUTES } from "@/lib/constants/routes";
-import { cn } from "@/lib/utils";
+'use client';
 
-function Sec({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
+import * as React from 'react';
+import Link from 'next/link';
+import { ArrowRight } from '@phosphor-icons/react/dist/ssr';
+import { GateCurve } from '@/components/lab/gate-curve';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { HoodGauge } from '@/components/ui/hood-gauge';
+import { InlineError } from '@/components/ui/inline-error';
+import { OfflineState } from '@/components/ui/offline-state';
+import { Skeleton } from '@/components/ui/skeleton';
+import { TierTag } from '@/components/ui/tier-tag';
+import { manualFacts } from '@/lib/content/facts.manual';
+import { deviceRoute } from '@/lib/constants/routes';
+import type { ConsoleActions, DeviceDetail, LoadState } from '@/lib/data/types';
+import { f2 } from '@/lib/format';
+import { cn } from '@/lib/utils';
+import { ModelsTable } from './models-table';
+
+const DRIFT_THRESHOLD = manualFacts['const.tier1.drift_threshold'].value;
+const GATE_STATUS_LABEL = {
+  nominal: 'Nominal',
+  tapered: 'Tapered',
+  hard_gated: 'Hard gated',
+} as const;
+const AUDIT_PREVIEW = 5;
+
+const num = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+const signed = (n: number) => (n > 0 ? `+${num(n)}` : n < 0 ? `−${num(Math.abs(n))}` : '0');
+
+function utc(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : `${d.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+}
+
+type Level = 'h2' | 'h3';
+
+function Block({
+  id,
+  title,
+  level,
+  className,
+  children,
+}: {
+  id: string;
+  title: string;
+  level: Level;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const H = level;
   return (
-    <section aria-label={title} className={cn("flex flex-col gap-3 border-t border-line pt-4", className)}>
-      <h3 className="text-sm font-medium text-bone">{title}</h3>
+    <section aria-labelledby={`inspector-${id}`} className={cn('flex flex-col gap-3', className)}>
+      <H
+        id={`inspector-${id}`}
+        className={
+          level === 'h2'
+            ? 'text-xl font-semibold tracking-tight'
+            : 'text-base font-semibold tracking-tight'
+        }
+      >
+        {title}
+      </H>
       {children}
     </section>
   );
 }
 
-function Skel() {
-  return <div className="flex flex-col gap-2" aria-hidden="true"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-8 w-full" /></div>;
-}
-
-function QueryState({ q, children, empty }: { q: { isPending: boolean; error: unknown; data: unknown }; children: React.ReactNode; empty?: string }) {
-  if (q.isPending) return <Skel />;
-  if (q.error instanceof ApiError && q.error.offline) return <OfflineState detail={q.error.detail} />;
-  if (q.error) return <InlineError title="Could not load this section">{q.error instanceof ApiError ? q.error.detail : "Unexpected error"}</InlineError>;
-  if (!q.data && empty) return <p className="text-sm text-bone-2">{empty}</p>;
-  return <>{children}</>;
-}
-
-function Row({ k, v }: { k: string; v: React.ReactNode }) {
-  return <div className="flex items-baseline justify-between gap-4 border-b border-line py-1.5 text-sm"><dt className="text-bone-2">{k}</dt><dd className="num text-right text-bone">{v}</dd></div>;
-}
-
-function ModelBars({ rows }: { rows: [string, number][] }) {
+function DefList({ items }: { items: { term: string; value: React.ReactNode }[] }) {
   return (
-    <ul className="flex flex-col gap-2">
-      {rows.map(([k, v]) => (
-        <li key={k} className="grid grid-cols-[8.5rem_1fr_auto] items-center gap-3 text-xs text-bone-2">
-          <span>{k}</span>
-          <span className="h-2 overflow-hidden rounded-full bg-ink-3" aria-hidden="true"><span className={cn("block h-full rounded-full", k.startsWith("IG-DCTF") ? "bg-signal" : "bg-bone-3")} style={{ width: `${Math.max(0, Math.min(100, v))}%` }} /></span>
-          <span className="num text-sm text-bone">{Math.round(v)}</span>
-        </li>
+    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+      {items.map((i) => (
+        <React.Fragment key={i.term}>
+          <dt className="text-bone-2">{i.term}</dt>
+          <dd className="min-w-0 break-words text-bone">{i.value}</dd>
+        </React.Fragment>
       ))}
-    </ul>
+    </dl>
   );
 }
 
-function DecayChart({ series }: { series: { hour: number; score: number }[] }) {
-  const W = 340, H = 150, m = { l: 30, r: 8, t: 8, b: 22 };
-  const x = scaleLinear().domain([0, Math.max(...series.map((s) => s.hour), 1)]).range([m.l, W - m.r]);
-  const y = scaleLinear().domain([0, 100]).range([H - m.b, m.t]);
-  const d = line<{ hour: number; score: number }>().x((s) => x(s.hour)).y((s) => y(s.score))(series) ?? "";
+function DecayChart({ points, unit }: { points: DeviceDetail['decay']; unit?: string }) {
+  if (points.length < 2)
+    return <p className="text-sm text-bone-2">No decay curve for this device.</p>;
+  const W = 320;
+  const H = 150;
+  const m = { l: 34, r: 10, t: 10, b: 28 };
+  const maxAge = Math.max(...points.map((p) => p.age));
+  const x = (a: number) => m.l + (maxAge === 0 ? 0 : a / maxAge) * (W - m.l - m.r);
+  const y = (w: number) => H - m.b - Math.max(0, Math.min(1, w)) * (H - m.t - m.b);
+  const d = points
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(p.age).toFixed(1)} ${y(p.weight).toFixed(1)}`)
+    .join(' ');
+  const first = points[0]!;
+  const last = points[points.length - 1]!;
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Trust score decay over hours since the scan" className="w-full">
-      {[0, 50, 100].map((v) => <g key={v}><line x1={m.l} x2={W - m.r} y1={y(v)} y2={y(v)} stroke="var(--line)" /><text x={m.l - 5} y={y(v) + 3} textAnchor="end" fontSize="9" className="num" fill="var(--bone-2)">{v}</text></g>)}
-      <path d={d} fill="none" stroke="var(--signal)" strokeWidth="1.6" />
-      <text x={W - m.r} y={H - 6} textAnchor="end" fontSize="9" fill="var(--bone-2)">hours since scan</text>
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      role="img"
+      aria-label={`Decay curve. Weight goes from ${f2(first.weight)} at age ${num(first.age)} to ${f2(last.weight)} at age ${num(last.age)}${unit ? ` ${unit}` : ''}.`}
+      className="w-full max-w-sm"
+    >
+      <g className="stroke-line-strong" strokeWidth="1" fill="none">
+        <path d={`M ${x(0)} ${y(0)} H ${x(maxAge)}`} />
+        <path d={`M ${x(0)} ${y(0)} V ${y(1)}`} />
+      </g>
+      <path d={d} fill="none" className="stroke-bone" strokeWidth="2" strokeLinejoin="round" />
+      <text
+        x={m.l - 6}
+        y={y(1) + 3}
+        textAnchor="end"
+        className="fill-bone-2 font-mono"
+        fontSize="10"
+      >
+        1.0
+      </text>
+      <text
+        x={m.l - 6}
+        y={y(0) + 3}
+        textAnchor="end"
+        className="fill-bone-2 font-mono"
+        fontSize="10"
+      >
+        0
+      </text>
+      <text x={x(0)} y={H - 10} className="fill-bone-2 font-mono" fontSize="10">
+        0
+      </text>
+      <text
+        x={x(maxAge)}
+        y={H - 10}
+        textAnchor="end"
+        className="fill-bone-2 font-mono"
+        fontSize="10"
+      >
+        {num(maxAge)} {unit ?? ''}
+      </text>
+      <text
+        x={(x(0) + x(maxAge)) / 2}
+        y={H - 10}
+        textAnchor="middle"
+        className="fill-bone-2 font-mono"
+        fontSize="10"
+      >
+        age
+      </text>
     </svg>
   );
 }
 
-export function Inspector({ deviceId, city, wide = false, className }: { deviceId: string; city: string; wide?: boolean; className?: string }) {
-  const cityDevices = useDevices(city);
-  const inCity = !!cityDevices.data?.devices.some((d) => d.id === deviceId);
-  const allDevices = useDevices("All India", cityDevices.isSuccess && !inCity);
-  const ts = useTrustScore(deviceId);
-  const decay = useDecay(deviceId);
-  const trail = useAuditTrail(deviceId);
-  const { thresholds } = useThresholds();
-  const alerts = useConsoleStore((s) => s.alerts);
-  const verdict = useVerdict();
-  const device = cityDevices.data?.devices.find((d) => d.id === deviceId) ?? allDevices.data?.devices.find((d) => d.id === deviceId);
-  const latest = alerts.find((a) => a.camera_id === deviceId);
-  const t1 = fact("method.tier1");
+function InspectorSkeleton({ level }: { level: Level }) {
+  const sections: [string, string][] = [
+    ['header', 'Header'],
+    ['factors', 'Channel A factors'],
+    ['channel-b', 'Channel B'],
+    ['gate', 'Gate'],
+    ['models', 'Scoring models'],
+    ['decay', 'Decay'],
+    ['audit', 'Audit trail'],
+    ['verdict', 'Verdict'],
+  ];
+  return (
+    <div aria-busy="true" aria-label="Loading device" className="flex flex-col gap-6">
+      {sections.map(([id, title]) => (
+        <Block key={id} id={id} title={title} level={level}>
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-4 w-2/3" />
+        </Block>
+      ))}
+    </div>
+  );
+}
 
-  if (ts.error instanceof ApiError && ts.error.status === 404) {
+export interface InspectorProps {
+  detail: LoadState<DeviceDetail | null>;
+  actions?: ConsoleActions;
+  /** Device forensics page: two-column reading layout from 1024 up, section headings at h2, the full audit trail. */
+  wide?: boolean;
+  /** Where the "Open forensics" link goes. Defaults to the device route. Not shown in `wide` mode. */
+  deviceHref?: (id: string) => string;
+  className?: string;
+}
+
+/**
+ * The inspector (FRONTEND_SPEC.md section 10.3): eight sections, top to bottom. Whole-device loading, offline, error and
+ * nothing-selected states are drawn here; each section also has its own empty states inside a loaded device (no factors,
+ * no authorized footage, no audit entries). Nothing is displayed for a field the data does not have.
+ */
+export function Inspector({
+  detail,
+  actions,
+  wide = false,
+  deviceHref = deviceRoute,
+  className,
+}: InspectorProps) {
+  const level: Level = wide ? 'h2' : 'h3';
+  if (detail.status === 'loading') return <InspectorSkeleton level={level} />;
+  if (detail.status === 'offline') return <OfflineState className={className} />;
+  if (detail.status === 'error')
     return (
-      <div className={cn("flex flex-col gap-3 p-4", className)}>
-        <p className="font-medium">Device not in the database</p>
-        <p className="text-sm text-bone-2">The alert refers to a device identifier that is not stored (<span className="num">{deviceId.slice(0, 14)}</span>). Simulator events use identifiers like this.</p>
-      </div>
+      <InlineError
+        className={className}
+        title="Device could not be loaded"
+        detail={detail.message}
+      />
+    );
+  if (detail.data === null) {
+    return (
+      <EmptyState className={className} title="No device selected">
+        Select a device on the map or in the alert stream to see its score, the evidence behind it
+        and its audit trail.
+      </EmptyState>
     );
   }
+  return (
+    <InspectorBody
+      key={detail.data.id}
+      d={detail.data}
+      actions={actions}
+      wide={wide}
+      level={level}
+      deviceHref={deviceHref}
+      className={className}
+    />
+  );
+}
 
-  const s = ts.data;
-  const gateTripped = s?.integrity_gate_tripped ?? false;
-  const basis = device?.trust_score_basis?.startsWith("static") ? "static posture" : s ? "on demand" : "";
+function InspectorBody({
+  d,
+  actions,
+  wide,
+  level,
+  deviceHref,
+  className,
+}: {
+  d: DeviceDetail;
+  actions?: ConsoleActions;
+  wide: boolean;
+  level: Level;
+  deviceHref: (id: string) => string;
+  className?: string;
+}) {
+  const [sent, setSent] = React.useState<'verified' | 'false_alarm' | null>(null);
+  const [pending, setPending] = React.useState(false);
+  const [showAll, setShowAll] = React.useState(false);
+
+  const maxDelta = Math.max(1, ...d.channelA.factors.map((f) => Math.abs(f.delta)));
+  const drift = d.channelB.drift;
+  const audit = wide || showAll ? d.audit : d.audit.slice(0, AUDIT_PREVIEW);
+  const gateLabel = `Gate multiplier ${f2(d.gate.multiplier)}, ${d.score === null ? 'unscored' : `trust score ${Math.round(d.score)}`}`;
+
+  const submit = async (v: 'verified' | 'false_alarm') => {
+    if (!actions?.onVerdict) return;
+    setPending(true);
+    try {
+      await actions.onVerdict(v);
+      setSent(v);
+    } catch {
+      setSent(null);
+    } finally {
+      setPending(false);
+    }
+  };
 
   return (
-    <div className={cn("flex flex-col gap-5 p-4", className)}>
-      <header className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <p className="num truncate text-lg text-bone">{maskIp(device?.ip)}</p>
-          <p className="text-sm text-bone-2">{device?.manufacturer ?? "Unknown manufacturer"} · {device?.device_type ?? "device"}</p>
-          <p className="text-sm text-bone-2">{device?.owner_org ?? device?.org ?? "Unknown owner"} · {device?.owner_type ?? "unknown"}{device?.ownership_confidence ? ` (${device.ownership_confidence} confidence)` : ""}</p>
-          <p className="text-xs text-bone-2">City: {device?.city ?? s?.city ?? "unknown"} · {geoProvenance(device?.geo_source).label}</p>
-          {device && <p className="text-xs text-bone-2">{geoProvenance(device.geo_source).note}</p>}
-          {s ? <div className="mt-1 flex flex-wrap items-center gap-3"><TierTag tier={s.action_tier} gateTripped={gateTripped} score={s.trust_score} />{basis && <Badge>{basis}</Badge>}</div> : <Skeleton className="mt-1 h-5 w-40" />}
-        </div>
-        {s ? <HoodGauge gate={s.gate_multiplier} score={s.trust_score} size={wide ? 140 : 92} animate /> : <Skeleton className="size-20" />}
-      </header>
-
-      <div className={cn("grid gap-5", wide && "lg:grid-cols-2")}>
-        <Sec title="Channel A: vulnerability posture">
-          <QueryState q={ts}>
-            {s && (
-              <>
-                <dl>
-                  <Row k="Known CVEs" v={s.known_cve_count ?? 0} />
-                  <Row k="Max CVSS" v={s.max_cvss ?? "none"} />
-                  <Row k="Authentication" v={s.auth_required === null || s.auth_required === undefined ? "unknown (scored as open)" : s.auth_required ? "required" : "not required"} />
-                  <Row k="Posture score (T_cve)" v={s.cyber_trust_score} />
-                </dl>
-                <ul className="flex flex-wrap gap-1.5">
-                  {s.contributing_factors.map((f) => <li key={f}><Badge>{prettifyFactor(f)}</Badge></li>)}
-                  {s.contributing_factors.length === 0 && <li className="text-sm text-bone-2">No contributing factors reported.</li>}
-                </ul>
-              </>
-            )}
-          </QueryState>
-        </Sec>
-
-        <Sec title="Channel B: feed authenticity">
-          <QueryState q={ts}>
-            {s && (
-              <>
-                <p className="text-xs text-bone-2">Tier 1, banner drift. Weights and the drift threshold {t1.driftThreshold.toFixed(2)} come from the scoring code.</p>
-                <ul className="flex flex-col gap-1">
-                  {([["Firmware", t1.weights.firmware], ["HTTP server", t1.weights.server], ["Open ports", t1.weights.ports], ["Resolution", t1.weights.resolution], ["Product string", t1.weights.product], ["Codec", t1.weights.codec]] as const).map(([k, w]) => (
-                    <li key={k} className="grid grid-cols-[6.5rem_1fr_auto] items-center gap-3 text-xs text-bone-2"><span>{k}</span><span className="h-1.5 overflow-hidden rounded-full bg-ink-3" aria-hidden="true"><span className="block h-full rounded-full bg-bone-3" style={{ width: `${(w / 0.25) * 100}%` }} /></span><span className="num text-bone">{w.toFixed(2)}</span></li>
-                  ))}
-                </ul>
-                <dl><Row k="Drift score" v={s.drift_score.toFixed(2)} /></dl>
-                <p className="text-xs text-bone-2">The API returns the aggregate drift only, so the baseline and current banner values are not shown per field.</p>
-                <p className="rounded-input border border-line bg-ink-1 p-3 text-sm text-bone-2">Tier 2 unavailable: no authorized footage for this device.</p>
-              </>
-            )}
-          </QueryState>
-        </Sec>
-
-        <Sec title="Gate">
-          <QueryState q={ts}>
-            {s && (
-              <>
-                <div className="rounded-card border border-line bg-ink-1 p-2"><GateCurve s={s.signal_integrity_score} g={s.gate_multiplier} thetaLow={thresholds.gate.theta_low} thetaHigh={thresholds.gate.theta_high} /></div>
-                <dl>
-                  <Row k="Signal integrity s" v={s.signal_integrity_score.toFixed(2)} />
-                  <Row k="Multiplier G(s)" v={s.gate_multiplier.toFixed(2)} />
-                  <Row k="Gate status" v={s.gate_status.replace("_", " ")} />
-                  <Row k="Hard cap" v={gateTripped ? thresholds.gate.hard_cap : "not applied"} />
-                </dl>
-              </>
-            )}
-          </QueryState>
-        </Sec>
-
-        <Sec title="Scoring models">
-          <QueryState q={ts}>
-            {s && <ModelBars rows={[["Weighted average", s.trust_score_wa], ["CVE-only", s.trust_score_advanced], ["Bayesian log-odds", s.trust_score_probabilistic], ["IG-DCTF", s.trust_score_ig_dctf], ["IG-DCTF, decayed", s.trust_score_decayed]]} />}
-          </QueryState>
-        </Sec>
-
-        <Sec title="Decay">
-          <QueryState q={decay}>
-            {decay.data && (
-              <>
-                <DecayChart series={decay.data.decay_series} />
-                <p className="num text-xs text-bone-2">{decay.data.base_score} now {decay.data.current_decayed_score} after {decay.data.hours_since_scan ?? "?"} h, half-life {decay.data.half_life_hours} h</p>
-              </>
-            )}
-          </QueryState>
-        </Sec>
-
-        <Sec title="Audit trail">
-          <QueryState q={trail}>
-            {trail.data && trail.data.entries.length === 0 ? (
-              <p className="text-sm text-bone-2">No ledger entries for this device yet.</p>
-            ) : (
-              <ul className="flex flex-col gap-1.5">
-                {trail.data?.entries.map((e, i) => (
-                  <li key={e.hash ?? i} className="num truncate rounded-input border border-line bg-ink-1 px-3 py-2 text-xs text-bone-2">#{e.sequence_id} · {(e.hash ?? "").slice(0, 16)}</li>
-                ))}
-              </ul>
-            )}
-          </QueryState>
-        </Sec>
-      </div>
-
-      <Sec title="Verdict">
-        {latest ? (
-          <div className="flex flex-col gap-3">
-            <p className="text-sm text-bone-2">Latest alert for this device: {latest.event_type.replaceAll("_", " ")} {latest.demo && <DemoTag className="ml-1" />}</p>
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="secondary" disabled={verdict.isPending} onClick={() => verdict.mutate({ alertId: latest.id, verdict: "verified" })}>Verified</Button>
-              <Button size="sm" variant="secondary" disabled={verdict.isPending} onClick={() => verdict.mutate({ alertId: latest.id, verdict: "false_alarm" })}>False alarm</Button>
-            </div>
-            {verdict.isSuccess && <p role="status" className="text-sm text-bone-2">Verdict recorded.</p>}
-            {verdict.error instanceof ApiError && (
-              <InlineError title="Verdict not accepted">
-                {verdict.error.isForbidden ? "The backend answered " + verdict.error.status + ". A detection API key is configured and this browser has none, so verdicts are disabled." : verdict.error.detail}
-              </InlineError>
-            )}
-          </div>
-        ) : (
-          <p className="text-sm text-bone-2">No alert for this device in the stream. Verdicts attach to alerts.</p>
-        )}
-      </Sec>
-
-      {!wide && (
-        <Button asChild variant="secondary" size="sm" className="self-start"><Link href={ROUTES.device(deviceId)}>Open forensics</Link></Button>
+    <div
+      className={cn(
+        'flex flex-col gap-8',
+        wide && 'lg:grid lg:grid-cols-2 lg:gap-x-12 lg:gap-y-10',
+        className,
       )}
+    >
+      <Block id="header" title="Header" level={level}>
+        <div className="flex items-center gap-4">
+          <HoodGauge
+            size={wide ? 96 : 72}
+            gate={d.gate.multiplier}
+            trust={d.score ?? 0}
+            label={gateLabel}
+          />
+          <div className="flex flex-col gap-1">
+            <TierTag tier={d.tier} gateTripped={d.gateTripped} size={14} />
+            <p className="num text-3xl leading-none font-medium text-bone">
+              {d.score === null ? '--' : Math.round(d.score)}
+              <span className="ml-2 font-sans text-xs font-normal text-bone-2">T_final</span>
+            </p>
+            <p className="text-xs text-bone-2">Basis: {d.basis}</p>
+          </div>
+        </div>
+        <DefList
+          items={[
+            { term: 'IP', value: <span className="num">{d.maskedIp}</span> },
+            { term: 'Maker', value: d.manufacturer },
+            { term: 'Type', value: d.deviceType },
+            {
+              term: 'Owner',
+              value: (
+                <>
+                  {d.owner}
+                  <span className="text-bone-2">
+                    {' '}
+                    ({d.ownerType}
+                    {d.ownerConfidence !== undefined
+                      ? `, confidence ${Math.round(d.ownerConfidence * 100)}%`
+                      : ''}
+                    )
+                  </span>
+                </>
+              ),
+            },
+            {
+              term: 'City',
+              value: (
+                <>
+                  {d.city} <span className="text-bone-2">(estimated from IP)</span>
+                </>
+              ),
+            },
+          ]}
+        />
+        {!wide ? (
+          <Link
+            href={deviceHref(d.id)}
+            className="inline-flex min-h-11 items-center gap-2 self-start rounded-chip text-sm text-bone underline-offset-4 hover:underline"
+          >
+            Open forensics
+            <ArrowRight aria-hidden size={14} />
+          </Link>
+        ) : null}
+      </Block>
+
+      <Block id="factors" title="Channel A factors" level={level}>
+        <p className="text-sm text-bone-2">
+          Vulnerability posture{' '}
+          <span className="num text-bone">T_cve {Math.round(d.channelA.tCve)}</span>
+        </p>
+        {d.channelA.factors.length === 0 ? (
+          <p className="text-sm text-bone-2">No factors were reported for this device.</p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {d.channelA.factors.map((f) => (
+              <li key={f.label} className="flex flex-col gap-1.5">
+                <div className="flex items-start justify-between gap-3 text-sm">
+                  <span className="min-w-0 text-bone">
+                    {f.label}
+                    {f.kev ? (
+                      <Badge
+                        tone="signal"
+                        className="ml-2"
+                        title="Listed in the CISA Known Exploited Vulnerabilities catalog"
+                      >
+                        CISA KEV
+                      </Badge>
+                    ) : null}
+                  </span>
+                  <span className="num shrink-0 text-bone">{signed(f.delta)}</span>
+                </div>
+                <div className="h-2" aria-hidden>
+                  <div
+                    className={cn('h-full rounded-chip', f.delta < 0 ? 'bg-signal' : 'bg-bone-2')}
+                    style={{ width: `${(Math.abs(f.delta) / maxDelta) * 100}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Block>
+
+      <Block id="channel-b" title="Channel B" level={level}>
+        {drift === null ? (
+          <p className="text-sm text-bone-2">
+            Tier 1 unavailable: no baseline banner for this device.
+          </p>
+        ) : (
+          <p className="text-sm text-bone-2">
+            Tier 1 banner drift <span className="num text-bone">{f2(drift)}</span>, threshold{' '}
+            {f2(DRIFT_THRESHOLD)}:{' '}
+            <span className="text-bone">
+              {drift > DRIFT_THRESHOLD ? 'above, flagged' : 'within'}
+            </span>
+          </p>
+        )}
+        {d.channelB.banner.length > 0 ? (
+          <ul aria-label="Banner fields, weighted" className="flex flex-col">
+            {d.channelB.banner.map((b) => {
+              const changed = b.baseline !== b.current;
+              return (
+                <li
+                  key={b.field}
+                  className="grid grid-cols-2 gap-x-3 gap-y-0.5 border-b border-line py-2 text-sm"
+                >
+                  <span className="text-bone">
+                    {b.field}{' '}
+                    <span className="num text-xs text-bone-2">weight {b.weight.toFixed(2)}</span>
+                  </span>
+                  <span className="text-right">
+                    {changed ? (
+                      <Badge tone="signal">changed</Badge>
+                    ) : (
+                      <span className="text-xs text-bone-2">same</span>
+                    )}
+                  </span>
+                  <span className="min-w-0 break-words">
+                    <span className="block text-xs text-bone-2">Baseline</span>
+                    <span className="num text-bone-2">{b.baseline}</span>
+                  </span>
+                  <span className="min-w-0 break-words">
+                    <span className="block text-xs text-bone-2">Current</span>
+                    <span className="num text-bone">{b.current}</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+        {d.channelB.liveness === null ? (
+          <p className="text-sm text-bone-2">
+            Tier 2 unavailable: no authorized footage for this device.
+          </p>
+        ) : (
+          <p className="text-sm text-bone-2">
+            Tier 2 liveness <span className="num text-bone">L {f2(d.channelB.liveness)}</span>
+          </p>
+        )}
+      </Block>
+
+      <Block id="gate" title="Gate" level={level}>
+        <GateCurve s={d.gate.s} g={d.gate.multiplier} className="w-full max-w-sm" />
+        <DefList
+          items={[
+            { term: 's', value: <span className="num">{f2(d.gate.s)}</span> },
+            { term: 'G(s)', value: <span className="num">{f2(d.gate.multiplier)}</span> },
+            {
+              term: 'Hard cap',
+              value: (
+                <span className="num">{d.gate.hardCap === null ? 'none' : d.gate.hardCap}</span>
+              ),
+            },
+            { term: 'Status', value: GATE_STATUS_LABEL[d.gate.status] },
+          ]}
+        />
+      </Block>
+
+      <Block id="models" title="Scoring models" level={level}>
+        <ModelsTable models={d.models} full={wide} />
+      </Block>
+
+      <Block id="decay" title="Decay" level={level}>
+        <DecayChart points={d.decay} unit={d.decayAgeUnit} />
+      </Block>
+
+      <Block
+        id="audit"
+        title="Audit trail"
+        level={level}
+        className={wide ? 'lg:col-span-2' : undefined}
+      >
+        {d.audit.length === 0 ? (
+          <p className="text-sm text-bone-2">No audit entries for this device.</p>
+        ) : (
+          <>
+            <ul className="flex flex-col">
+              {audit.map((a) => (
+                <li
+                  key={a.id}
+                  className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-line py-2 text-sm"
+                >
+                  <time dateTime={a.time} className="num text-xs text-bone-2">
+                    {utc(a.time)}
+                  </time>
+                  <span className="min-w-0 flex-1 font-mono text-xs text-bone">{a.action}</span>
+                  {a.proofHref ? (
+                    <Link
+                      href={a.proofHref}
+                      className="rounded-chip text-bone underline-offset-4 hover:underline"
+                    >
+                      Merkle proof
+                    </Link>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            {!wide && d.audit.length > AUDIT_PREVIEW ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="self-start"
+                aria-expanded={showAll}
+                onClick={() => setShowAll((v) => !v)}
+              >
+                {showAll ? 'Show fewer' : `Show all ${d.audit.length}`}
+              </Button>
+            ) : null}
+          </>
+        )}
+      </Block>
+
+      <Block id="verdict" title="Verdict" level={level}>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={!actions?.onVerdict || pending}
+            aria-describedby={actions?.onVerdict ? undefined : 'verdict-hint'}
+            onClick={() => void submit('verified')}
+          >
+            Verified
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={!actions?.onVerdict || pending}
+            aria-describedby={actions?.onVerdict ? undefined : 'verdict-hint'}
+            onClick={() => void submit('false_alarm')}
+          >
+            False alarm
+          </Button>
+        </div>
+        {!actions?.onVerdict ? (
+          <p id="verdict-hint" className="text-sm text-bone-2">
+            Verdicts are not connected to a data source.
+          </p>
+        ) : null}
+        {actions?.verdictError ? (
+          <InlineError title="Verdict not recorded" detail={actions.verdictError} />
+        ) : null}
+        {sent && !actions?.verdictError ? (
+          <p role="status" className="text-sm text-bone-2">
+            Sent: {sent === 'verified' ? 'verified' : 'false alarm'}.
+          </p>
+        ) : null}
+      </Block>
     </div>
   );
 }

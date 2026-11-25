@@ -1,67 +1,167 @@
-"use client";
-import * as React from "react";
-import Link from "next/link";
-import { ChartBar, Command as CommandIcon } from "@phosphor-icons/react/dist/ssr";
-import { HoodGauge } from "@/components/ui/hood-gauge";
-import { Button } from "@/components/ui/button";
-import { Kbd } from "@/components/ui/kbd";
-import { CITIES, useThresholds } from "@/lib/api/hooks";
-import { gateCurve } from "@/lib/scoring/gate";
-import { useStats, useSummary } from "@/lib/api/console-hooks";
-import { useConsoleStore } from "@/lib/state/console-store";
-import { cn } from "@/lib/utils";
+'use client';
 
-const STATUS: Record<string, string> = { connecting: "Connecting", live: "Live", disconnected: "Disconnected" };
+import * as React from 'react';
+import Link from 'next/link';
+import { ChartBar, MagnifyingGlass } from '@phosphor-icons/react/dist/ssr';
+import { Button } from '@/components/ui/button';
+import { HoodGauge } from '@/components/ui/hood-gauge';
+import { Kbd } from '@/components/ui/kbd';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ROUTES } from '@/lib/constants/routes';
+import type { ConnectionInfo, FleetCounts, LoadState } from '@/lib/data/types';
+import { cn } from '@/lib/utils';
 
-export function TopBar({ onRun, running, onAnalytics, onPalette, runMessage }: { onRun: () => void; running: boolean; onAnalytics: () => void; onPalette: () => void; runMessage: string | null }) {
-  const city = useConsoleStore((s) => s.city);
-  const setCity = useConsoleStore((s) => s.setCity);
-  const connection = useConsoleStore((s) => s.connection);
-  const retryInMs = useConsoleStore((s) => s.retryInMs);
-  const alerts = useConsoleStore((s) => s.alerts);
-  const stats = useStats(city);
-  const summary = useSummary();
-  const [left, setLeft] = React.useState<number | null>(null);
-
-  React.useEffect(() => {
-    if (connection !== "disconnected" || retryInMs === null) { const t = setTimeout(() => setLeft(null), 0); return () => clearTimeout(t); }
-    const end = Date.now() + retryInMs;
-    const tick = () => setLeft(Math.max(0, Math.ceil((end - Date.now()) / 1000)));
-    const t0 = setTimeout(tick, 0);
-    const id = setInterval(tick, 500);
-    return () => { clearTimeout(t0); clearInterval(id); };
-  }, [connection, retryInMs]);
-
-  const { thresholds } = useThresholds();
-  const latest = alerts[0];
-  // The gauge shows the latest alert's gate multiplier, computed from its signal integrity with the live thresholds.
-  const gate = !latest ? 1
-    : latest.signal_integrity_score != null ? gateCurve(latest.signal_integrity_score, thresholds.gate.theta_high, thresholds.gate.theta_low)
-    : latest.integrity_gate_tripped ? thresholds.gate.floor_multiplier : 1;
-
+function ConnectionStatus({ connection }: { connection: ConnectionInfo }) {
+  const label =
+    connection.status === 'live'
+      ? 'Live'
+      : connection.status === 'connecting'
+        ? 'Connecting'
+        : connection.retryInSeconds !== undefined
+          ? `Disconnected, retrying in ${connection.retryInSeconds} s`
+          : 'Disconnected';
   return (
-    <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-ink-0 px-3 py-2 md:px-4">
-      <Link href="/" aria-label="COBRA-WATCH home" className="flex items-center gap-2 no-underline">
-        <HoodGauge gate={gate} score={latest?.trust_score ?? 100} size={40} animate label="Latest gate state" />
-        <span className="hidden text-sm font-semibold tracking-[0.18em] text-bone sm:inline">COBRA-WATCH</span>
+    <p
+      role="status"
+      className="flex h-9 items-center gap-2 rounded-control border border-line px-3 text-sm text-bone"
+    >
+      <svg aria-hidden width="8" height="8" viewBox="0 0 8 8" className="shrink-0">
+        {connection.status === 'live' ? <rect width="8" height="8" className="fill-bone" /> : null}
+        {connection.status === 'connecting' ? (
+          <rect
+            x="0.75"
+            y="0.75"
+            width="6.5"
+            height="6.5"
+            fill="none"
+            className="stroke-bone-2"
+            strokeWidth="1.5"
+          />
+        ) : null}
+        {connection.status === 'disconnected' ? (
+          <path d="M0 4 H8" className="stroke-signal" strokeWidth="2" />
+        ) : null}
+      </svg>
+      {label}
+    </p>
+  );
+}
+
+function Counts({ counts }: { counts: LoadState<FleetCounts> }) {
+  if (counts.status === 'loading') return <Skeleton aria-hidden className="h-9 w-48" />;
+  if (counts.status !== 'ready')
+    return <p className="flex h-9 items-center text-sm text-bone-2">Counts unavailable</p>;
+  const items = [
+    ['Devices', counts.data.devices],
+    ['Alerts', counts.data.alerts],
+    ['Gate tripped', counts.data.gateTripped],
+  ] as const;
+  return (
+    <dl aria-label="Counts" className="flex h-9 items-center gap-4 text-sm">
+      {items.map(([k, v]) => (
+        <div key={k} className="flex items-baseline gap-1.5">
+          <dt className="text-bone-2">{k}</dt>
+          <dd className="num text-bone">{v}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+export interface TopBarProps {
+  connection: ConnectionInfo;
+  counts: LoadState<FleetCounts>;
+  cities: string[];
+  city: string;
+  onCityChange: (city: string) => void;
+  onRunScenario?: () => void;
+  onOpenPalette: () => void;
+  analyticsOpen: boolean;
+  onToggleAnalytics: () => void;
+  /** Gate state of the selected device, which the mark in the corner reflects. Omit for the plain mark. */
+  gauge?: { multiplier: number; score: number | null } | null;
+}
+
+/**
+ * Console top bar (FRONTEND_SPEC.md section 10.1): the mark as a gauge of the selected device, connection status, city select,
+ * counts, Run scenario, the command palette and the analytics drawer.
+ */
+export function TopBar({
+  connection,
+  counts,
+  cities,
+  city,
+  onCityChange,
+  onRunScenario,
+  onOpenPalette,
+  analyticsOpen,
+  onToggleAnalytics,
+  gauge,
+}: TopBarProps) {
+  return (
+    <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-3 py-2 md:px-4">
+      <h1 className="sr-only">Console</h1>
+      <Link
+        href={ROUTES.home}
+        aria-label="COBRA-WATCH, home"
+        className="inline-flex min-h-11 items-center rounded-chip"
+      >
+        <HoodGauge size={44} gate={gauge?.multiplier ?? 1} trust={gauge?.score ?? 100} decorative />
       </Link>
-      <label className="sr-only" htmlFor="city">City</label>
-      <select id="city" value={city} onChange={(e) => setCity(e.target.value)} className="h-9 rounded-full border border-line-strong bg-ink-2 px-3 text-sm text-bone">
-        {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-      </select>
-      <div role="status" aria-live="polite" className="flex items-center gap-2 text-sm text-bone-2">
-        <span aria-hidden="true" className={cn("size-2 rounded-full", connection === "live" ? "bg-signal" : "border border-bone-3")} />
-        {STATUS[connection]}{connection === "disconnected" && left !== null ? <span className="num">, retry in {left}s</span> : null}
-      </div>
-      <dl className="num hidden items-center gap-5 text-sm md:flex">
-        <div className="flex items-baseline gap-1.5"><dt className="text-xs text-bone-2">Devices</dt><dd>{stats.data?.total_devices ?? "—"}</dd></div>
-        <div className="flex items-baseline gap-1.5"><dt className="text-xs text-bone-2">Alerts 24 h</dt><dd>{summary.data?.total_alerts_24h ?? "—"}</dd></div>
-      </dl>
+      <ConnectionStatus connection={connection} />
+      <label className="flex items-center">
+        <span className="sr-only">City</span>
+        <select
+          value={city}
+          onChange={(e) => onCityChange(e.target.value)}
+          className="h-9 w-40 rounded-control border border-line-strong bg-ink-2 px-3 text-sm text-bone"
+        >
+          {cities.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </label>
+      <Counts counts={counts} />
+      <Button
+        size="sm"
+        disabled={!onRunScenario}
+        aria-describedby={onRunScenario ? undefined : 'run-hint'}
+        onClick={onRunScenario}
+      >
+        Run scenario
+      </Button>
+      {!onRunScenario ? (
+        <span id="run-hint" className="sr-only">
+          Scenario runs are not connected to a data source.
+        </span>
+      ) : null}
       <div className="ml-auto flex items-center gap-2">
-        {runMessage && <span role="status" className="hidden max-w-[28ch] truncate text-xs text-bone-2 lg:inline">{runMessage}</span>}
-        <Button size="sm" onClick={onRun} disabled={running}>{running ? "Starting" : "Run scenario"}</Button>
-        <Button size="sm" variant="secondary" onClick={onAnalytics} aria-label="Analytics"><ChartBar size={16} aria-hidden="true" /><span className="hidden sm:inline">Analytics</span></Button>
-        <Button size="sm" variant="ghost" onClick={onPalette} aria-label="Open command palette"><CommandIcon size={16} aria-hidden="true" /><span className="hidden items-center gap-1 lg:inline-flex"><Kbd>Ctrl</Kbd><Kbd>K</Kbd></span></Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          aria-keyshortcuts="Control+K Meta+K"
+          onClick={onOpenPalette}
+        >
+          <MagnifyingGlass aria-hidden size={16} />
+          <span className="sr-only md:not-sr-only">Search</span>
+          <span className="hidden items-center gap-1 md:flex" aria-hidden>
+            <Kbd>Ctrl</Kbd>
+            <Kbd>K</Kbd>
+          </span>
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          aria-expanded={analyticsOpen}
+          aria-controls="analytics-drawer"
+          className={cn(analyticsOpen && 'bg-ink-3')}
+          onClick={onToggleAnalytics}
+        >
+          <ChartBar aria-hidden size={16} />
+          Analytics
+        </Button>
       </div>
     </header>
   );

@@ -1,22 +1,27 @@
-import * as React from "react";
-import { cn } from "@/lib/utils";
+import * as React from 'react';
+import { cn } from '@/lib/utils';
 
-export function EmptyState({
-  title,
-  children,
-  action,
-  className,
-}: {
+/** Designed empty state, for example "No alerts yet. Run a scenario or send an event." */
+export interface EmptyStateProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
   title: string;
   children?: React.ReactNode;
   action?: React.ReactNode;
-  className?: string;
-}) {
+}
+
+export function EmptyState({ title, children, action, className, ...props }: EmptyStateProps) {
   return (
-    <div className={cn("flex flex-col items-start gap-2 rounded-card border border-line bg-ink-1 p-5", className)}>
+    <div
+      className={cn(
+        'rounded-panel border border-dashed border-line-strong px-6 py-8 text-center',
+        className,
+      )}
+      {...props}
+    >
       <p className="font-medium text-bone">{title}</p>
-      {children ? <p className="max-w-[52ch] text-sm text-bone-2">{children}</p> : null}
-      {action ? <div className="mt-2">{action}</div> : null}
+      {children ? (
+        <p className="mx-auto mt-1 max-w-[46ch] text-sm text-bone-2">{children}</p>
+      ) : null}
+      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
     </div>
   );
 }

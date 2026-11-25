@@ -1,36 +1,33 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 /**
- * Next.js 16, Turbopack only. Do NOT add a `webpack` key: with Turbopack as the
- * default bundler a custom webpack config makes `next build` fail (spec 1.2).
- * GLSL files are imported as strings through the Turbopack raw-loader rule.
+ * Next.js 16: Turbopack is the default bundler. A custom `webpack` key makes `next build`
+ * fail, so GLSL is handled with a Turbopack rule only (FRONTEND_SPEC.md section 9).
  */
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
+  output: process.env.NEXT_OUTPUT === 'standalone' ? 'standalone' : undefined,
   turbopack: {
     rules: {
-      "*.{glsl,vert,frag}": {
-        loaders: ["raw-loader"],
-        as: "*.js",
-      },
+      '*.glsl': { loaders: ['raw-loader'], as: '*.js' },
+      '*.vert': { loaders: ['raw-loader'], as: '*.js' },
+      '*.frag': { loaders: ['raw-loader'], as: '*.js' },
     },
   },
   async headers() {
     return [
       {
-        source: "/:path*",
+        source: '/:path*',
         headers: [
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+          },
         ],
-      },
-      {
-        // Basemap tiles are fetched with HTTP range requests; allow caching.
-        source: "/tiles/:file*",
-        headers: [{ key: "Cache-Control", value: "public, max-age=86400" }],
       },
     ];
   },

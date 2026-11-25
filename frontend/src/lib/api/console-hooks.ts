@@ -39,7 +39,15 @@ export const TrustDistSchema = loose({
 });
 export const TimelineSchema = loose({
   total_alerts: z.number(),
-  timeline: z.array(loose({ hour: z.string(), count: z.number(), high_trust: z.number(), medium_trust: z.number(), low_trust: z.number() })),
+  timeline: z.array(loose({
+    hour: z.string(),
+    count: z.number(),
+    real_count: z.number().optional(),
+    demo_count: z.number().optional(),
+    high_trust: z.number(),
+    medium_trust: z.number(),
+    low_trust: z.number(),
+  })),
 });
 export const IntegritySchema = loose({
   total_devices: z.number(),
@@ -113,7 +121,7 @@ export const useSimulate = () =>
       const text = await res.text();
       let body: unknown = text;
       try { body = JSON.parse(text); } catch { /* keep text */ }
-      if (!res.ok) throw new ApiError(res.status, detailFrom(body, res.statusText));
+      if (!res.ok) throw new ApiError(res.status, detailFrom(body, res.statusText), res.url);
       return { status: res.status, body };
     },
   });
@@ -126,7 +134,7 @@ export const useVerdict = () =>
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ verdict: v.verdict, notes: v.notes ?? null }),
       });
       const body: unknown = await res.json().catch(() => undefined);
-      if (!res.ok) throw new ApiError(res.status, detailFrom(body, res.statusText));
+      if (!res.ok) throw new ApiError(res.status, detailFrom(body, res.statusText), res.url);
       return body;
     },
   });

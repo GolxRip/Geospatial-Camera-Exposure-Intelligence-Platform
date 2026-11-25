@@ -1,15 +1,17 @@
-import Link from "next/link";
-import { fact } from "@/lib/content/facts";
-import { Badge } from "./badge";
+import Link from 'next/link';
+import { facts } from '@/lib/content/facts.generated';
+import { ROUTES } from '@/lib/constants/routes';
+import { Badge } from './badge';
 
-/** Mandatory next to every accuracy figure (ground rule 3). Links to the limits block. */
+/**
+ * "Synthetic corpus, n = 120": every accuracy figure wears it and links to the limits block
+ * (FRONTEND_SPEC.md ground rule 3). n is read from the generated facts, never typed.
+ */
 export function SyntheticChip({ className }: { className?: string }) {
-  const { n } = fact("res.corpus");
+  const n = facts['res.corpus'].value.n_direct;
   return (
-    <Badge tone="signal" className={className}>
-      <Link href="/research#limits" className="no-underline hover:underline underline-offset-4">
-        Synthetic corpus, n = <span className="num">{n}</span>
-      </Link>
+    <Badge asChild tone="outline" className={className}>
+      <Link href={ROUTES.limits}>Synthetic corpus, n = {n}</Link>
     </Badge>
   );
 }

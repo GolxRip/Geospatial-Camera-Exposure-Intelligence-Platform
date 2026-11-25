@@ -7,7 +7,7 @@ import { Logo } from "@/components/brand/logo";
 import { MagneticButton } from "@/components/motion/magnetic-button";
 import { Button } from "@/components/ui/button";
 import { NAV_LINKS } from "@/lib/content/copy";
-import { CONSOLE_CTA, ROUTES } from "@/lib/constants/routes";
+import { CTA_CONSOLE_LABEL, ROUTES } from "@/lib/constants/routes";
 import { REPO_URL } from "@/lib/api/config";
 import { animate, dur, easings, onScroll, stagger } from "@/lib/animations";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
@@ -97,7 +97,7 @@ export function Nav() {
     <>
       <header className="pointer-events-none fixed inset-x-0 top-4 z-nav flex justify-center px-3">
         <nav ref={barRef} aria-label="Primary" className="glass pointer-events-auto flex h-14 w-full max-w-fit items-center gap-2 rounded-full border border-line pl-4 pr-2 md:gap-6">
-          <Logo size={34} className="mr-1 md:mr-4" />
+          <Logo markSize={34} className="mr-1 md:mr-4" />
           <div ref={linksRef} className="relative hidden items-center gap-1 md:flex">
             {NAV_LINKS.map((l) => (
               <Link key={l.href} href={l.href} data-active={isActive(l.href)} className="rounded-full px-3 py-2 text-sm text-bone-2 no-underline transition-colors duration-[160ms] hover:text-bone data-[active=true]:text-bone">
@@ -110,7 +110,7 @@ export function Nav() {
             <span ref={underlineRef} aria-hidden="true" className="absolute -bottom-0.5 left-0 h-px w-0 bg-signal opacity-0" />
           </div>
           <MagneticButton asChild size="sm" className="hidden md:inline-flex">
-            <Link href={ROUTES.console}>{CONSOLE_CTA}</Link>
+            <Link href={ROUTES.console}>{CTA_CONSOLE_LABEL}</Link>
           </MagneticButton>
           <button type="button" aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} aria-controls="mobile-menu" onClick={() => setOpen((o) => !o)}
             className="inline-flex size-10 items-center justify-center rounded-full text-bone hover:bg-ink-2 md:hidden">
@@ -127,7 +127,7 @@ export function Nav() {
           ))}
           <a data-item href={REPO_URL} target="_blank" rel="noreferrer noopener" className="py-3 text-3xl font-semibold tracking-tight text-bone no-underline">GitHub</a>
           <Button asChild size="lg" className={cn("mt-6 self-start")} data-item>
-            <Link href={ROUTES.console} onClick={() => setOpen(false)}>{CONSOLE_CTA}</Link>
+            <Link href={ROUTES.console} onClick={() => setOpen(false)}>{CTA_CONSOLE_LABEL}</Link>
           </Button>
         </div>
       )}

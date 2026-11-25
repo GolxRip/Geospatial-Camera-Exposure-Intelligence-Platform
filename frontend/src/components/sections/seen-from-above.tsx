@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { OfflineState } from "@/components/ui/offline-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDevices } from "@/lib/api/hooks";
-import { CONSOLE_CTA, ROUTES } from "@/lib/constants/routes";
-import { ApiError } from "@/lib/api/errors";
+import { CTA_CONSOLE_LABEL, ROUTES } from "@/lib/constants/routes";
+import { classifyError } from "@/lib/api/errors";
 
 const MapView = dynamic(() => import("@/components/map/map-view"), { ssr: false, loading: () => <Skeleton className="size-full rounded-none" /> });
 
@@ -35,7 +35,7 @@ export function SeenFromAbove() {
     return () => io.disconnect();
   }, []);
 
-  const offline = q.error instanceof ApiError && q.error.offline;
+  const offline = classifyError(q.error) === "offline";
   const count = q.data?.devices.length ?? 0;
 
   return (
@@ -57,7 +57,7 @@ export function SeenFromAbove() {
           )}
         </div>
         <div className="mt-6 flex flex-wrap items-center gap-6">
-          <Button asChild><Link href={ROUTES.console}>{CONSOLE_CTA}</Link></Button>
+          <Button asChild><Link href={ROUTES.console}>{CTA_CONSOLE_LABEL}</Link></Button>
           <p className="text-sm text-bone-2">{q.isSuccess ? <span><span className="num text-bone">{count}</span> devices loaded from the API.</span> : offline ? "The API is offline." : "Loading devices."}</p>
         </div>
       </div>

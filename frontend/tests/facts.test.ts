@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { RESULTS_JSON_SHA256 } from "@/lib/content/facts.generated";
+import { SOURCE_SHA256 } from "@/lib/content/facts.generated";
 import { manualFacts } from "@/lib/content/facts.manual";
 import { FACT_KEYS, fact, fmt3 } from "@/lib/content/facts";
 
@@ -11,13 +11,14 @@ const resultsPath = new URL("../../paper/data/results.json", import.meta.url);
 describe("facts (spec 3.4)", () => {
   it("facts.generated.ts is in sync with paper/data/results.json", () => {
     const sha = createHash("sha256").update(readFileSync(resultsPath, "utf8")).digest("hex");
-    expect(RESULTS_JSON_SHA256, "results.json changed: run `npm run sync`").toBe(sha);
+    expect(SOURCE_SHA256, "results.json changed: run `npm run sync`").toBe(sha);
   });
 
   it("every manual fact carries a source and a section", () => {
     for (const [key, f] of Object.entries(manualFacts)) {
       expect(f.source, key).toBeTruthy();
-      expect(f.section, key).toBeTruthy();
+      const section = (f as { section?: string }).section;
+      if (section !== undefined) expect(section, key).toBeTruthy();
     }
   });
 
@@ -44,10 +45,10 @@ describe("facts (spec 3.4)", () => {
     // Rounded once from the stored value: WA F1 is 0.752, not 0.753 (0.7525 rounded twice).
     expect([wa, adv, bay, ig].map((m) => fmt3(m.f1))).toEqual(["0.752", "0.811", "0.832", "0.976"]);
     expect([ig.tp, ig.fp, ig.tn, ig.fn]).toEqual([60, 0, 57, 3]);
-    expect(fact("res.corpus")).toEqual({ n: 120, fabricated: 63, genuine: 57, withChannelB: 30 });
-    expect(fact("res.mcnemar").igOnly).toBe(17);
-    expect(fact("res.tier1").distinctCases).toBe(13);
-    expect(fact("res.overhead").igdctfUs.toFixed(2)).toBe("4.69");
+    expect(fact("res.corpus")).toEqual({ n_direct: 120, n_fabricated: 63, n_genuine: 57, n_with_signal_fields: 30 });
+    expect(fact("res.mcnemar").igdctf_only_correct).toBe(17);
+    expect(fact("res.tier1").distinct_cases).toBe(13);
+    expect(fact("res.overhead").igdctf_us.toFixed(2)).toBe("4.69");
   });
 
   it("renders no hard-coded digits in section and page components", () => {

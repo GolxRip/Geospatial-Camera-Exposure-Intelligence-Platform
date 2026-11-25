@@ -1,6 +1,19 @@
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
+}
+
+export function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+/** decodeURIComponent that returns the input when it is not valid percent-encoding. */
+export function safeDecode(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }

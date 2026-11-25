@@ -6,11 +6,28 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SHODAN_API_KEY = os.getenv("SHODAN_API_KEY", "")
+CENSYS_API_ID = os.getenv("CENSYS_API_ID", "")
+CENSYS_API_SECRET = os.getenv("CENSYS_API_SECRET", "")
 NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 NVD_API_KEY = os.getenv("NVD_API_KEY", "")  # Optional: keyless CISA KEV + CCTV vulnerability catalog used automatically
 DATABASE_PATH = os.getenv("DATABASE_PATH") or os.path.join(BASE_DIR, "data", "surveillancewatch.db")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+EXPOSE_FULL_IP = os.getenv("EXPOSE_FULL_IP", "false").lower() == "true"
+
+
+def mask_ip_for_public(ip: str | None) -> str | None:
+    """Mask host portion to /24 (a.b.c.0) or IPv6 /48 unless EXPOSE_FULL_IP=true (FRONTEND_SPEC B1)."""
+    if EXPOSE_FULL_IP or not ip:
+        return ip
+    s = ip.strip()
+    parts = s.split(".")
+    if len(parts) == 4 and all(p.isdigit() for p in parts):
+        return f"{parts[0]}.{parts[1]}.{parts[2]}.0"
+    if ":" in s:
+        groups = [g for g in s.split(":") if g]
+        return ":".join(groups[:3]) + "::0" if groups else "0:0:0::0"
+    return s
 
 # API Authentication
 # ------------------

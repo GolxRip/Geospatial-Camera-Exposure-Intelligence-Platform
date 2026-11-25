@@ -1,82 +1,87 @@
-import geometry from "@/lib/three/hood-geometry.json";
+import geometry from './hood-geometry.json';
+import { manualFacts } from '@/lib/content/facts.manual';
+import { clamp } from '@/lib/utils';
 
 /**
- * Hood geometry, shared by the SVG gauge and (Phase 7) the WebGL hood so the two cannot disagree.
- * Source of truth: assets/logo/cobra-mark.geometry.json, copied by `npm run sync`.
- * Angles in degrees, 0 = up, clockwise. Units are the 200x200 mark viewBox.
+ * Hood geometry, shared by the SVG HoodGauge and (later) the WebGL hood so the two cannot disagree
+ * (FRONTEND_SPEC.md section 6.3). Everything is derived from assets/logo/cobra-mark.geometry.json, which
+ * build_logo.py writes; nothing is redrawn by hand. Angles are degrees, 0 = up, clockwise. Units are the
+ * 200 x 200 viewBox of the mark.
  */
-export const HOOD = {
-  cx: geometry.center[0] as number,
-  cy: geometry.center[1] as number,
-  rIn: geometry.rIn,
-  rOut: geometry.rOut,
-  eye: geometry.eye,
-  ribCount: geometry.ribs.length,
-  fullSpreadDeg: 236,
-  gapDeg: 4.5,
-  colors: geometry.colors,
-  ribs: geometry.ribs as readonly { a0: number; a1: number }[],
-} as const;
+export const HOOD = geometry;
 
-/** Gate floor: `G` never goes below this, so a tripped hood is nearly closed but never invisible. */
-export const GATE_FLOOR = 0.3;
+const first = geometry.ribs[0];
+const second = geometry.ribs[1];
+const last = geometry.ribs[geometry.ribs.length - 1];
+if (!first || !second || !last) throw new Error('hood-geometry.json has no ribs');
 
-export interface Rib {
-  a0: number;
-  a1: number;
+export const RIB_COUNT = geometry.ribs.length;
+/** Opening angle of the full hood: 236 degrees. */
+export const FULL_SPAN_DEG = last.a1 - first.a0;
+/** Gap between neighbouring ribs: 4.5 degrees, constant at every spread. */
+export const GAP_DEG = Math.round((second.a0 - first.a1) * 1000) / 1000;
+
+/** The gate multiplier floor G(s) can reach: a tripped gate is nearly closed but never invisible. */
+export const GATE_FLOOR = manualFacts['const.gate'].value.floor_multiplier;
+
+export interface RibAngle {
+  readonly a0: number;
+  readonly a1: number;
 }
 
-/** Opening angle of the hood for gate multiplier G (spec 6.3): 236 degrees * G. */
-export function spreadForGate(g: number): number {
-  return HOOD.fullSpreadDeg * clamp(g, GATE_FLOOR, 1);
+/** Same formula as build_logo.rib_angles(): ribs share the spread equally and keep a constant gap. */
+export function ribAngles(spreadDeg: number, count = RIB_COUNT, gapDeg = GAP_DEG): RibAngle[] {
+  const width = (spreadDeg - gapDeg * (count - 1)) / count;
+  const out: RibAngle[] = [];
+  let a = -spreadDeg / 2;
+  for (let i = 0; i < count; i += 1) {
+    out.push({ a0: a, a1: a + width });
+    a += width + gapDeg;
+  }
+  return out;
 }
 
-/**
- * Nine ribs centred on 0 degrees for a given spread. The gap stays 4.5 degrees and the rib width is
- * (spread - 4.5 * 8) / 9, so G = 1 reproduces the mark exactly and G = 0.3 gives 70.8 / 3.9 degrees.
- */
-export function ribsForSpread(spreadDeg: number): Rib[] {
-  const n = HOOD.ribCount;
-  const width = (spreadDeg - HOOD.gapDeg * (n - 1)) / n;
-  const start = -spreadDeg / 2;
-  return Array.from({ length: n }, (_, i) => {
-    const a0 = start + i * (width + HOOD.gapDeg);
-    return { a0, a1: a0 + width };
-  });
+/** Spread = 236 degrees * G(s), with G clamped to [floor, 1]. */
+export function spreadForGate(gate: number): number {
+  return FULL_SPAN_DEG * clamp(gate, GATE_FLOOR, 1);
 }
 
-function point(r: number, angleDeg: number): [number, number] {
-  const a = (angleDeg * Math.PI) / 180;
-  return [HOOD.cx + r * Math.sin(a), HOOD.cy - r * Math.cos(a)];
-}
-const f = (n: number) => n.toFixed(3);
-
-/** SVG path of one annular sector. */
-export function ribPath(rib: Rib): string {
-  const [x0, y0] = point(HOOD.rOut, rib.a0);
-  const [x1, y1] = point(HOOD.rOut, rib.a1);
-  const [x2, y2] = point(HOOD.rIn, rib.a1);
-  const [x3, y3] = point(HOOD.rIn, rib.a0);
-  return `M${f(x0)} ${f(y0)}A${HOOD.rOut} ${HOOD.rOut} 0 0 1 ${f(x1)} ${f(y1)}L${f(x2)} ${f(y2)}A${HOOD.rIn} ${HOOD.rIn} 0 0 0 ${f(x3)} ${f(y3)}Z`;
+/** Width of one rib at a given spread, in degrees. */
+export function ribWidthDeg(spreadDeg: number, count = RIB_COUNT, gapDeg = GAP_DEG): number {
+  return (spreadDeg - gapDeg * (count - 1)) / count;
 }
 
-/** SVG path of the lens-shaped eye: the overlap of two circles of radius eye.r, d apart from the centre. */
-export function eyePath(): string {
-  const { r, half_height: h } = HOOD.eye;
-  const top = `${f(HOOD.cx)} ${f(HOOD.cy - h)}`;
-  const bottom = `${f(HOOD.cx)} ${f(HOOD.cy + h)}`;
-  return `M${top}A${r} ${r} 0 0 1 ${bottom}A${r} ${r} 0 0 1 ${top}Z`;
+const f = (n: number): string => n.toFixed(2);
+
+/** Annular sector between radii r1 < r2. Same path construction as build_logo.sector(). */
+export function sectorPath(
+  cx: number,
+  cy: number,
+  r1: number,
+  r2: number,
+  a0: number,
+  a1: number,
+): string {
+  const pt = (r: number, a: number): [number, number] => {
+    const t = (a * Math.PI) / 180;
+    return [cx + r * Math.sin(t), cy - r * Math.cos(t)];
+  };
+  const [x0, y0] = pt(r2, a0);
+  const [x1, y1] = pt(r2, a1);
+  const [x2, y2] = pt(r1, a1);
+  const [x3, y3] = pt(r1, a0);
+  const large = Math.abs(a1 - a0) > 180 ? 1 : 0;
+  return (
+    `M${f(x0)},${f(y0)} A${r2},${r2} 0 ${large} 1 ${f(x1)},${f(y1)} ` +
+    `L${f(x2)},${f(y2)} A${r1},${r1} 0 ${large} 0 ${f(x3)},${f(y3)} Z`
+  );
 }
 
-/** Eye opacity: T_final / 100 with a visible floor so a capped device still shows a dim eye. */
-export function eyeOpacity(tFinal: number): number {
-  return clamp(tFinal / 100, 0.12, 1);
+/** Lens-shaped overlap of two circles of radius r centred (cx - d, cy) and (cx + d, cy). */
+export function eyePath(cx: number, cy: number, r: number, d: number): string {
+  const h = Math.sqrt(r * r - d * d);
+  return `M${cx},${f(cy - h)} A${r},${r} 0 0 1 ${cx},${f(cy + h)} A${r},${r} 0 0 1 ${cx},${f(cy - h)} Z`;
 }
 
-/** Tight viewBox around the fully open hood (the 200x200 mark has padding). */
-export const HOOD_VIEWBOX = "16 28 168 144";
-export const HOOD_ASPECT = 168 / 144;
-
-export function clamp(x: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, x));
-}
+/** Tight viewBox around the hood (ribs run from y = 34 to about y = 166 and x = 20 to 180). */
+export const HOOD_VIEWBOX = { x: 16, y: 30, width: 168, height: 140 } as const;

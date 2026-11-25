@@ -1,4 +1,4 @@
-import { generatedFacts, type GeneratedFactKey } from "./facts.generated";
+import { facts as generatedFacts, type FactKey as GeneratedFactKey } from "./facts.generated";
 import { manualFacts, type ManualFactKey } from "./facts.manual";
 
 const all = { ...generatedFacts, ...manualFacts } as const;
@@ -10,8 +10,8 @@ export function fact<K extends FactKey>(key: K): Value<K> {
   return all[key].value;
 }
 export function factSource(key: FactKey): { source: string; section: string } {
-  const f = all[key];
-  return { source: f.source, section: f.section };
+  const f = all[key] as { source: string; section?: string };
+  return { source: f.source, section: f.section ?? '' };
 }
 export const FACT_KEYS = Object.keys(all) as FactKey[];
 

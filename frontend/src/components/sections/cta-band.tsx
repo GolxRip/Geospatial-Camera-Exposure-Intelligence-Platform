@@ -1,26 +1,22 @@
-"use client";
-import * as React from "react";
-import Link from "next/link";
-import { HoodGauge } from "@/components/ui/hood-gauge";
-import { MagneticButton } from "@/components/motion/magnetic-button";
-import { CONSOLE_CTA, ROUTES } from "@/lib/constants/routes";
-import { ScrollReveal } from "@/components/motion/scroll-reveal";
+import Link from 'next/link';
+import { buttonVariants } from '@/components/ui/button';
+import { HoodGauge } from '@/components/ui/hood-gauge';
+import { CTA_CONSOLE_LABEL, ROUTES } from '@/lib/constants/routes';
 
-/** Closing band: the hood rests nearly closed and opens when the button is hovered or focused. */
+/** Interactive CTA band (FRONTEND_SPEC.md section 7.11). The hood is closed at rest; it opens on hover in phase 9. */
 export function CtaBand() {
-  const [open, setOpen] = React.useState(false);
   return (
-    <section aria-labelledby="cta-title" className="relative z-content py-24 md:py-40">
-      <div className="mx-auto grid max-w-[1360px] items-center gap-10 px-5 md:grid-cols-2 md:px-8">
-        <ScrollReveal className="flex flex-col items-start gap-8">
-          <h2 id="cta-title" className="t-h2 max-w-[16ch]">See the gate on live data.</h2>
-          <div onPointerEnter={() => setOpen(true)} onPointerLeave={() => setOpen(false)} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)}>
-            <MagneticButton asChild size="lg"><Link href={ROUTES.console}>{CONSOLE_CTA}</Link></MagneticButton>
-          </div>
-        </ScrollReveal>
-        <div className="flex justify-center md:justify-end" aria-hidden="true">
-          <HoodGauge gate={open ? 1 : 0.34} score={open ? 100 : 40} size={360} animate className="h-auto w-[min(80%,360px)]" />
+    <section aria-labelledby="cta-title" className="border-y border-line py-24 md:py-32">
+      <div className="page-container flex flex-col items-start gap-10 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-8">
+          <h2 id="cta-title" className="text-h2">
+            Open the console.
+          </h2>
+          <Link href={ROUTES.console} className={buttonVariants({ size: 'lg' })}>
+            {CTA_CONSOLE_LABEL}
+          </Link>
         </div>
+        <HoodGauge gate={0.3} trust={70} size={160} decorative />
       </div>
     </section>
   );

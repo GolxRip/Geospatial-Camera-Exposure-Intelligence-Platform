@@ -54,7 +54,8 @@ import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel, Field
 
-from config import DATABASE_PATH, DETECTION_API_KEY
+from config import DATABASE_PATH, DETECTION_API_KEY, mask_ip_for_public
+from services.vulnerability_service import KNOWN_CVE_CATEGORIES, _CWE_TO_CATEGORY  # noqa: F401
 from services.trust_score_service import (
     compute_trust_score,
     compute_probabilistic_trust_score,
@@ -609,17 +610,18 @@ async def get_alerts(city: str | None = None, limit: int = 20, decayed: bool = F
     If decayed=True, re-evaluates exponential decay dynamically relative to current server time.
     """
     limit = max(1, min(limit, 200))
+    filter_city = city.strip() if city and city.strip() not in ("All India", "All", "all", "") else None
 
     async with aiosqlite.connect(DATABASE_PATH) as db:
         db.row_factory = aiosqlite.Row
-        if city:
+        if filter_city:
             query = """
                 SELECT * FROM alerts
                  WHERE city = ?
                  ORDER BY detected_at DESC
                  LIMIT ?
             """
-            params = (city, limit)
+            params = (filter_city, limit)
         else:
             query = """
                 SELECT * FROM alerts
@@ -645,6 +647,7 @@ async def get_alerts(city: str | None = None, limit: int = 20, decayed: bool = F
 
         # Strip feature_embedding from list response (large data)
         d.pop("feature_embedding", None)
+        d["demo"] = bool(d.get("is_demo"))
 
         if decayed and d.get("detected_at"):
             decay_calc = apply_trust_decay(
@@ -792,7 +795,8 @@ async def get_device_trust_score(camera_id: str):
         device, corroborating, cve_categories=cve_categories or None
     )
     # IG-DCTF: use stored signal_integrity_score from last banner drift computation
-    stored_signal_integrity: float = device.get("signal_integrity_score") or 1.0
+    has_baseline_banner = bool(device.get("banner_fingerprint"))
+    stored_signal_integrity: float = device.get("signal_integrity_score") if device.get("signal_integrity_score") is not None else 1.0
     stored_drift_score: float = device.get("last_drift_score") or 0.0
     ig_result = compute_ig_dctf_trust_score(
         device=device,
@@ -818,13 +822,78 @@ async def get_device_trust_score(camera_id: str):
         kev_active_fraction=live_kev_fraction,
     )
 
+    device_ports: list[int] = []
+    raw_ports = device.get("ports")
+    if raw_ports:
+        try:
+            parsed_ports = json.loads(raw_ports)
+            if isinstance(parsed_ports, list):
+                device_ports = [int(p) for p in parsed_ports]
+        except Exception:
+            device_ports = []
+
+    has_kev = live_kev_fraction > 0.0
+
+    def _factor_delta(code: str) -> int:
+        if code == "unauthenticated_stream":
+            return -30
+        if code == "critical_cve_auth_bypass_rce":
+            return -30
+        if code in ("high_cve_unpatched", "high_cve_command_injection"):
+            return -25
+        if code == "standard_cve_unpatched":
+            return -15
+        if code == "unknown_owner":
+            return -20
+        if code == "outdated_firmware":
+            return -15
+        if code.startswith("high_signal_latency_"):
+            return -10
+        if code == "no_corroboration":
+            return -10
+        if code == "corroborated":
+            return 20
+        if code.startswith("ig_dctf_hard_gate_cap_") or code.startswith("ig_dctf_taper_multiplier_"):
+            return int(ig_result["final_trust_score"] - ig_result["cyber_trust_score"])
+        return 0
+
+    pre_cap_delta_sum = sum(
+        _factor_delta(f)
+        for f in ig_result["factors"]
+        if f != "critical_gate_unauthenticated_cap" and not f.startswith("ig_dctf_")
+    )
+    pre_cap_score = max(0, min(100, 100 + pre_cap_delta_sum))
+
+    factor_details = []
+    for f in ig_result["factors"]:
+        if f == "critical_gate_unauthenticated_cap":
+            d = int(ig_result["cyber_trust_score"] - pre_cap_score)
+        else:
+            d = _factor_delta(f)
+        factor_details.append({
+            "key": f,
+            "delta": d,
+            "kev": bool(has_kev and ("cve" in f.lower())),
+        })
+
     return {
         "camera_id": camera_id,
+        "ip": mask_ip_for_public(device.get("ip")),
         "city": device.get("city"),
         "manufacturer": device.get("manufacturer"),
+        "device_type": device.get("device_type"),
+        "owner_org": device.get("owner_org"),
         "owner_type": device.get("owner_type"),
+        "ownership_confidence": device.get("ownership_confidence"),
+        "geo_source": device.get("geo_source"),
+        "ports": device_ports,
+        "banner_snippet": device.get("banner_snippet"),
+        "firmware_version": device.get("firmware_version"),
+        "last_seen": device.get("last_seen"),
+        "fetched_at": device.get("fetched_at"),
         "auth_required": device.get("auth_required"),
         "known_cve_count": device.get("known_cve_count", 0),
+        "cve_ids": device_cve_ids,
         "cve_categories": cve_categories,
         "max_cvss": device.get("max_cvss"),
         "last_patch_date": device.get("last_patch_date"),
@@ -839,11 +908,14 @@ async def get_device_trust_score(camera_id: str):
         "cyber_trust_score": ig_result["cyber_trust_score"],
         "action_tier": ig_result["tier"],
         "contributing_factors": ig_result["factors"],
+        "factor_details": factor_details,
         "probabilistic_factors": prob_result["factors"],
         "decay_factor": decay_info["decay_factor"],
         "hours_since_scan": decay_info["hours_elapsed"],
         "corroborating_cameras": corroborating,
-        # IG-DCTF signal integrity state
+        # IG-DCTF signal integrity state (Tier 2 is None unless real footage ran)
+        "has_baseline_banner": has_baseline_banner,
+        "visual_liveness": None,
         "signal_integrity_score": stored_signal_integrity,
         "drift_score": stored_drift_score,
         "integrity_gate_tripped": bool(device.get("integrity_gate_tripped", 0)),

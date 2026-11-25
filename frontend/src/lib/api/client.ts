@@ -1,44 +1,53 @@
-import createClient, { type Middleware } from "openapi-fetch";
-import type { z } from "zod";
-import type { paths } from "./schema";
-import { API_BASE, REQUEST_TIMEOUT_MS } from "./config";
-import { ApiError, detailFrom } from "./errors";
+import createClient, { type Middleware } from 'openapi-fetch';
+import type { z } from 'zod';
+import type { paths } from './schema';
+import { env } from '@/lib/env';
+import { ApiError, detailFromBody } from './errors';
 
-/** fetch with a timeout; transport failures become an offline ApiError (status 0). */
-async function timedFetch(input: Request | string | URL, init?: RequestInit): Promise<Response> {
-  try {
-    const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
-    if (input instanceof Request) {
-      const signal = AbortSignal.any([input.signal, timeout]);
-      return await fetch(new Request(input, { signal }));
-    }
-    const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
-    return await fetch(input, { ...init, signal });
-  } catch (e) {
-    if (e instanceof DOMException && e.name === "AbortError" && init?.signal?.aborted) throw e;
-    const reason = e instanceof DOMException && e.name === "TimeoutError" ? "timed out" : "not reachable";
-    throw new ApiError(0, `Backend ${reason} at ${API_BASE}. Start it with: python backend/main.py`, true);
-  }
-}
+/**
+ * Typed client generated from the FastAPI schema (`npm run gen:api`).
+ *
+ * Only POST /api/detection-event declares a response model in the backend, so every other response
+ * body arrives untyped from openapi-fetch. Each consumer validates its body with a zod schema
+ * (src/lib/api/normalize.ts, added with the data layer in Phase 4) instead of trusting a cast.
+ * Adding `response_model` to the routes (backend touchpoints B3 and B4) would remove that duty; it is not approved.
+ *
+ * Never wire GET /api/devices/{id}/heartbeat or /api/heartbeat/*: they open connections to device
+ * addresses, which breaks the passive-only boundary (claim C15, backend touchpoint B2).
+ */
+const REQUEST_TIMEOUT_MS = 10_000;
 
-const throwOnHttpError: Middleware = {
+/** A request that outlives the timeout rejects with a TimeoutError, which classifyError maps to "offline". */
+const timeoutFetch: typeof fetch = (input, init) => {
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const caller = input instanceof Request ? input.signal : init?.signal;
+  const signal = caller ? AbortSignal.any([caller, timeout]) : timeout;
+  return fetch(input, { ...init, signal });
+};
+
+/** Turns every non-2xx response into an ApiError carrying the backend's own `detail`. */
+const errorMiddleware: Middleware = {
   async onResponse({ response }) {
-    if (!response.ok) {
-      let body: unknown;
-      try {
-        body = await response.clone().json();
-      } catch {
-        body = undefined;
-      }
-      throw new ApiError(response.status, detailFrom(body, response.statusText || "Request failed"));
+    if (response.ok) return undefined;
+    let body: unknown;
+    try {
+      body = await response.clone().json();
+    } catch {
+      body = undefined;
     }
-    return undefined;
+    throw new ApiError(response.status, detailFromBody(body, response.statusText), response.url);
   },
 };
 
-/** Typed client generated from the FastAPI schema (request bodies and parameters). */
-export const api = createClient<paths>({ baseUrl: API_BASE, fetch: (req) => timedFetch(req) });
-api.use(throwOnHttpError);
+export const api = createClient<paths>({ baseUrl: env.apiUrl, fetch: timeoutFetch });
+api.use(errorMiddleware);
+
+/** WebSocket endpoint derived from the REST base URL. */
+export function alertsSocketUrl(): string {
+  const url = new URL('/api/ws/alerts', env.apiUrl);
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  return url.toString();
+}
 
 /**
  * GET/POST helper for endpoints whose responses OpenAPI does not describe (most of this backend's
@@ -49,7 +58,7 @@ export async function fetchJson<S extends z.ZodType>(
   schema: S,
   init?: RequestInit,
 ): Promise<z.infer<S>> {
-  const res = await timedFetch(`${API_BASE}${path}`, init);
+  const res = await timeoutFetch(`${env.apiUrl}${path}`, init);
   if (!res.ok) {
     let body: unknown;
     try {
@@ -57,12 +66,12 @@ export async function fetchJson<S extends z.ZodType>(
     } catch {
       body = undefined;
     }
-    throw new ApiError(res.status, detailFrom(body, res.statusText || "Request failed"));
+    throw new ApiError(res.status, detailFromBody(body, res.statusText || 'Request failed'), res.url);
   }
   const json: unknown = await res.json();
   const parsed = schema.safeParse(json);
   if (!parsed.success) {
-    throw new ApiError(502, `Unexpected response shape from ${path}: ${parsed.error.issues[0]?.message ?? "invalid"}`);
+    throw new ApiError(502, `Unexpected response shape from ${path}: ${parsed.error.issues[0]?.message ?? 'invalid'}`, path);
   }
   return parsed.data;
 }

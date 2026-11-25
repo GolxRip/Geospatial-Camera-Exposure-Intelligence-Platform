@@ -37,7 +37,7 @@ export function HoodLab() {
   return (
     <div className="grid gap-8 md:grid-cols-[minmax(0,260px)_1fr] md:items-center">
       <div className="flex items-center justify-center rounded-card border border-line bg-ink-1 p-8 shadow-[var(--inner-highlight)]">
-        <HoodGauge gate={gate} score={score} size={220} animate={animate} />
+        <HoodGauge gate={gate} trust={score} size={220} />
       </div>
       <div className="flex max-w-md flex-col gap-5">
         <Slider id="gate" label="Gate multiplier G(s)" min={0.3} max={1} step={0.01} value={gate} onChange={setGate}

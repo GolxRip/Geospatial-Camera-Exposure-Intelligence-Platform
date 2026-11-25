@@ -1,10 +1,13 @@
-import { Badge } from "./badge";
+import { Badge } from './badge';
 
-/** Marks scripted traffic wherever it appears (ground rule 5). Dashed outline = demo. */
-export function DemoTag({ className }: { className?: string }) {
+/**
+ * Marks scripted traffic (scenario runs and attack simulators, alerts with `demo: true`) wherever it appears
+ * (FRONTEND_SPEC.md ground rule 5). The compact form is used in dense rows.
+ */
+export function DemoTag({ compact = false, className }: { compact?: boolean; className?: string }) {
   return (
-    <Badge dashed tone="signal" className={className} title="Scripted traffic from a demo scenario or simulator">
-      Demo scenario
+    <Badge tone="demo" className={className} title="Scripted traffic, not a real detection">
+      {compact ? 'Demo' : 'Demo scenario'}
     </Badge>
   );
 }

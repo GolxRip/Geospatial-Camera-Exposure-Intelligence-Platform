@@ -1,64 +1,142 @@
-import type { Metadata } from "next";
-import { REPO_URL } from "@/lib/api/config";
+import type { Metadata } from 'next';
+import { repoFileUrl } from '@/lib/env';
 
-export const metadata: Metadata = { title: "Ethics and scope", description: "What COBRA-WATCH will and will not do, and where its documentation and its code disagree." };
+export const metadata: Metadata = { title: 'Ethics and scope' };
 
-const IN_SCOPE = ["Public IP metadata from search engines, queried passively", "Public vulnerability catalogs (NVD, CISA KEV)", "Public registration data, used only to categorise owners broadly", "Pre-authorized recorded footage and benchmark datasets", "Synthetic and labelled evaluation data"];
-const OUT_SCOPE = ["Interception of live video feeds", "Credential brute forcing or penetration testing", "Exploitation of target devices", "Personal data, facial recognition or biometrics", "Unauthorized probes of private networks"];
-
-const LAW = [
-  ["Digital Personal Data Protection Act, 2023", "Only the device address, manufacturer, port and security posture are stored. No personal data of citizens is collected."],
-  ["Information Technology Act, 2000", "No unauthorized access, data extraction or damage. The platform performs no active manipulation of third-party systems."],
-  ["Puttaswamy v. Union of India (2017)", "Privacy is a fundamental right, subject to legality, necessity and proportionality. The platform serves a public need: finding insecure surveillance nodes."],
+const IN_SCOPE = [
+  'Public scanner metadata: banners and port states from services such as Shodan and Censys, queried passively.',
+  'Public vulnerability catalogs: NVD entries and the CISA Known Exploited Vulnerabilities list.',
+  'Public WHOIS and allocation records, used only to sort owners into broad categories.',
+  'Pre-authorized recorded footage and public benchmark datasets, never live streams.',
+  'Synthetic, labeled evaluation data.',
 ];
 
-const DUAL_USE = ["Ingestion and verdict endpoints can require an API key.", "Per-camera rate limits discourage automated reconnaissance.", "Every decision is hashed into an append-only, Merkle-chained ledger with an external anchor.", "Critical findings are reported to CERT-In and the relevant city administration before public release."];
+const OUT_OF_SCOPE = [
+  'Interception of live video from discovered cameras.',
+  'Credential guessing, exploitation or any penetration test against a device.',
+  'Personal data about citizens, including face recognition and license plate recognition.',
+  'Probing private networks.',
+];
 
-function List({ title, items }: { title: string; items: string[] }) {
+const MITIGATIONS = [
+  'Ingestion and verdict endpoints require an API key.',
+  'Per-camera rate limits stop automated reconnaissance.',
+  'Every decision is hashed into a Merkle-chained audit ledger with an external anchor, so an operator cannot quietly rewrite history.',
+  'Unpatched critical vulnerabilities (CVSS 9.0 or higher) found during scans are reported to CERT-In and the city administration before they are made public.',
+];
+
+function Section({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex flex-col gap-3 rounded-card border border-line bg-ink-1/70 p-6">
-      <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
-      <ul className="flex flex-col gap-2.5 text-sm leading-relaxed text-bone-2">{items.map((i) => <li key={i} className="border-t border-line pt-2.5 first:border-0 first:pt-0">{i}</li>)}</ul>
-    </div>
+    <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-24 flex flex-col gap-6">
+      <h2 id={`${id}-title`} className="text-3xl font-semibold tracking-tight">
+        {title}
+      </h2>
+      {children}
+    </section>
   );
 }
 
+const P = ({ children }: { children: React.ReactNode }) => (
+  <p className="text-body measure text-bone-2">{children}</p>
+);
+const List = ({ items }: { items: string[] }) => (
+  <ul className="flex flex-col gap-3">
+    {items.map((i) => (
+      <li key={i} className="text-body measure border-l-2 border-line-strong pl-4 text-bone-2">
+        {i}
+      </li>
+    ))}
+  </ul>
+);
+
+/**
+ * Ethics and scope (FRONTEND_SPEC.md section 13). The text is condensed from ETHICS_AND_SCOPE_POLICY.md and the claim ledger
+ * (paper/CLAIMS.md, claim C15); the policy file stays the source of truth.
+ */
 export default function EthicsPage() {
   return (
-    <main className="relative z-content">
-      <div className="mx-auto flex max-w-[1100px] flex-col gap-14 px-5 pb-28 pt-32 md:px-8">
-        <header className="flex flex-col gap-5">
-          <h1 className="t-display">Built passive on purpose.</h1>
-          <p className="t-body text-bone-2">COBRA-WATCH is a research and civic-transparency platform. It evaluates how much to trust an alert from an exposed camera. It does not look at what the camera sees.</p>
-        </header>
+    <main id="main" className="page-container pb-24 pt-24">
+      <h1 className="text-display mb-12 md:mb-16">Ethics and scope</h1>
+      <div className="flex flex-col gap-20">
+        <Section id="policy" title="Policy">
+          <P>
+            COBRA-WATCH is a research and civic-transparency platform. It measures how reliable the
+            alerts from public surveillance cameras are, before anyone is dispatched. It works from
+            public metadata and public catalogs, and it does not touch the cameras themselves.
+          </P>
+          <P>
+            The video module runs only on local, pre-authorized recordings. It is decoupled from
+            network discovery, and it rejects live stream addresses from public devices.
+          </P>
+          <a
+            href={repoFileUrl('ETHICS_AND_SCOPE_POLICY.md')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="self-start rounded-chip text-bone underline underline-offset-4 transition-surface hover:text-signal"
+          >
+            Read the full policy
+          </a>
+        </Section>
 
-        <section aria-labelledby="scope" className="flex flex-col gap-5">
-          <h2 id="scope" className="text-2xl font-semibold tracking-tight">In scope and out of scope</h2>
-          <div className="grid gap-5 md:grid-cols-2"><List title="In scope" items={IN_SCOPE} /><List title="Out of scope" items={OUT_SCOPE} /></div>
-        </section>
+        <Section id="scope" title="Scope">
+          <div className="grid gap-10 md:grid-cols-2">
+            <div className="flex flex-col gap-4">
+              <h3 className="text-xl font-semibold tracking-tight">In scope</h3>
+              <List items={IN_SCOPE} />
+            </div>
+            <div className="flex flex-col gap-4">
+              <h3 className="text-xl font-semibold tracking-tight">Out of scope</h3>
+              <List items={OUT_OF_SCOPE} />
+            </div>
+          </div>
+        </Section>
 
-        <section aria-labelledby="video" className="flex flex-col gap-3">
-          <h2 id="video" className="text-2xl font-semibold tracking-tight">No live video</h2>
-          <p className="t-body text-bone-2">The video analysis module runs only on local recorded files and benchmark datasets. It is decoupled from network discovery, and it rejects live stream addresses from public devices. Detections leave it as data events, never as footage.</p>
-        </section>
+        <Section id="legal" title="Legal framework">
+          <P>
+            The project follows Indian law. Under the Digital Personal Data Protection Act, 2023 it
+            stores only device address, manufacturer, port and security posture, and no personal
+            data of citizens. Under the Information Technology Act, 2000 (sections 43 and 66) it
+            performs no unauthorized access, port manipulation or penetration testing against
+            third-party systems.
+          </P>
+          <P>
+            It applies the privacy test of Justice K.S. Puttaswamy v. Union of India (2017):
+            legality, necessity and proportionality. The necessity argument is that insecure cameras
+            can be recruited into botnets and used against the privacy of citizens and against
+            critical infrastructure.
+          </P>
+        </Section>
 
-        <section aria-labelledby="law" className="flex flex-col gap-5">
-          <h2 id="law" className="text-2xl font-semibold tracking-tight">Legal framework</h2>
-          <dl className="grid gap-x-10 gap-y-5 md:grid-cols-3">{LAW.map(([t, d]) => <div key={t} className="flex flex-col gap-2 border-t border-line pt-4"><dt className="font-medium">{t}</dt><dd className="text-sm leading-relaxed text-bone-2">{d}</dd></div>)}</dl>
-          <p className="text-sm text-bone-2">This is a summary of the project&apos;s own policy document, not legal advice.</p>
-        </section>
+        <Section id="dual-use" title="Dual-use mitigations">
+          <P>
+            A map of weak cameras helps defenders and could help attackers. The platform
+            acknowledges that and reduces it by design.
+          </P>
+          <List items={MITIGATIONS} />
+        </Section>
 
-        <section aria-labelledby="dual" className="flex flex-col gap-4">
-          <h2 id="dual" className="text-2xl font-semibold tracking-tight">Dual use</h2>
-          <p className="t-body text-bone-2">A map of weak cameras helps defenders and could help attackers. The design answers that risk in four ways.</p>
-          <ul className="grid gap-4 sm:grid-cols-2">{DUAL_USE.map((d) => <li key={d} className="border-t border-line pt-3 text-sm leading-relaxed text-bone-2">{d}</li>)}</ul>
-        </section>
-
-        <section aria-labelledby="gap" className="flex flex-col gap-4 rounded-card border border-signal/30 bg-signal-dim p-6">
-          <h2 id="gap" className="text-2xl font-semibold tracking-tight">Where the documentation and the code disagree</h2>
-          <p className="text-sm leading-relaxed text-bone">The scoring path is passive: it uses stored scan metadata and never sends a packet to a device. The backend also contains an active heartbeat module that opens TCP connections to devices. That module is outside the scoring path and this web app never calls it, but the policy&apos;s &ldquo;no active probing&rdquo; statement does not describe it. The claim ledger records this as at risk, and the fix is to remove or gate the module before any field deployment.</p>
-          <p className="text-sm"><a className="text-bone underline decoration-line-strong underline-offset-4 hover:decoration-signal" href={`${REPO_URL}/blob/main/paper/CLAIMS.md`} target="_blank" rel="noreferrer noopener">Claim ledger</a> · <a className="text-bone underline decoration-line-strong underline-offset-4 hover:decoration-signal" href={`${REPO_URL}/blob/main/ETHICS_AND_SCOPE_POLICY.md`} target="_blank" rel="noreferrer noopener">Full policy</a></p>
-        </section>
+        <Section id="heartbeat" title="The active heartbeat gap">
+          <P>
+            The scoring path is passive: it uses stored scanner metadata only. The repository also
+            contains a heartbeat service (<code>backend/services/heartbeat_service.py</code>, routes
+            under <code>/api/heartbeat</code>) that opens TCP connections to device addresses on
+            ports 80, 554 and 8080. It is not part of scoring, and this interface does not expose
+            it.
+          </P>
+          <P>
+            It still exists, so the claim that no packet is ever sent to a discovered device is not
+            true of the repository as a whole. Whether to remove it or restrict it to an allowlist
+            is an open decision (claim C15 in the claim ledger).
+          </P>
+        </Section>
       </div>
     </main>
   );

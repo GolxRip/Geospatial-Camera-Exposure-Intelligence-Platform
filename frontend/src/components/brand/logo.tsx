@@ -1,13 +1,25 @@
-import Link from "next/link";
-import { HoodGauge } from "@/components/ui/hood-gauge";
-import { cn } from "@/lib/utils";
+import Image from 'next/image';
+import { HoodGauge } from '@/components/ui/hood-gauge';
+import { cn } from '@/lib/utils';
 
-/** Mark plus wordmark. The mark is the HoodGauge at G = 1, so it can never drift from the geometry. */
-export function Logo({ className, size = 36 }: { className?: string; size?: number }) {
+/**
+ * Mark plus wordmark. The mark is drawn from the shared hood geometry; the wordmark is
+ * public/brand/cobra-wordmark.svg, exported from build_logo.wordmark() by scripts/export-wordmark.py.
+ * Neither is redrawn by hand (FRONTEND_SPEC.md section 6.1).
+ */
+export function Logo({ className, markSize = 40 }: { className?: string; markSize?: number }) {
   return (
-    <Link href="/" aria-label="COBRA-WATCH home" className={cn("inline-flex items-center gap-2.5 no-underline", className)}>
-      <HoodGauge gate={1} score={100} size={size} label="COBRA-WATCH mark" />
-      <span className="text-[0.9375rem] font-semibold tracking-[0.18em] text-bone">COBRA-WATCH</span>
-    </Link>
+    <span className={cn('inline-flex items-center gap-3', className)}>
+      <HoodGauge size={markSize} decorative />
+      <Image
+        src="/brand/cobra-wordmark.svg"
+        alt=""
+        width={612}
+        height={48}
+        unoptimized
+        className="h-3.5 w-auto"
+      />
+      <span className="sr-only">COBRA-WATCH</span>
+    </span>
   );
 }

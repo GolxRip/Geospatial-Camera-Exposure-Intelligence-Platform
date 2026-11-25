@@ -1,17 +1,25 @@
-import Link from "next/link";
-import { HoodGauge } from "@/components/ui/hood-gauge";
-import { Button } from "@/components/ui/button";
+import Link from 'next/link';
+import { buttonVariants } from '@/components/ui/button';
+import { HoodGauge } from '@/components/ui/hood-gauge';
+import { ROUTES } from '@/lib/constants/routes';
 
-/** Branded 404: the hood, closed at the floor (spec 4). */
+/** Branded 404: the hood, closed (FRONTEND_SPEC.md section 4). */
 export default function NotFound() {
   return (
-    <main id="main" className="mx-auto flex min-h-dvh max-w-[1360px] flex-col items-start justify-center gap-6 px-5 md:px-8">
-      <HoodGauge gate={0.3} score={30} size={120} label="Hood closed" />
-      <h1 className="t-h2">This page does not exist.</h1>
-      <p className="t-body text-bone-2">The address may be wrong, or the page has not been built yet.</p>
-      <Button asChild variant="secondary">
-        <Link href="/">Back to the start</Link>
-      </Button>
+    <main
+      id="main"
+      className="page-container flex min-h-[100dvh] flex-col items-start justify-center gap-8 py-24"
+    >
+      <HoodGauge gate={0.3} trust={30} size={160} decorative />
+      <div className="flex flex-col gap-3">
+        <h1 className="text-h2">Page not found</h1>
+        <p className="text-body measure text-bone-2">
+          This address does not lead anywhere on COBRA-WATCH.
+        </p>
+      </div>
+      <Link href={ROUTES.home} className={buttonVariants({ size: 'lg' })}>
+        Back to the start
+      </Link>
     </main>
   );
 }

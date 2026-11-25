@@ -97,6 +97,15 @@ export const TrustScoreSchema = z.object({
   integrity_gate_tripped: z.boolean(),
   gate_status: GateStatusSchema,
   gate_multiplier: z.number(),
+  factor_details: z.array(z.object({
+    label: z.string(),
+    delta: z.number(),
+    is_kev: z.boolean().optional(),
+  })).optional(),
+  has_baseline_banner: z.boolean().optional(),
+  current_fingerprint: z.record(z.string(), z.unknown()).nullable().optional(),
+  component_distances: z.record(z.string(), z.number()).nullable().optional(),
+  visual_liveness: z.number().nullable().optional(),
 });
 export type TrustScore = z.infer<typeof TrustScoreSchema>;
 

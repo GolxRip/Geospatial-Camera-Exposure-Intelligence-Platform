@@ -1,29 +1,31 @@
 /*
- * Design tokens (spec 5.1). The only palette. Dark, theme-locked.
- * Amber is the one accent: meaning of colour = "attention". No second hue for good, bad or warning.
- * Contrast ratios are recomputed by `npm run contrast` and asserted in tests/contrast.test.ts.
+ * Design tokens (FRONTEND_SPEC.md section 5). The palette in 5.1 is the only palette.
+ * Source of truth for colour: assets/logo/build_logo.py (ink #0A0C0B, bone #E7EAE3, amber #F3A33A).
+ * tests/unit/contrast.test.ts recomputes every contrast ratio below from these values.
  */
 :root {
-  color-scheme: dark;
-
+  /* Surfaces: elevation is a tone step, never a drop shadow */
   --ink-0: #0a0c0b; /* page background, map water */
   --ink-1: #101311; /* raised surface, map land */
   --ink-2: #171b19; /* elevated surface, popovers */
   --ink-3: #202522; /* hover surface, input fill */
 
+  /* Hairlines, used sparingly */
   --line: rgb(231 234 227 / 0.08);
   --line-strong: rgb(231 234 227 / 0.16);
 
-  --bone: #e7eae3; /* primary text */
-  --bone-2: #a4aaa1; /* secondary text */
-  --bone-3: #6e746c; /* tertiary, only >= 18px or non-essential */
+  /* Text: lichen bone, a cool grey-green */
+  --bone: #e7eae3; /* primary */
+  --bone-2: #a4aaa1; /* secondary */
+  --bone-3: #6e746c; /* tertiary: only at 18 px or larger, or for non-essential text */
 
-  --signal: #f3a33a; /* sodium amber */
+  /* The one accent: sodium amber. The meaning of colour is "attention". */
+  --signal: #f3a33a;
   --signal-dim: rgb(243 163 58 / 0.14);
+  /* The same hue darkened for light backgrounds (4.9:1 on white). Used by the light logo only. */
+  --signal-on-light: #a85f00;
 
-  --inner-highlight: inset 0 1px 0 rgb(231 234 227 / 0.06);
-
-  /* z-scale mirror of src/lib/constants/z.ts. Nothing else is allowed. */
+  /* z-index scale (src/lib/constants/z.ts mirrors these) */
   --z-canvas: 0;
   --z-map: 5;
   --z-content: 10;
@@ -35,10 +37,50 @@
   --z-toast: 50;
   --z-grain: 60;
 
-  /* motion tokens mirror src/lib/animations/tokens.ts */
+  /* Motion durations (src/lib/animations/tokens.ts is added with the animation system in Phase 6) */
   --dur-micro: 160ms;
   --dur-short: 260ms;
-  --dur-base: 520ms;
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/*
+ * Tailwind v4 theme. The default palette, radii and shadows are reset first so that classes outside the
+ * system (purple, indigo, gradients of colour stops, drop shadows, rounded-xl) cannot be generated at all.
+ */
+@theme inline {
+  --color-*: initial;
+  --color-ink-0: var(--ink-0);
+  --color-ink-1: var(--ink-1);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-bone: var(--bone);
+  --color-bone-2: var(--bone-2);
+  --color-bone-3: var(--bone-3);
+  --color-signal: var(--signal);
+  --color-signal-dim: var(--signal-dim);
+  --color-signal-on-light: var(--signal-on-light);
+
+  /* Radius lock: controls are pills; panels 14; inputs 10; chips 6. Canvases and the map have none. */
+  --radius-*: initial;
+  --radius-control: 9999px;
+  --radius-full: 9999px;
+  --radius-panel: 14px;
+  --radius-input: 10px;
+  --radius-chip: 6px;
+
+  /* No drop shadows on dark */
+  --shadow-*: initial;
+  --inset-shadow-*: initial;
+  --drop-shadow-*: initial;
+  --text-shadow-*: initial;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
 }

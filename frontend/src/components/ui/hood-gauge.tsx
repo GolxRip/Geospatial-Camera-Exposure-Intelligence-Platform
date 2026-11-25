@@ -1,74 +1,79 @@
-"use client";
-import * as React from "react";
-import { cn } from "@/lib/utils";
-import { dur } from "@/lib/animations/tokens";
-import { animateNumbers, type TweenHandle } from "@/lib/animations";
-import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
-import { HOOD, HOOD_ASPECT, HOOD_VIEWBOX, eyeOpacity, eyePath, ribPath, ribsForSpread, spreadForGate } from "@/lib/brand/hood";
+import {
+  HOOD,
+  HOOD_VIEWBOX,
+  eyePath,
+  ribAngles,
+  sectorPath,
+  spreadForGate,
+} from '@/lib/brand/hood';
+import { clamp, cn } from '@/lib/utils';
 
+/**
+ * The hood is a gauge (FRONTEND_SPEC.md section 6.3). The mark carries data, so one component draws
+ * a gate state everywhere: table rows, popups, the inspector and the top bar.
+ *
+ *   Spread       236 degrees * G(s). Ribs keep the 4.5 degree gap, so at the floor G = 0.3 the hood is
+ *                70.8 degrees wide and nearly closed, never invisible.
+ *   Eye          intensity = T_final / 100, with a floor of 10% so the eye is always visible.
+ *
+ * The geometry comes from assets/logo/cobra-mark.geometry.json through src/lib/brand/hood.ts, the same
+ * module the WebGL hood will use. Under reduced motion the gauge snaps to its state: this component has
+ * no transition; the shared hood animation (animateHood) is added with the animation system.
+ */
 export interface HoodGaugeProps {
-  /** Gate multiplier G(s) in [0.3, 1]. 1 = the full mark. */
+  /** Gate multiplier G(s) in [0.3, 1]. 1 draws the full mark. */
   gate?: number;
-  /** T_final in [0, 100]. Drives eye intensity. */
-  score?: number;
-  /** Rendered width in px (16 to 160 in tables, popups and the inspector). */
+  /** Final trust score 0..100; sets the eye intensity. */
+  trust?: number;
+  /** Rendered width in px (16 to 480). */
   size?: number;
-  /** Tween on change (ease.spring over dur.short). Snaps under reduced motion. */
-  animate?: boolean;
-  /** Visible to assistive tech. Defaults to a computed description. */
+  /** Accessible name. Defaults to a description of the values drawn. */
   label?: string;
+  /** Hide from assistive technology when the same state is already stated in text next to it. */
+  decorative?: boolean;
   className?: string;
 }
 
-/**
- * The hood is a gauge (spec 6.3): spread = 236 degrees * G(s), eye intensity = T_final / 100.
- * Uses the same geometry module as the WebGL hood, so the two cannot disagree. React renders the
- * first state; later changes are applied imperatively so a tween never fights a re-render.
- */
-export function HoodGauge({ gate = 1, score = 100, size = 64, animate = false, label, className }: HoodGaugeProps) {
-  const reduced = usePrefersReducedMotion();
+const MIN_EYE_OPACITY = 0.1;
+
+export function HoodGauge({
+  gate = 1,
+  trust = 100,
+  size = 64,
+  label,
+  decorative = false,
+  className,
+}: HoodGaugeProps) {
   const spread = spreadForGate(gate);
-  const eye = eyeOpacity(score);
-
-  const [initial] = React.useState(() => ({ ribs: ribsForSpread(spread).map(ribPath), eye }));
-  const ribRefs = React.useRef<(SVGPathElement | null)[]>([]);
-  const eyeRef = React.useRef<SVGPathElement | null>(null);
-  const current = React.useRef({ spread, eye });
-  const tween = React.useRef<TweenHandle | null>(null);
-
-  React.useEffect(() => {
-    const paint = (s: { spread: number; eye: number }) => {
-      const ribs = ribsForSpread(s.spread);
-      ribs.forEach((r, i) => ribRefs.current[i]?.setAttribute("d", ribPath(r)));
-      eyeRef.current?.setAttribute("fill-opacity", s.eye.toFixed(3));
-    };
-    tween.current?.cancel();
-    if (!animate || reduced) {
-      current.current = { spread, eye };
-      paint(current.current);
-      return;
-    }
-    tween.current = animateNumbers(current.current, { spread, eye }, { duration: dur.short, ease: "spring", onFrame: paint });
-    return () => tween.current?.cancel();
-  }, [spread, eye, animate, reduced]);
-
-  const description =
-    label ?? `Gate multiplier ${gate.toFixed(2)}, hood open ${spread.toFixed(0)} degrees, score ${Math.round(score)}`;
+  const ribs = ribAngles(spread);
+  const eyeOpacity = clamp(trust / 100, MIN_EYE_OPACITY, 1);
+  const [cx, cy] = HOOD.center as [number, number];
+  const width = clamp(size, 16, 480);
+  const height = (width * HOOD_VIEWBOX.height) / HOOD_VIEWBOX.width;
+  const accessibleName =
+    label ?? `Gate multiplier ${gate.toFixed(2)}, trust score ${Math.round(trust)}`;
 
   return (
     <svg
-      role="img"
-      aria-label={description}
-      width={size}
-      height={size / HOOD_ASPECT}
-      viewBox={HOOD_VIEWBOX}
-      className={cn("shrink-0", className)}
+      width={width}
+      height={height}
+      viewBox={`${HOOD_VIEWBOX.x} ${HOOD_VIEWBOX.y} ${HOOD_VIEWBOX.width} ${HOOD_VIEWBOX.height}`}
+      className={cn('shrink-0', className)}
+      {...(decorative
+        ? { 'aria-hidden': true, focusable: 'false' as const }
+        : { role: 'img', 'aria-label': accessibleName })}
     >
-      <title>{description}</title>
-      {initial.ribs.map((d, i) => (
-        <path key={i} ref={(el) => void (ribRefs.current[i] = el)} d={d} fill={HOOD.colors.bone} />
-      ))}
-      <path ref={eyeRef} d={eyePath()} fill={HOOD.colors.signal} fillOpacity={initial.eye} />
+      {decorative ? null : <title>{accessibleName}</title>}
+      <g className="fill-bone">
+        {ribs.map((rib, i) => (
+          <path key={i} d={sectorPath(cx, cy, HOOD.rIn, HOOD.rOut, rib.a0, rib.a1)} />
+        ))}
+      </g>
+      <path
+        d={eyePath(cx, cy, HOOD.eye.r, HOOD.eye.d)}
+        className="fill-signal"
+        fillOpacity={eyeOpacity}
+      />
     </svg>
   );
 }

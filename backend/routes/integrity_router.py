@@ -23,9 +23,10 @@ from __future__ import annotations
 import json
 
 import aiosqlite
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
-from config import DATABASE_PATH
+from config import DATABASE_PATH, mask_ip_for_public
+from services.signal_integrity_service import compute_banner_drift, extract_banner_fingerprint
 
 router = APIRouter()
 
@@ -41,10 +42,11 @@ async def _get_device_integrity(device_id: str) -> dict | None:
         async with db.execute(
             """
             SELECT id, city, ip, manufacturer, owner_type,
-                   auth_required, known_cve_count,
+                   auth_required, known_cve_count, device_type, ports,
+                   banner_snippet, raw_data, firmware_version,
                    signal_integrity_score, last_drift_score,
                    integrity_gate_tripped, banner_fingerprint,
-                   fetched_at
+                   fetched_at, geo_source
               FROM devices
              WHERE id = ?
             """,
@@ -59,37 +61,54 @@ async def _get_device_integrity(device_id: str) -> dict | None:
 # ---------------------------------------------------------------------------
 
 @router.get("/integrity/stats")
-async def get_integrity_fleet_stats():
+async def get_integrity_fleet_stats(city: str | None = Query(None, description="Optional city filter")):
     """
     Fleet-Level IG-DCTF Signal Integrity Dashboard Summary.
 
     Returns:
     - Total devices monitored
     - Integrity gate trip counts (hard_gated, tapered, nominal)
+    - Baseline fingerprint coverage (`has_baseline_count`, `without_baseline_count`)
     - Drift score distribution (mean, max, pct > 0.15 anomaly threshold)
     - Top-5 most anomalous devices by drift score
     - City-level breakdown
     """
+    filter_city = city.strip() if city and city.strip() not in ("All India", "All", "all", "") else None
+
     async with aiosqlite.connect(DATABASE_PATH) as db:
         db.row_factory = aiosqlite.Row
 
-        async with db.execute(
-            """
-            SELECT id, city, manufacturer, ip,
-                   signal_integrity_score, last_drift_score, integrity_gate_tripped
-              FROM devices
-            """
-        ) as cursor:
-            rows = await cursor.fetchall()
+        if filter_city:
+            async with db.execute(
+                """
+                SELECT id, city, manufacturer, ip, banner_fingerprint,
+                       signal_integrity_score, last_drift_score, integrity_gate_tripped
+                  FROM devices
+                 WHERE id NOT LIKE 'SIM_%' AND city = ?
+                """,
+                (filter_city,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+        else:
+            async with db.execute(
+                """
+                SELECT id, city, manufacturer, ip, banner_fingerprint,
+                       signal_integrity_score, last_drift_score, integrity_gate_tripped
+                  FROM devices
+                 WHERE id NOT LIKE 'SIM_%'
+                """
+            ) as cursor:
+                rows = await cursor.fetchall()
 
     if not rows:
         return {
             "total_devices": 0,
-            "message": "No devices in database. Run Shodan ingest first.",
+            "message": "No devices in database.",
         }
 
     devices = [dict(r) for r in rows]
     total = len(devices)
+    has_baseline_count = sum(1 for d in devices if d.get("banner_fingerprint"))
 
     # Gate status distribution
     hard_gated = [d for d in devices if (d.get("signal_integrity_score") or 1.0) < 0.50]
@@ -131,6 +150,8 @@ async def get_integrity_fleet_stats():
 
     return {
         "total_devices": total,
+        "has_baseline_count": has_baseline_count,
+        "without_baseline_count": total - has_baseline_count,
         "gate_distribution": {
             "hard_gated": len(hard_gated),         # signal_integrity < 0.50
             "tapered": len(tapered),               # 0.50 <= s < 0.85
@@ -184,7 +205,7 @@ async def get_device_integrity_state(device_id: str):
         gate_status = "hard_gated"
         gate_multiplier = 0.30
 
-    # Parse stored fingerprint if available
+    # Parse stored baseline fingerprint and extract current scan fingerprint
     banner_fp = None
     raw_fp = device.get("banner_fingerprint")
     if raw_fp:
@@ -192,6 +213,27 @@ async def get_device_integrity_state(device_id: str):
             banner_fp = json.loads(raw_fp)
         except (json.JSONDecodeError, TypeError):
             banner_fp = None
+
+    raw_payload: dict | str | None = device.get("raw_data")
+    if isinstance(raw_payload, str):
+        try:
+            raw_payload = json.loads(raw_payload)
+        except (json.JSONDecodeError, TypeError):
+            raw_payload = {"data": device.get("banner_snippet") or ""}
+    if not isinstance(raw_payload, dict):
+        raw_payload = {"data": device.get("banner_snippet") or ""}
+    if "ports" not in raw_payload and device.get("ports"):
+        try:
+            raw_payload["ports"] = json.loads(device["ports"])
+        except Exception:
+            pass
+    if "firmware_version" not in raw_payload and device.get("firmware_version"):
+        raw_payload["firmware_version"] = device["firmware_version"]
+    if "data" not in raw_payload and device.get("banner_snippet"):
+        raw_payload["data"] = device["banner_snippet"]
+
+    current_fp = extract_banner_fingerprint(raw_payload)
+    drift_breakdown = compute_banner_drift(banner_fp, current_fp) if banner_fp else None
 
     # Fetch the most recent alert for this device to show last event context
     async with aiosqlite.connect(DATABASE_PATH) as db:
@@ -215,8 +257,9 @@ async def get_device_integrity_state(device_id: str):
         "device_id": device_id,
         "city": device.get("city"),
         "manufacturer": device.get("manufacturer", "unknown"),
-        "ip": device.get("ip"),
+        "ip": mask_ip_for_public(device.get("ip")),
         "last_scanned_at": device.get("fetched_at"),
+        "has_baseline": banner_fp is not None,
         # IG-DCTF gate state
         "signal_integrity_score": round(sig_integrity, 4),
         "drift_score": round(drift_score, 4),
@@ -226,8 +269,10 @@ async def get_device_integrity_state(device_id: str):
         # Anomaly interpretation
         "drift_anomalous": drift_score >= 0.15,
         "anomaly_threshold": 0.15,
-        # Tier-1 banner fingerprint (most recently stored from Shodan scan)
+        # Tier-1 banner fingerprint (most recently stored baseline & extracted current banner)
         "banner_fingerprint": banner_fp,
+        "current_fingerprint": current_fp,
+        "component_distances": drift_breakdown["component_distances"] if drift_breakdown else None,
         # Thresholds (for client-side visualization)
         "thresholds": {
             "theta_high": 0.85,

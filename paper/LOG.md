@@ -139,3 +139,18 @@ Read `FRONTEND_SPEC.md` and the DIDA web app (extracted for reference to `Downlo
 **Found:** (1) spec 3.2 / 7.6 print WA F1 as 0.753; the stored value is 0.752475, which is 0.752 rounded once (results.md prints 0.7525). The site uses 0.752. (2) The backend's OpenAPI has response schemas for almost nothing (routes return bare dicts), so responses are typed with zod, not generated types. (3) npm now serves maplibre-gl 6.14, TypeScript 7.0, ESLint 10: pinned to maplibre 5.24 (spec), TypeScript 5.9 and ESLint 9.39 (tooling compatibility). (4) A rib at the gate floor is 3.87 degrees wide (spec says 3.9).
 **Not verified:** the India PMTiles basemap was not built (the planet build host is not reachable from the sandbox), so no map has been rendered and `buildMapStyle` is only type-checked; WebSocket reconnect in a real browser; Firefox/Safari; screen reader pass; Docker build; WebGL (nothing 3D exists yet); `npm audit`.
 **Not done (later phases):** MagneticButton and other Anime motion components, Dialog/ScrollArea/Popover, cmdk, KaTeX, d3, TanStack Virtual, Three.js, `scripts/export-golden.py`, nav/footer, all marketing and console pages.
+
+## 2026-11-26, Day 1 Master Plan Review 2 Alignment & Frontend Integration
+**What:** Integrated new controlled view-model frontend (`cobra-watch-frontend.zip`) into `frontend/` matching `FRONTEND_SPEC.md` and `MASTER_PLAN_REVIEW2.md`. Resolved duplicate route groups (`(console)` and `(dev)`), implemented `DeviceForensicsApp` on `/console/devices/[id]`, configured `force-dynamic` for dynamic console routes to prevent Turbopack client bailout during static generation, and restored API client utility exports.
+**Backend & Privacy Alignment:**
+- Decommissioned active heartbeat route (`heartbeat_router.py`) in `backend/main.py` ensuring pure passive OSINT operations (Master Plan Rule 4).
+- Added `/24` subnet masking via `mask_ip_for_public()` in `backend/config.py` and applied to `backend/routes/devices.py` (with `geo_precision`).
+- Added Censys tooling: `scripts/censys_snapshot.py` (aggregate metadata queries without IPs), `scripts/censys_ingest.py` (real host record ingestion with Tier 1 banner extraction and CVE matching), and `backend/routes/censys_router.py` exposing `/api/censys/snapshots`, `/api/devices/provenance`, and `/api/results`.
+- Added public database sanitization script `scripts/build_public_db.py` to strip simulated records and output `data/public.db` with valid cryptographic audit chain.
+- Updated `backend/routes/stats.py`, `backend/routes/analytics_router.py`, `backend/routes/alerts.py`, and `backend/routes/integrity_router.py` to properly handle "All India" queries, distinct real vs demo alerts, exact signed factor deltas, and real device posture distributions.
+**Verification:**
+- Full backend pytest suite passed: 377 passed, 1 skipped (0 failures).
+- Frontend typecheck passed (`npx tsc --noEmit` = 0 errors) and build succeeded (`npm run build` generated all 10 routes).
+- ESLint passed on `frontend/src` and `frontend/tests` (0 errors, 3 warnings).
+- Backend routes verified via automated test client.
+**Not verified:** Live Censys API calls (awaiting user API credentials in `.env`), live camera WebRTC/RTSP stream connections (disabled by ethics policy).

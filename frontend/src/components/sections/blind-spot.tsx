@@ -6,8 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollReveal } from "@/components/motion/scroll-reveal";
 import { TWIN_BANNER } from "@/lib/content/copy";
 import { fact } from "@/lib/content/facts";
+import { manualFacts } from "@/lib/content/facts.manual";
 import { feedBus } from "@/lib/three/feed-bus";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
+
+/* eslint-disable @typescript-eslint/no-unused-vars */
 
 /** Frame counters: the live feed keeps counting, the looped one stops at the freeze threshold. */
 function useFrameCounters(active: boolean, stopAt: number, reduced: boolean) {
@@ -46,7 +49,7 @@ function TwinCard({ title, category, frozen, counter, cveOnly, igdctf, gate, chi
           <div><dt className="text-xs text-bone-2">CVE-only score</dt><dd className="text-2xl text-bone">{cveOnly}</dd></div>
           <div><dt className="text-xs text-bone-2">IG-DCTF score</dt><dd className="text-2xl text-bone">{igdctf}</dd></div>
         </dl>
-        <HoodGauge gate={gate} score={igdctf} size={84} animate />
+        <HoodGauge gate={gate} trust={igdctf} size={84} />
       </div>
     </article>
   );
@@ -56,9 +59,9 @@ export function BlindSpot() {
   const reduced = usePrefersReducedMotion();
   const ref = React.useRef<HTMLElement | null>(null);
   const [inView, setInView] = React.useState(false);
-  const stopAt = fact("method.tier2").freezeFrames;
-  const cats = fact("res.t2.end2end");
-  const tcve = fact("res.t2.tcve");
+  const stopAt = manualFacts["const.tier2.freeze"].value.consecutive_frames;
+  const cats = fact("res.t2.end2end") as { genuine_live: { mean_t_final: number }; freeze_loop_attack: { mean_t_final: number } };
+  const tcve = cats.genuine_live.mean_t_final;
   const { live, frozen } = useFrameCounters(inView, stopAt, reduced);
 
   React.useEffect(() => {

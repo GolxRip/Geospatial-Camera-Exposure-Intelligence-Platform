@@ -1,0 +1,9 @@
+node_modules/
+.next/
+src/lib/api/schema.d.ts
+src/lib/content/facts.generated.ts
+openapi.snapshot.json
+package-lock.json
+src/lib/brand/hood-geometry.json
+tests/fixtures/gate_golden.json
+tsconfig.json

@@ -1,18 +1,18 @@
-import type { Metadata } from "next";
-import { LabTabs } from "@/components/lab/lab-tabs";
+import type { Metadata } from 'next';
+import { LabApp } from '@/components/lab/lab-app';
+import { DemoTag } from '@/components/ui/demo-tag';
 
-export const metadata: Metadata = { title: "Lab", description: "Break a feed and watch the gate. Attack simulators, scenario replay and natural-language query, all labelled demo." };
+export const metadata: Metadata = { title: 'Lab' };
 
+/** Lab (FRONTEND_SPEC.md section 12): every instrument is demo-labelled. */
 export default function LabPage() {
   return (
-    <main className="relative z-content">
-      <div className="mx-auto flex max-w-[1360px] flex-col gap-10 px-5 pb-28 pt-32 md:px-8">
-        <header className="flex max-w-3xl flex-col gap-4">
-          <h1 className="t-display">Lab.</h1>
-          <p className="t-body text-bone-2">Everything here is scripted traffic and labelled demo. The explorer computes in your browser; the other tools call the running backend and show its real answers, status codes included.</p>
-        </header>
-        <LabTabs />
+    <main id="main" className="page-container pb-24 pt-24">
+      <div className="mb-10 flex flex-wrap items-center gap-4 md:mb-14">
+        <h1 className="text-h2">Lab</h1>
+        <DemoTag />
       </div>
+      <LabApp />
     </main>
   );
 }

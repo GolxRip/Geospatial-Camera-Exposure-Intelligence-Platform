@@ -1,82 +1,70 @@
-"use client";
-import * as React from "react";
-import { ScrollReveal } from "@/components/motion/scroll-reveal";
-import { PIPELINE, PIPELINE_FACTS } from "@/lib/content/copy";
-import { animate, drawPath, easings } from "@/lib/animations";
-import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
-import { cn } from "@/lib/utils";
+import { Section } from '@/components/layout/section';
+import { SourceNote } from '@/components/ui/source-note';
+import { facts } from '@/lib/content/facts.generated';
+import { f1 } from '@/lib/format';
+import { cn } from '@/lib/utils';
 
-/** Six-stage pipeline. The packet travels once, pausing at the gate (spec 7.7). Vertical on narrow screens. */
+const STAGES = [
+  {
+    name: 'Detection event',
+    text: 'A detection from authorized footage or a client, sent with an idempotency key.',
+  },
+  {
+    name: 'Corroboration',
+    text: 'Nearby cameras that agree raise the score. A lone camera lowers it.',
+  },
+  { name: 'Channel A', text: 'Posture from CVEs, authentication, owner type and firmware age.' },
+  { name: 'Channel B', text: 'Banner drift, and frame liveness where footage is authorized.' },
+  { name: 'The gate', text: 'G(s) multiplies the score and caps a tripped feed at 30.' },
+  { name: 'Alert and audit ledger', text: 'The decision is hashed into a Merkle-chained ledger.' },
+] as const;
+
+/**
+ * "From event to ledger" (FRONTEND_SPEC.md section 7.7): six stages in one row from 1024, two rows of three from 768, one
+ * column below. Only the gate shows a measured number; the stages without a measurement show none.
+ */
 export function Pipeline() {
-  const reduced = usePrefersReducedMotion();
-  const ref = React.useRef<HTMLDivElement | null>(null);
-
-  React.useEffect(() => {
-    const root = ref.current;
-    if (!root || reduced) return;
-    const line = root.querySelector<SVGPathElement>("[data-line]");
-    const packet = root.querySelector<SVGCircleElement>("[data-packet]");
-    if (!line || !packet) return;
-    line.style.opacity = "0";
-    packet.style.opacity = "0";
-    const io = new IntersectionObserver(([e]) => {
-      if (!e?.isIntersecting) return;
-      io.disconnect();
-      line.style.opacity = "1";
-      drawPath(line, { duration: 1100 });
-      const stops = [0, 1, 2, 3, 4, 5].map((i) => 70 + i * 156);
-      packet.style.opacity = "1";
-      animate(packet, {
-        cx: [{ to: stops[0]! }, { to: stops[1]!, delay: 200 }, { to: stops[2]! }, { to: stops[3]! }, { to: stops[4]! }, { to: stops[4]!, duration: 550 }, { to: stops[5]! }],
-        duration: 420, delay: 900, ease: easings.inOut,
-      });
-    }, { threshold: 0.5 });
-    io.observe(root);
-    return () => io.disconnect();
-  }, [reduced]);
-
+  const oh = facts['res.overhead'];
   return (
-    <section aria-labelledby="pipe-title" className="relative z-content py-24 md:py-36">
-      <div className="mx-auto max-w-[1360px] px-5 md:px-8">
-        <ScrollReveal className="mb-12 flex max-w-3xl flex-col gap-4">
-          <h2 id="pipe-title" className="t-h2">Six stages from event to audit entry.</h2>
-        </ScrollReveal>
-
-        <div ref={ref}>
-          <svg viewBox="0 0 920 150" role="img" aria-label="Pipeline: detection event, corroboration, Channel A, Channel B, the gate, alert and ledger" className="hidden w-full md:block">
-            <path data-line d="M70 60 H850" fill="none" stroke="var(--line-strong)" strokeWidth="1.5" />
-            {PIPELINE.map((s, i) => {
-              const x = 70 + i * 156;
-              const gate = s.id === "gate";
-              return (
-                <g key={s.id}>
-                  {gate ? <path d={`M${x} 40 L${x + 20} 60 L${x} 80 L${x - 20} 60Z`} fill="var(--signal)" /> : <circle cx={x} cy="60" r="9" fill="var(--ink-2)" stroke="var(--bone-2)" strokeWidth="1.5" />}
-                  <text x={x} y="108" textAnchor="middle" fontSize="13" fontWeight="500" fill="var(--bone)">{s.label}</text>
-                  <text x={x} y="127" textAnchor="middle" fontSize="11" fill="var(--bone-2)">{s.note.length > 26 ? s.note.slice(0, 26) : s.note}</text>
-                </g>
-              );
-            })}
-            <circle data-packet cx="70" cy="60" r="5" fill="var(--bone)" />
-          </svg>
-          <ol className="flex flex-col gap-0 md:hidden">
-            {PIPELINE.map((s, i) => (
-              <li key={s.id} className="relative flex gap-4 pb-8 last:pb-0">
-                <span aria-hidden="true" className="relative flex w-6 flex-col items-center">
-                  {s.id === "gate" ? <span className="mt-0.5 size-3.5 rotate-45 bg-signal" /> : <span className="mt-0.5 size-3.5 rounded-full border border-bone-2 bg-ink-2" />}
-                  {i < PIPELINE.length - 1 && <span className="mt-1 w-px flex-1 bg-line-strong" />}
-                </span>
-                <div><p className={cn("font-medium", s.id === "gate" && "text-signal")}>{s.label}</p><p className="text-sm text-bone-2">{s.note}</p></div>
-              </li>
-            ))}
-          </ol>
-        </div>
-
-        <ul className="mt-12 grid gap-6 md:grid-cols-3">
-          {PIPELINE_FACTS.map((f) => (
-            <li key={f} className="border-t border-line pt-4 text-sm leading-relaxed text-bone-2">{f}</li>
-          ))}
-        </ul>
-      </div>
-    </section>
+    <Section id="pipeline" title="From event to ledger">
+      <ol className="grid gap-x-6 gap-y-10 md:grid-cols-3 lg:grid-cols-6">
+        {STAGES.map((s, i) => (
+          <li
+            key={s.name}
+            className="relative flex flex-col gap-3 border-t border-line-strong pt-4"
+          >
+            <span className="num text-sm text-bone-2" aria-hidden>
+              {String(i + 1).padStart(2, '0')}
+            </span>
+            <h3
+              className={cn(
+                'text-lg font-semibold tracking-tight',
+                s.name === 'The gate' && 'text-signal',
+              )}
+            >
+              {s.name}
+            </h3>
+            <p className="text-sm text-bone-2">{s.text}</p>
+            {s.name === 'The gate' ? (
+              <p className="num text-sm text-bone">
+                {f1(oh.value.igdctf_us)} us per event
+                <SourceNote fact={oh} />
+              </p>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+      <ul className="mt-14 grid gap-8 md:grid-cols-3">
+        {[
+          'Writes carry an idempotency key and a timestamp, and stale or repeated events are rejected.',
+          'Every decision is a Merkle-chained audit entry that can be verified later.',
+          'Sources are passive: stored scanner metadata, public catalogs and authorized footage.',
+        ].map((t) => (
+          <li key={t} className="text-body measure text-bone-2">
+            {t}
+          </li>
+        ))}
+      </ul>
+    </Section>
   );
 }

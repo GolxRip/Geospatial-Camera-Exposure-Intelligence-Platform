@@ -56,7 +56,7 @@ describe("SSE brief stream (recorded from POST /api/brief/stream)", () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("fetch failed"); }));
     const err = await collect(streamBrief(body)).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ApiError);
-    expect((err as ApiError).offline).toBe(true);
+    expect((err as ApiError).status).toBe(0);
   });
 
   it("skips one malformed event without ending the stream", async () => {

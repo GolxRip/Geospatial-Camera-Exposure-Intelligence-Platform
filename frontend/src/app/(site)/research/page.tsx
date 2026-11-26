@@ -309,14 +309,32 @@ export default function ResearchPage() {
                           </dd>
                         </div>
                       </dl>
-                      {run.csvTables.map((csv) => (
-                        <DataTable
-                          key={csv.filename}
-                          caption={`${csv.filename} (${run.dataset}, ${run.date})`}
-                          head={csv.headers}
-                          rows={csv.rows}
-                        />
-                      ))}
+                      {run.csvTables.map((csv) =>
+                        csv.filename === 'per_run.csv' || csv.rows.length > 25 ? (
+                          <details
+                            key={csv.filename}
+                            className="rounded-control border border-line bg-ink-0 p-3"
+                          >
+                            <summary className="cursor-pointer text-sm text-bone-2 hover:text-bone">
+                              {`Per-video breakdown: ${csv.filename} (${csv.rows.length} rows)`}
+                            </summary>
+                            <div className="mt-4">
+                              <DataTable
+                                caption={`${csv.filename} (${run.dataset}, ${run.date})`}
+                                head={csv.headers}
+                                rows={csv.rows}
+                              />
+                            </div>
+                          </details>
+                        ) : (
+                          <DataTable
+                            key={csv.filename}
+                            caption={`${csv.filename} (${run.dataset}, ${run.date})`}
+                            head={csv.headers}
+                            rows={csv.rows}
+                          />
+                        ),
+                      )}
                       {run.summaryLines.length > 0 ? (
                         <pre className="overflow-x-auto rounded-control border border-line bg-ink-0 p-3 font-mono text-xs text-bone-2">
                           {run.summaryLines.join('\n')}

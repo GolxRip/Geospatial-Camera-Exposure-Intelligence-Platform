@@ -260,6 +260,9 @@ def main():
                     help="an alarm must persist this long to count (filters single-frame flicker)")
     args = ap.parse_args()
 
+    if not args.data.exists():
+        sys.exit(f"Input path does not exist: {args.data}")
+
     detector_cls = load_detector(args.detector)
     attacks = [a.strip() for a in args.attacks.split(",") if a.strip()]
     unknown = [a for a in attacks if a not in ATTACKS]

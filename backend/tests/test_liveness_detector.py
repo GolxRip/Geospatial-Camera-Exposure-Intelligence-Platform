@@ -220,3 +220,24 @@ def test_frame_liveness_tracker_scene_displacement():
             shifted_tripped = True
             break
     assert shifted_tripped is True
+
+
+def test_frame_liveness_tracker_partial_cover():
+    """Sustained partial lens occlusion must trip occlusion_detected via 8x8 grid."""
+    import cv2
+
+    tracker = FrameLivenessTracker(camera_id="CAM_PCOVER_01", consecutive_freeze_frames=25)
+    for i in range(30):
+        res = tracker.process_frame(_synthetic_coherent_scene(i), frame_idx=i, timestamp_s=i / 25.0)
+        assert res["occlusion_detected"] is False
+
+    caught = False
+    for j in range(45):
+        idx = 30 + j
+        g = _synthetic_coherent_scene(idx).copy()
+        cv2.ellipse(g, (112, 108), (121, 100), 0, 0, 360, (25, 25, 25), -1)
+        res = tracker.process_frame(g, frame_idx=idx, timestamp_s=idx / 25.0)
+        if res["occlusion_detected"] and res["liveness_score"] <= 0.50:
+            caught = True
+            break
+    assert caught is True

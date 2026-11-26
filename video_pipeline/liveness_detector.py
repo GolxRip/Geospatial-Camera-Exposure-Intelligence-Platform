@@ -117,19 +117,20 @@ def _extract_gray(frame: np.ndarray) -> np.ndarray:
 
 def _extract_compact_features(
     gray: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Compute strided luma sample, 16x16 & 32x32 thumbnails, 32x32 edge magnitude, and 4x4 block stats."""
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Compute strided luma sample, nearest/area thumbnails, 32x32 edges, and 8x8 block stats."""
     sample = gray[::4, ::4].astype(np.int16)
+    nearest_16 = cv2.resize(gray, (16, 16), interpolation=cv2.INTER_NEAREST).astype(np.int16).ravel()
     thumb_32 = cv2.resize(gray, (32, 32), interpolation=cv2.INTER_AREA)
     thumb_16 = cv2.resize(thumb_32, (16, 16), interpolation=cv2.INTER_AREA).astype(np.int16).ravel()
-    blocks = thumb_32.astype(np.float32).reshape(4, 8, 4, 8)
+    blocks = thumb_32.astype(np.float32).reshape(8, 4, 8, 4)
     block_means = blocks.mean(axis=(1, 3)).ravel()
     block_stds = blocks.std(axis=(1, 3)).ravel()
     thumb_32_f = thumb_32.astype(np.float32)
     gx = cv2.Sobel(thumb_32_f, cv2.CV_32F, 1, 0, ksize=3)
     gy = cv2.Sobel(thumb_32_f, cv2.CV_32F, 0, 1, ksize=3)
     edges_32 = np.hypot(gx, gy).ravel()
-    return sample, thumb_16, thumb_32_f.ravel(), edges_32, block_means, block_stds
+    return sample, nearest_16, thumb_16, thumb_32_f.ravel(), edges_32, block_means, block_stds
 
 
 def _pearson_corr(a: np.ndarray, b: np.ndarray) -> float:
@@ -184,6 +185,7 @@ class FrameLivenessTracker:
         self._loop_maxlen: int = max(450, window_size * 15)
         self._loop_buf = np.zeros((self._loop_maxlen * 2, 256), dtype=np.int16)
         self._loop_hashes: list[int] = [0] * (self._loop_maxlen * 2)
+        self._loop_prefix_motion = np.zeros(self._loop_maxlen * 2 + 1, dtype=np.float64)
         self._loop_start: int = 0
         self._loop_end: int = 0
         self._lag_streaks: dict[int, int] = {}
@@ -209,27 +211,29 @@ class FrameLivenessTracker:
 
     def _update_loop_detector(
         self,
+        nearest_16: np.ndarray,
         thumb_16: np.ndarray,
         current_hash: int,
         sample_mad: float,
     ) -> bool:
-        """Detect cyclic replay of prior moving footage across lags up to _loop_maxlen frames."""
-        min_lag = min(15, max(5, self.consecutive_freeze_frames // 2))
-        loop_confirm = min(12, max(5, self.consecutive_freeze_frames // 2))
+        """Detect cyclic replay of prior moving footage across lags >= min_lag frames."""
+        min_lag = max(10, self.consecutive_freeze_frames)
+        loop_confirm = min(15, max(6, int(self.consecutive_freeze_frames * 0.6)))
 
         step_mad_16 = (
             float(np.mean(np.abs(thumb_16 - self._prev_thumb_16)))
             if self._prev_thumb_16 is not None
             else 0.0
         )
+        self._loop_prefix_motion[self._loop_end + 1] = self._loop_prefix_motion[self._loop_end] + step_mad_16
 
         hist_len = self._loop_end - self._loop_start
         detected = False
         if hist_len >= min_lag and sample_mad > self._FREEZE_PIXEL_MAD_MAX:
             past = self._loop_buf[self._loop_start : self._loop_end - min_lag + 1]
-            mads = np.mean(np.abs(past - thumb_16), axis=1)
-            matched_idx = np.where(mads <= 1.2)[0]
-            # If >40 lags match simultaneously, scene is still/blank rather than a moving loop
+            mads = np.mean(np.abs(past - nearest_16), axis=1)
+            matched_idx = np.where(mads <= 0.45)[0]
+            # Ignore still/blank periods where >40 distant timestamps look identical at once
             if 0 < matched_idx.size <= 40:
                 next_streaks: dict[int, int] = {}
                 next_motion: dict[int, float] = {}
@@ -238,17 +242,20 @@ class FrameLivenessTracker:
                     lag = self._loop_end - ring_pos
                     if hamming_distance(current_hash, self._loop_hashes[ring_pos]) <= 2:
                         streak = self._lag_streaks.get(lag, 0) + 1
-                        motion = self._lag_motion.get(lag, 0.0) + step_mad_16
+                        cycle_motion = float(
+                            self._loop_prefix_motion[self._loop_end + 1] - self._loop_prefix_motion[ring_pos + 1]
+                        )
+                        local_motion = self._lag_motion.get(lag, 0.0) + step_mad_16
                         next_streaks[lag] = streak
-                        next_motion[lag] = motion
-                        if streak >= loop_confirm and motion >= loop_confirm * 0.30:
+                        next_motion[lag] = local_motion
+                        if streak >= loop_confirm and cycle_motion >= lag * 0.12:
                             detected = True
                 self._lag_streaks = next_streaks
                 self._lag_motion = next_motion
             else:
                 self._lag_streaks.clear()
                 self._lag_motion.clear()
-        elif sample_mad <= self._FREEZE_PIXEL_MAD_MAX:
+        elif self.is_frozen:
             self._lag_streaks.clear()
             self._lag_motion.clear()
 
@@ -256,10 +263,14 @@ class FrameLivenessTracker:
             keep = self._loop_maxlen
             self._loop_buf[:keep] = self._loop_buf[self._loop_end - keep : self._loop_end]
             self._loop_hashes[:keep] = self._loop_hashes[self._loop_end - keep : self._loop_end]
+            base_m = self._loop_prefix_motion[self._loop_end - keep]
+            self._loop_prefix_motion[: keep + 1] = (
+                self._loop_prefix_motion[self._loop_end - keep : self._loop_end + 1] - base_m
+            )
             self._loop_start = 0
             self._loop_end = keep
 
-        self._loop_buf[self._loop_end] = thumb_16
+        self._loop_buf[self._loop_end] = nearest_16
         self._loop_hashes[self._loop_end] = current_hash
         self._loop_end += 1
         if self._loop_end - self._loop_start > self._loop_maxlen:
@@ -291,7 +302,7 @@ class FrameLivenessTracker:
 
         h, w = frame.shape[:2]
         gray = _extract_gray(frame)
-        sample, thumb_16, thumb_32, edges_32, block_means, block_stds = _extract_compact_features(gray)
+        sample, nearest_16, thumb_16, thumb_32, edges_32, block_means, block_stds = _extract_compact_features(gray)
 
         # 1. Perceptual Hash + Pixel-Diff Freeze & Cyclic Loop Detection
         current_hash = compute_frame_phash(gray)
@@ -312,7 +323,7 @@ class FrameLivenessTracker:
 
         self.is_frozen = self.freeze_counter >= self.consecutive_freeze_frames
         self.hash_history.append(current_hash)
-        self.is_looped = self._update_loop_detector(thumb_16, current_hash, sample_mad)
+        self.is_looped = self._update_loop_detector(nearest_16, thumb_16, current_hash, sample_mad)
         self._prev_sample = sample
 
         # 2. Blur / Quality Drift & Persistent Occlusion Tracking
@@ -352,17 +363,19 @@ class FrameLivenessTracker:
                 self._anchor_block_means = block_means.copy()
                 self._anchor_block_stds = block_stds.copy()
 
-        # Partial lens cover check across 4x4 grid once coherent background is anchored
+        # Partial lens cover check across 8x8 grid once coherent background is anchored
         partial_cover_now = False
+        dead_blocks = 0
         if (
             self._scene_anchored
             and self._anchor_block_stds is not None
             and self._anchor_block_means is not None
         ):
-            had_texture = self._anchor_block_stds >= 5.0
-            now_flat = (block_stds < 2.0) & (np.abs(block_means - self._anchor_block_means) >= 15.0)
-            dead_blocks = int(np.sum(had_texture & now_flat))
-            if dead_blocks >= 4:
+            mean_delta = np.abs(block_means - self._anchor_block_means)
+            had_texture = (self._anchor_block_stds >= 4.0) & (mean_delta >= 12.0)
+            brightness_shifted = mean_delta >= 25.0
+            dead_blocks = int(np.sum((block_stds < 2.0) & (had_texture | brightness_shifted)))
+            if dead_blocks >= 12:
                 self._partial_cover_counter += 1
             else:
                 self._partial_cover_counter = max(0, self._partial_cover_counter - 1)
@@ -417,7 +430,7 @@ class FrameLivenessTracker:
             self._anchor_blur = alpha * blur_val + (1.0 - alpha) * self._anchor_blur
             self._anchor_contrast = alpha * contrast_std + (1.0 - alpha) * self._anchor_contrast
             self.ewma_blur = self.ewma_alpha * blur_val + (1.0 - self.ewma_alpha) * self.ewma_blur
-            if self._anchor_block_stds is not None and scene_corr >= 0.65 and edge_corr >= 0.65:
+            if self._anchor_block_stds is not None and scene_corr >= 0.65 and edge_corr >= 0.65 and dead_blocks < 8:
                 self._anchor_block_stds = 0.005 * block_stds + 0.995 * self._anchor_block_stds
                 self._anchor_block_means = 0.005 * block_means + 0.995 * self._anchor_block_means
         elif not full_cover_now and not partial_cover_now and self._anchor_blur <= 10.0:

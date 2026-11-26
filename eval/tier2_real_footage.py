@@ -44,6 +44,7 @@ sys.path.insert(0, str(ROOT / "video_pipeline"))
 
 VIDEO_EXT = {".mp4", ".avi", ".mov", ".mkv", ".m4v"}
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".bmp"}
+SKIP_FRAME_DIRS = {"groundtruth", "gt", "results", "mask", "masks", "__macosx"}
 DEGRADED, TRIPPED = 0.85, 0.50
 
 
@@ -93,10 +94,13 @@ def load_frame_dir(path: Path, width: int, max_seconds: float, fps: float) -> Cl
 
 def discover(root: Path, width: int, max_seconds: float, dir_fps: float, min_seconds: float) -> list[Clip]:
     clips = []
-    for p in sorted(root.rglob("*")):
+    candidates = [root, *sorted(root.rglob("*"))]
+    for p in candidates:
+        if any(part.lower() in SKIP_FRAME_DIRS for part in p.relative_to(root).parts):
+            continue
         if p.is_file() and p.suffix.lower() in VIDEO_EXT:
             c = load_video(p, width, max_seconds)
-        elif p.is_dir() and any(q.suffix.lower() in IMAGE_EXT for q in p.iterdir()):
+        elif p.is_dir() and not (p / "input").is_dir() and any(q.is_file() and q.suffix.lower() in IMAGE_EXT for q in p.iterdir()):
             c = load_frame_dir(p, width, max_seconds, dir_fps)
         else:
             continue

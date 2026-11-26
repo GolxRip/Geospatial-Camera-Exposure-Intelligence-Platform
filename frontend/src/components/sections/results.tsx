@@ -1,9 +1,13 @@
+import Link from 'next/link';
 import { Section } from '@/components/layout/section';
+import { Badge } from '@/components/ui/badge';
 import { SourceNote } from '@/components/ui/source-note';
 import { Stat } from '@/components/ui/stat';
 import { SyntheticChip } from '@/components/ui/synthetic-chip';
 import { facts } from '@/lib/content/facts.generated';
 import { manualFacts } from '@/lib/content/facts.manual';
+import { loadRealTier2Results } from '@/lib/content/real-tier2';
+import { ROUTES } from '@/lib/constants/routes';
 import { f1, f3, sci } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { LimitsList } from './limits-list';
@@ -46,10 +50,11 @@ function Pair({ label, a, b }: { label: string; a: number; b: number }) {
 }
 
 /**
- * "Results, with their limits" (FRONTEND_SPEC.md section 7.6): one large comparison, a supporting row of four figures, a
- * two-row small multiple, and the limits block as part of the section. Every figure is read from the generated facts.
+ * Results section on home: keeps real Tier 2 public-video runs strictly separate from the synthetic 120-scenario corpus.
+ * Note: JSX text intentionally avoids literal multi-digit numbers or decimals (verified by tests/facts.test.ts).
  */
 export function Results() {
+  const realResults = loadRealTier2Results();
   const ig = facts['res.model.igdctf'].value;
   const mc = facts['res.mcnemar'];
   const ab = facts['res.ablation'].value;
@@ -61,7 +66,42 @@ export function Results() {
   return (
     <Section id="results" title="Results, with their limits" headerExtra={<SyntheticChip />}>
       <div className="flex flex-col gap-16">
+        <div className="flex flex-col gap-4 rounded-panel border border-line bg-ink-1 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-xl font-semibold tracking-tight">Real Tier 2 video evaluation</h3>
+            <Badge tone={realResults.available ? 'signal' : 'neutral'}>
+              {realResults.available ? 'Real footage' : 'Pending run'}
+            </Badge>
+          </div>
+          {realResults.available ? (
+            <ul className="flex flex-col gap-4">
+              {realResults.runs.map((run) => (
+                <li key={run.id} className="border-t border-line pt-3 first:border-t-0 first:pt-0">
+                  <p className="text-sm font-medium text-bone">
+                    {run.dataset} ({run.date})
+                  </p>
+                  <p className="mt-1 font-mono text-xs text-bone-2">
+                    {run.command ?? 'eval/tier2_real_footage.py'}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-bone-2">
+              No real-footage evaluation has been saved in eval/results/ yet. Synthetic benchmark
+              metrics below are separate.
+            </p>
+          )}
+          <Link
+            href={`${ROUTES.research}#results`}
+            className="self-start rounded-chip text-sm text-bone underline underline-offset-4 transition-surface hover:text-signal"
+          >
+            Inspect full results on Research page
+          </Link>
+        </div>
+
         <div className="flex flex-col gap-2">
+          <h3 className="text-xl font-semibold tracking-tight">Synthetic benchmark comparison</h3>
           <p className="text-sm text-bone-2">
             F1 on the synthetic corpus, positive class fabricated
             <SourceNote fact={facts['res.model.igdctf']} />
@@ -82,7 +122,7 @@ export function Results() {
                   <span className="num text-xs text-bone-2 md:col-start-2 md:col-end-4">
                     TP {v.tp}, FP {v.fp}, TN {v.tn}, FN {v.fn}
                     {hero
-                      ? `. Accuracy ${f3(v.accuracy)}, 95% Wilson interval ${f3(v.accuracy_ci[0])} to ${f3(v.accuracy_ci[1])}.`
+                      ? `. Accuracy ${f3(v.accuracy)}, Wilson interval ${f3(v.accuracy_ci[0])} to ${f3(v.accuracy_ci[1])}.`
                       : ''}
                   </span>
                 </li>

@@ -5,6 +5,7 @@ import { Minus, Plus } from '@phosphor-icons/react/dist/ssr';
 import type { Map as MlMap, GeoJSONSource, MapMouseEvent, StyleSpecification } from 'maplibre-gl';
 import { EmptyState } from '@/components/ui/empty-state';
 import type { MapDevice } from '@/lib/data/types';
+import { buildMapStyle } from '@/styles/map-style';
 import { cn } from '@/lib/utils';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -13,27 +14,84 @@ export interface DeviceMapProps {
   devices: MapDevice[];
   selectedId?: string | null;
   onSelect?: (id: string) => void;
-  /**
-   * A MapLibre style URL (for example one that points at your self-hosted PMTiles). Without it the map is a plain dark canvas
-   * with the device layer on it, so the component works with no tile hosting at all.
-   */
+  /** Optional MapLibre style URL (e.g. self-hosted vector tiles). Omit to use PMTiles if built or the self-hosted boundary fallback. */
   styleUrl?: string;
+  /** Initial / target camera center [lon, lat]. */
+  center?: [number, number];
+  /** Initial / target zoom level. */
+  zoom?: number;
   /** Shown over the map when there are no devices, for example the offline state. */
   emptyState?: React.ReactNode;
   label?: string;
   className?: string;
 }
 
-const INK_0 = '#0A0C0B';
-const BONE = '#E7EAE3';
-const BONE_2 = '#A4AAA1';
-const SIGNAL = '#F3A33A';
+const INK_0 = '#0a0c0b';
+const INK_1 = '#101311';
+const INK_2 = '#171b19';
+const BONE = '#e7eae3';
+const BONE_2 = '#a4aaa1';
+const SIGNAL = '#f3a33a';
 const INK_3 = '#202522';
-const BLANK_STYLE: StyleSpecification = {
-  version: 8,
-  sources: {},
-  layers: [{ id: 'background', type: 'background', paint: { 'background-color': INK_0 } }],
-};
+
+/** Self-hosted Natural Earth GeoJSON fallback style (zero external requests). */
+function boundaryFallbackStyle(origin: string): StyleSpecification {
+  return {
+    version: 8,
+    sources: {
+      countries: {
+        type: 'geojson',
+        data: `${origin}/map/south-asia-countries.geojson`,
+      },
+      states: {
+        type: 'geojson',
+        data: `${origin}/map/india-states.geojson`,
+      },
+    },
+    layers: [
+      { id: 'background', type: 'background', paint: { 'background-color': INK_0 } },
+      { id: 'land', type: 'fill', source: 'countries', paint: { 'fill-color': INK_1 } },
+      {
+        id: 'states',
+        type: 'line',
+        source: 'states',
+        paint: { 'line-color': INK_2, 'line-width': 1 },
+      },
+      {
+        id: 'borders',
+        type: 'line',
+        source: 'countries',
+        paint: { 'line-color': 'rgba(231,234,227,0.22)', 'line-width': 1 },
+      },
+    ],
+  };
+}
+
+async function resolveMapStyle(styleUrl?: string): Promise<{
+  style: StyleSpecification | string;
+  usesPmtiles: boolean;
+}> {
+  if (styleUrl) return { style: styleUrl, usesPmtiles: false };
+  const origin = window.location.origin;
+  try {
+    const res = await fetch('/tiles/basemap.json', { cache: 'no-store' });
+    if (res.ok) {
+      const meta = (await res.json()) as { available?: boolean };
+      if (meta.available === true) {
+        const head = await fetch('/tiles/india.pmtiles', { method: 'HEAD' });
+        if (head.ok) {
+          return {
+            style: buildMapStyle({ origin, basemapUrl: '/tiles/india.pmtiles' }),
+            usesPmtiles: true,
+          };
+        }
+      }
+    }
+  } catch {
+    // Fall back to self-hosted boundary GeoJSON below
+  }
+  return { style: boundaryFallbackStyle(origin), usesPmtiles: false };
+}
 
 /** Draw a marker or a cluster count to an ImageData: shapes follow TierShape (circle, ring, diamond, diamond with a ring). */
 function drawIcon(
@@ -132,16 +190,16 @@ function toGeoJson(devices: MapDevice[], selectedId?: string | null): GeoJSON.Fe
 }
 
 /**
- * The device map (FRONTEND_SPEC.md section 10.2): MapLibre GL JS with a clustered GeoJSON source and the severity encoding of
- * section 5.1 (shape plus the amber ramp, never colour alone). Icons are drawn on a canvas, so the map needs no glyph or sprite
- * hosting; with no `styleUrl` it needs no tile hosting either. The map is not the only way to select a device: the alert stream
- * and the command palette select too. Positions are estimates, and the container says so.
+ * The device map (FRONTEND_SPEC.md section 10.2): MapLibre GL JS with a clustered GeoJSON source, self-hosted
+ * India/South Asia boundary GeoJSON fallback (or PMTiles when built), and visible OpenStreetMap attribution.
  */
 export function DeviceMap({
   devices,
   selectedId,
   onSelect,
   styleUrl,
+  center = [79, 22],
+  zoom = 3.8,
   emptyState,
   label = 'Map of device positions',
   className,
@@ -149,12 +207,12 @@ export function DeviceMap({
   const host = React.useRef<HTMLDivElement | null>(null);
   const mapRef = React.useRef<MlMap | null>(null);
   const [ready, setReady] = React.useState(false);
+  const [hasPmtiles, setHasPmtiles] = React.useState(false);
   const onSelectRef = React.useRef(onSelect);
-  const latest = React.useRef({ devices, selectedId });
-  // Refs are written in an effect, never during render, so the long-lived map callbacks always read the latest props.
+  const latest = React.useRef({ devices, selectedId, center, zoom });
   React.useEffect(() => {
     onSelectRef.current = onSelect;
-    latest.current = { devices, selectedId };
+    latest.current = { devices, selectedId, center, zoom };
   });
 
   React.useEffect(() => {
@@ -162,16 +220,22 @@ export function DeviceMap({
     let map: MlMap | null = null;
     (async () => {
       const ml = await import('maplibre-gl');
+      const { style, usesPmtiles } = await resolveMapStyle(styleUrl);
       if (cancelled || !host.current) return;
+      if (usesPmtiles) {
+        const { registerPmtiles } = await import('@/lib/map/pmtiles');
+        registerPmtiles(ml);
+      }
+      setHasPmtiles(usesPmtiles);
       const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       map = new ml.Map({
         container: host.current,
-        style: styleUrl ?? BLANK_STYLE,
-        center: [79, 22],
-        zoom: 3.4,
+        style,
+        center: latest.current.center,
+        zoom: latest.current.zoom,
         minZoom: 2,
         maxZoom: 16,
-        attributionControl: { compact: true },
+        attributionControl: false,
         dragRotate: false,
         pitchWithRotate: false,
         fadeDuration: reduce ? 0 : 150,
@@ -229,9 +293,9 @@ export function DeviceMap({
           const clusterId = f?.properties?.cluster_id as number | undefined;
           if (clusterId === undefined) return;
           const src = map!.getSource('devices') as GeoJSONSource;
-          const zoom = await src.getClusterExpansionZoom(clusterId);
+          const targetZoom = await src.getClusterExpansionZoom(clusterId);
           const coords = (f!.geometry as GeoJSON.Point).coordinates as [number, number];
-          map!.easeTo({ center: coords, zoom, duration: reduce ? 0 : 400 });
+          map!.easeTo({ center: coords, zoom: targetZoom, duration: reduce ? 0 : 400 });
         });
         map.on('click', 'devices', (e: MapMouseEvent) => {
           const id = map!.queryRenderedFeatures(e.point, { layers: ['devices'] })[0]?.properties
@@ -251,7 +315,6 @@ export function DeviceMap({
       mapRef.current = null;
       setReady(false);
     };
-    // The map is created once per style; data changes go through the effect below.
   }, [styleUrl]);
 
   React.useEffect(() => {
@@ -259,7 +322,14 @@ export function DeviceMap({
     if (ready && src) src.setData(toGeoJson(devices, selectedId));
   }, [devices, selectedId, ready]);
 
-  const zoom = (dir: 1 | -1) => {
+  React.useEffect(() => {
+    const m = mapRef.current;
+    if (!m || !ready) return;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    m.easeTo({ center, zoom, duration: reduce ? 0 : 500 });
+  }, [center, zoom, ready]);
+
+  const zoomStep = (dir: 1 | -1) => {
     const m = mapRef.current;
     if (!m) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -268,7 +338,6 @@ export function DeviceMap({
 
   return (
     <div className={cn('relative size-full min-h-64 overflow-hidden bg-ink-0', className)}>
-      {/* Inline style, not a utility class: maplibre-gl.css is unlayered and sets .maplibregl-map to position: relative, which would win over a Tailwind class and collapse the map to zero height. */}
       <div
         ref={host}
         role="region"
@@ -287,16 +356,21 @@ export function DeviceMap({
             key={name}
             type="button"
             aria-label={name}
-            onClick={() => zoom(dir)}
+            onClick={() => zoomStep(dir)}
             className="inline-flex size-11 items-center justify-center rounded-control border border-line-strong bg-ink-2 text-bone transition-surface hover:bg-ink-3"
           >
             <Icon aria-hidden size={16} />
           </button>
         ))}
       </div>
-      <p className="pointer-events-none absolute bottom-3 left-3 rounded-chip bg-ink-1 px-2 py-1 text-xs text-bone-2">
-        Positions are estimates
-      </p>
+      <div className="pointer-events-none absolute inset-x-3 bottom-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="rounded-chip bg-ink-1 px-2 py-1 text-xs text-bone-2">Positions are estimates</p>
+        <p className="rounded-chip border border-line bg-ink-1 px-2 py-1 text-xs text-bone-2">
+          {hasPmtiles
+            ? 'Basemap © OpenStreetMap contributors, Protomaps'
+            : 'Map data © OpenStreetMap contributors · Natural Earth boundaries'}
+        </p>
+      </div>
       {devices.length === 0 ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
           <div className="pointer-events-auto">

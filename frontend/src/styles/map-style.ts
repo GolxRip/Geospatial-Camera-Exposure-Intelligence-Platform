@@ -7,8 +7,8 @@ import type { StyleSpecification } from "maplibre-gl";
  * token from tokens.css; no other hue is used.
  */
 const INK_0 = "#0a0c0b";
-const INK_0_WATER = "#070908";
-const LAND = "#151917"; // between ink-1 and ink-2: coastlines need more contrast than ink-1 on ink-0 gives
+const INK_0_WATER = "#0a0c0b";
+const LAND = "#171b19"; // ink-2 on ink-0 for crisp coastline separation inside strict palette
 const BONE_3 = "#6e746c";
 const bone = (a: number) => `rgba(231,234,227,${a})`;
 const NONE = "rgba(0,0,0,0)";

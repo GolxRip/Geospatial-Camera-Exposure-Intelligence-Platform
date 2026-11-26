@@ -327,7 +327,6 @@ def compute_advanced_trust_score(
     device: dict,
     corroborating_cameras: list,
     cve_categories: list[str] | None = None,
-    ping_latency_ms: float | None = None,
     enforce_critical_gates: bool = True,
     signal_integrity: float | None = None,
     enforce_integrity_gate: bool = False,
@@ -335,7 +334,6 @@ def compute_advanced_trust_score(
     """
     Literature-grounded Advanced Trust Score Engine incorporating:
     - Vulnerability Category-Aware Weights (Oliver 2025, Famera 2025)
-    - Signal Latency & Heartbeat Health (YOLO Review 2025)
     - SCI-IoT Critical Security Gate Auto-Fails (Swami 2025)
     - IG-DCTF Multiplicative Integrity Gate (Optional / Feature Flagged)
     """
@@ -376,12 +374,7 @@ def compute_advanced_trust_score(
         score -= 15
         factors.append("outdated_firmware")
 
-    # 5. Signal Latency / Health (YOLO Review 2025)
-    if ping_latency_ms is not None and ping_latency_ms > 500.0:
-        score -= 10
-        factors.append(f"high_signal_latency_{int(ping_latency_ms)}ms")
-
-    # 6. Corroboration (-10 / +20)
+    # 5. Corroboration (-10 / +20)
     n_corroborating = len(corroborating_cameras)
     if n_corroborating == 0:
         score -= 10
@@ -443,7 +436,6 @@ def compute_ig_dctf_trust_score(
     drift_score: float = 0.0,
     visual_liveness: float | None = None,
     cve_categories: list[str] | None = None,
-    ping_latency_ms: float | None = None,
 ) -> dict:
     """
     Integrity-Gated Dual-Channel Trust Fusion (IG-DCTF) Core API.
@@ -462,7 +454,6 @@ def compute_ig_dctf_trust_score(
         device=device,
         corroborating_cameras=corroborating_cameras,
         cve_categories=cve_categories,
-        ping_latency_ms=ping_latency_ms,
         enforce_critical_gates=True,
         enforce_integrity_gate=False,
     )

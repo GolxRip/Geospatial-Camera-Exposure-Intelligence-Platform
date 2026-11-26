@@ -11,7 +11,7 @@ import type { LoadState, MapDevice } from '@/lib/data/types';
 
 function Legend() {
   return (
-    <div className="pointer-events-auto absolute bottom-12 left-3 z-overlay max-w-[calc(100%-1.5rem)] rounded-panel border border-line bg-ink-1 px-3 py-2">
+    <div className="pointer-events-auto absolute left-3 top-3 z-overlay max-w-[calc(100%-4.5rem)] rounded-panel border border-line bg-ink-1 px-3 py-2">
       <p className="sr-only">Legend</p>
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-bone">
         <li className="flex items-center gap-1.5">
@@ -44,6 +44,8 @@ export interface MapPaneProps {
   selectedId: string | null;
   onSelect: (id: string) => void;
   styleUrl?: string;
+  center?: [number, number];
+  zoom?: number;
   className?: string;
 }
 
@@ -51,7 +53,15 @@ export interface MapPaneProps {
  * The map pane (FRONTEND_SPEC.md section 10.2): MapLibre with a clustered device layer, the legend and the states. The map has
  * no radius and no frame of its own. Heat layer, collusion arcs and zone drawing are not built.
  */
-export function MapPane({ devices, selectedId, onSelect, styleUrl, className }: MapPaneProps) {
+export function MapPane({
+  devices,
+  selectedId,
+  onSelect,
+  styleUrl,
+  center,
+  zoom,
+  className,
+}: MapPaneProps) {
   const list = devices.status === 'ready' ? devices.data : [];
   const emptyState =
     devices.status === 'loading' ? (
@@ -76,6 +86,8 @@ export function MapPane({ devices, selectedId, onSelect, styleUrl, className }: 
           selectedId={selectedId}
           onSelect={onSelect}
           styleUrl={styleUrl}
+          center={center}
+          zoom={zoom}
           emptyState={emptyState}
           className="absolute inset-0"
         />

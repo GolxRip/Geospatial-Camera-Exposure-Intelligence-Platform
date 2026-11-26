@@ -154,3 +154,23 @@ Read `FRONTEND_SPEC.md` and the DIDA web app (extracted for reference to `Downlo
 - ESLint passed on `frontend/src` and `frontend/tests` (0 errors, 3 warnings).
 - Backend routes verified via automated test client.
 **Not verified:** Live Censys API calls (awaiting user API credentials in `.env`), live camera WebRTC/RTSP stream connections (disabled by ethics policy).
+
+## 2026-11-26 (later), Heartbeat removal, Censys Platform v3 fix, Review 2 alignment
+**Did:**
+1. Permanently deleted active heartbeat modules (`backend/services/heartbeat_service.py`, `backend/routes/heartbeat_router.py`, `backend/tests/test_heartbeat_service.py`) and removed all references from `backend/main.py`, `backend/routes/alerts.py`, `backend/services/trust_score_service.py` (removed `ping_latency_ms` arg/branch), `backend/services/cold_start_service.py`, `frontend/src/app/(site)/ethics/page.tsx`, `frontend/src/components/sections/ethics.tsx`, and `frontend/src/lib/api/client.ts`. Grepped `backend/` to verify zero outbound probes or socket calls to camera IPs remain.
+2. Rewrote `scripts/censys_snapshot.py` for Censys Platform API v3 (`POST https://api.platform.censys.io/v3/global/search/aggregate`, `Authorization: Bearer <CENSYS_API_TOKEN>`, CenQL `host.*` fields verified against `docs.censys.com`), added approved baseline query `host.location.country: "India" AND host.services.hardware.type: "CAMERA"`, `--baseline-only`, `--dry-run`, and `--from-paste` web UI converter. Added hard guard `_enforce_aggregates_only_guard()` in `scripts/censys_ingest.py` refusing individual host ingestion.
+3. Prepared `eval/results/.gitkeep` and `eval/README.md`; updated `/research` (`frontend/src/app/(site)/research/page.tsx`, `frontend/src/lib/content/real-tier2.ts`) and landing `Results` section (`frontend/src/components/sections/results.tsx`) to render real Tier 2 results from `eval/results/` separately from the synthetic 120-scenario corpus benchmark (`SyntheticChip`).
+4. Updated `CLAUDE.md` (real-data-only mandate, Dec 19 Review 2 target, Censys aggregates-only rule, `paper/` secondary status).
+5. Updated map demo readiness (`frontend/public/tiles/basemap.json` set honestly to `available: false`, `DeviceMap` upgraded with self-hosted Natural Earth GeoJSON boundary fallback + visible OpenStreetMap attribution + city zoom transitions; `ConsoleApp` displays simulated-data provenance banner when connected to DB), moved 19 old hackathon/early dossiers & exports into `archive/` with `archive/README.md` placeholder note, and rewrote `README.md` with real status/numbers only.
+6. Added missing `QueryClientProvider` in `frontend/src/components/providers.tsx` (discovered when live HTTP check on `/console` returned HTTP 500).
+**Verified:**
+- Touched backend pytest tests (`test_tier2_live_wiring.py`, `test_audit_and_decay_indepth.py`, `test_signal_integrity_gate.py`, `test_api.py` on a copy of `data/public.db`): 20 passed in 10.13 s.
+- Censys paste converter & host-field guard verified in Python (`parse_pasted_aggregates` JSON, TSV, card text; `host.ip` refused); `--dry-run --baseline-only` and `censys_ingest.py` hard guard verified.
+- Frontend ESLint (`src` + `tests`): 0 errors (3 warnings); `npx tsc --noEmit` + `npm run build`: exited 0 across all 11 routes.
+- Live combined HTTP smoke check against `data/public.db`: FE `/`, `/research`, `/ethics`, `/console`, `/lab`, `/console/devices/demo-1` and map GeoJSON assets all returned 200; `/api/devices?city=Mumbai`, `/api/devices/provenance`, `/api/censys/snapshots` returned 200; `/api/heartbeat/status` returned 404.
+**Not verified / Not done:**
+- `eval/tier2_real_footage.py` was not yet copied into `eval/` by the user, so it could not be reviewed/edited or run on public footage.
+- Headless Chromium / WebGL canvas pixel rendering (`npm run e2e`) and Vitest (`npm run test`, blocked earlier by missing `@rolldown/binding-win32-x64-msvc`) were not run in this pass.
+- Live Censys Platform API call not executed (no `CENSYS_API_TOKEN` configured).
+- Protomaps `india.pmtiles` not built (missing `pmtiles` CLI / daily planet URL; GeoJSON boundary fallback active).
+- No git commit or push performed (per user rule).

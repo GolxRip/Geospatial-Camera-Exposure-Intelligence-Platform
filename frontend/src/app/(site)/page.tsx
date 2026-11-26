@@ -9,6 +9,8 @@ import { Results } from '@/components/sections/results';
 import { TwinCameras } from '@/components/sections/twin-cameras';
 import { WalkTheGate } from '@/components/sections/walk-the-gate';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Landing page structure (FRONTEND_SPEC.md section 7), build phase 3: every section is laid out at four breakpoints with
  * wireframe regions, no copy beyond headings, no motion. Content arrives in phase 4, motion in phase 6, WebGL in phase 7.

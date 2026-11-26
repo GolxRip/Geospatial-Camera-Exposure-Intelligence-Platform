@@ -14,7 +14,7 @@ Problem
 -------
 `compute_probabilistic_trust_score()` always starts from a flat, uninformative
 prior P(genuine) = 0.50 for every device, including a camera that has never
-been scored before and has zero heartbeat/corroboration history. That is the
+been scored before and has zero corroboration history. That is the
 "cold-start problem" named in the BIoT Trust Assessment SLR (2026) as an
 unsolved gap (G3) shared by essentially every fixed-weight IoT trust model.
 

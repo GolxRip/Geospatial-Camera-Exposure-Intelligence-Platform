@@ -11,9 +11,6 @@ import { ApiError, detailFromBody } from './errors';
  * body arrives untyped from openapi-fetch. Each consumer validates its body with a zod schema
  * (src/lib/api/normalize.ts, added with the data layer in Phase 4) instead of trusting a cast.
  * Adding `response_model` to the routes (backend touchpoints B3 and B4) would remove that duty; it is not approved.
- *
- * Never wire GET /api/devices/{id}/heartbeat or /api/heartbeat/*: they open connections to device
- * addresses, which breaks the passive-only boundary (claim C15, backend touchpoint B2).
  */
 const REQUEST_TIMEOUT_MS = 10_000;
 

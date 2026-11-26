@@ -41,8 +41,10 @@ export interface ConsoleShellProps {
   onSelectDevice: (id: string | null) => void;
   city: string;
   onCityChange: (city: string) => void;
-  /** MapLibre style URL for the basemap. Omit for a plain dark canvas. */
+  /** MapLibre style URL for the basemap. Omit for self-hosted boundary fallback / PMTiles. */
   mapStyleUrl?: string;
+  mapCenter?: [number, number];
+  mapZoom?: number;
   /** Where "Open forensics" goes for a device. Defaults to the device route. */
   deviceHref?: (id: string) => string;
   /** Rendered above the top bar, for example the demo-data banner. */
@@ -67,6 +69,8 @@ export function ConsoleShell({
   city,
   onCityChange,
   mapStyleUrl,
+  mapCenter,
+  mapZoom,
   deviceHref = deviceRoute,
   banner,
 }: ConsoleShellProps) {
@@ -174,6 +178,8 @@ export function ConsoleShell({
           selectedId={selectedDeviceId}
           onSelect={select}
           styleUrl={mapStyleUrl}
+          center={mapCenter}
+          zoom={mapZoom}
           className={mapClass}
         />
         <section aria-labelledby="inspector-title" className={detailClass}>

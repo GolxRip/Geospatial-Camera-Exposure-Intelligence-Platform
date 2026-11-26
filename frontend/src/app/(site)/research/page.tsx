@@ -2,16 +2,20 @@ import type { Metadata } from 'next';
 import { DataTable } from '@/components/research/data-table';
 import { Tex } from '@/components/research/tex';
 import { LimitsList } from '@/components/sections/limits-list';
+import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
 import { SourceNote } from '@/components/ui/source-note';
 import { SyntheticChip } from '@/components/ui/synthetic-chip';
 import { facts } from '@/lib/content/facts.generated';
 import { manualFacts } from '@/lib/content/facts.manual';
+import { loadRealTier2Results } from '@/lib/content/real-tier2';
 import { f1, f2, f3, sci } from '@/lib/format';
 import { repoFileUrl } from '@/lib/env';
 import { GATE } from '@/lib/scoring/gate';
 
 import 'katex/dist/katex.min.css';
 
+export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Research' };
 
 const SECTIONS = [
@@ -23,7 +27,7 @@ const SECTIONS = [
   { id: 'limits', title: 'Limits' },
   { id: 'ablation', title: 'Ablation and fusion control' },
   { id: 'sweep', title: 'Threshold sweep' },
-  { id: 'benchmarks', title: 'Tier 1 and Tier 2 benchmarks' },
+  { id: 'benchmarks', title: 'Synthetic Tier 1 and Tier 2 benchmarks' },
   { id: 'overhead', title: 'Overhead' },
 ] as const;
 
@@ -126,6 +130,8 @@ function maxOf(w: Record<string, number>): number {
 }
 
 export default function ResearchPage() {
+  const realResults = loadRealTier2Results();
+
   const model = (
     k: 'res.model.wa' | 'res.model.advanced' | 'res.model.bayesian' | 'res.model.igdctf',
   ) => facts[k].value;
@@ -149,8 +155,8 @@ export default function ResearchPage() {
       <header className="mb-12 flex flex-col gap-6 md:mb-16">
         <h1 className="text-display">Research</h1>
         <P>
-          The method in reading order, with every number taken from the generated results. All
-          results are on a synthetic, hand-authored corpus.
+          The method in reading order. Real-footage Tier 2 runs from <code>eval/results/</code> and
+          the older hand-authored synthetic corpus benchmark are kept strictly separate.
         </P>
         <a
           href={repoFileUrl('paper/main.tex')}
@@ -158,7 +164,7 @@ export default function ResearchPage() {
           rel="noopener noreferrer"
           className="self-start rounded-chip text-bone underline underline-offset-4 transition-surface hover:text-signal"
         >
-          Read the manuscript source
+          Read the manuscript source (secondary)
         </a>
       </header>
       <div className="lg:grid lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-16">
@@ -218,7 +224,7 @@ export default function ResearchPage() {
             />
             <P>
               <strong className="font-medium text-bone">Channel B, Tier 2</strong> is frame
-              liveness, and runs only on authorized footage: a perceptual-hash freeze check (
+              liveness, and runs only on authorized or public video: a perceptual-hash freeze check (
               {FR.consecutive_frames} or more frames within Hamming distance {FR.hamming_max}), blur
               and exposure drift against a per-camera moving average (alpha {FR.ewma_alpha}), and a
               declared-spec mismatch.
@@ -270,64 +276,130 @@ export default function ResearchPage() {
             </ol>
           </Section>
 
-          <Section id="results" title="Results" extra={<SyntheticChip />}>
-            <P>
-              Four scoring models on {facts['res.corpus'].value.n_direct} scenarios:{' '}
-              {facts['res.corpus'].value.n_fabricated} fabricated feeds and{' '}
-              {facts['res.corpus'].value.n_genuine} genuine ones. Fabricated is the positive class.
-              <SourceNote fact={facts['res.model.igdctf']} />
-            </P>
-            <DataTable
-              caption="Four-model comparison"
-              emphasisRow={3}
-              head={['Model', 'Accuracy', 'Recall', 'F1', 'FP']}
-              rows={rows.map(([name, m]) => [
-                name,
-                f3(m.accuracy),
-                f3(m.recall),
-                f3(m.f1),
-                String(m.fp),
-              ])}
-            />
-            <P>
-              Exact McNemar test, IG-DCTF against CVE-only: {mc.igdctf_only_correct} against{' '}
-              {mc.advanced_only_correct} discordant scenarios, p = {sci(mc.p_value)}. The 95% Wilson
-              interval for IG-DCTF accuracy is {f3(model('res.model.igdctf').accuracy_ci[0])} to{' '}
-              {f3(model('res.model.igdctf').accuracy_ci[1])}.
-            </P>
-            <DataTable
-              caption="Accuracy by presence of Channel B fields"
-              head={['Subset', 'Weighted avg', 'CVE-only', 'Bayesian', 'IG-DCTF']}
-              rows={[
-                [
-                  `With Channel B, n = ${strat.b.n}`,
-                  f3(strat.b.accuracy.wa),
-                  f3(strat.b.accuracy.advanced),
-                  f3(strat.b.accuracy.bayesian),
-                  f3(strat.b.accuracy.igdctf),
-                ],
-                [
-                  `Without Channel B, n = ${strat.nb.n}`,
-                  f3(strat.nb.accuracy.wa),
-                  f3(strat.nb.accuracy.advanced),
-                  f3(strat.nb.accuracy.bayesian),
-                  f3(strat.nb.accuracy.igdctf),
-                ],
-              ]}
-            />
+          <Section id="results" title="Results">
+            <div className="flex flex-col gap-6 rounded-panel border border-line bg-ink-1 p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-xl font-semibold tracking-tight">
+                  Real Tier 2 evaluation (public video)
+                </h3>
+                <Badge tone={realResults.available ? 'signal' : 'neutral'}>
+                  {realResults.available ? 'Real footage results' : 'Awaiting eval/results/'}
+                </Badge>
+              </div>
+              {realResults.available ? (
+                <div className="flex flex-col gap-8">
+                  {realResults.runs.map((run) => (
+                    <div
+                      key={run.id}
+                      className="flex flex-col gap-4 border-t border-line pt-4 first:border-t-0 first:pt-0"
+                    >
+                      <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
+                        <div>
+                          <dt className="text-bone-2">Dataset</dt>
+                          <dd className="font-medium text-bone">{run.dataset}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-bone-2">Date</dt>
+                          <dd className="num font-medium text-bone">{run.date}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-bone-2">Command</dt>
+                          <dd className="font-mono text-xs text-bone">
+                            {run.command ?? 'See eval/README.md'}
+                          </dd>
+                        </div>
+                      </dl>
+                      {run.csvTables.map((csv) => (
+                        <DataTable
+                          key={csv.filename}
+                          caption={`${csv.filename} (${run.dataset}, ${run.date})`}
+                          head={csv.headers}
+                          rows={csv.rows}
+                        />
+                      ))}
+                      {run.summaryLines.length > 0 ? (
+                        <pre className="overflow-x-auto rounded-control border border-line bg-ink-0 p-3 font-mono text-xs text-bone-2">
+                          {run.summaryLines.join('\n')}
+                        </pre>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState title="No real Tier 2 runs saved yet">
+                  Run <code>python eval/tier2_real_footage.py</code> on public video to write CSV
+                  metrics and <code>summary.md</code> into <code>eval/results/</code>. Synthetic
+                  clips are never included here.
+                </EmptyState>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-6 pt-4">
+              <div className="flex flex-wrap items-center gap-4">
+                <h3 className="text-xl font-semibold tracking-tight">
+                  Synthetic benchmark corpus (hand-authored formula check)
+                </h3>
+                <SyntheticChip />
+              </div>
+              <P>
+                Four scoring models on {facts['res.corpus'].value.n_direct} synthetic scenarios:{' '}
+                {facts['res.corpus'].value.n_fabricated} fabricated feeds and{' '}
+                {facts['res.corpus'].value.n_genuine} genuine ones. Fabricated is the positive
+                class.
+                <SourceNote fact={facts['res.model.igdctf']} />
+              </P>
+              <DataTable
+                caption="Four-model comparison (synthetic corpus)"
+                emphasisRow={3}
+                head={['Model', 'Accuracy', 'Recall', 'F1', 'FP']}
+                rows={rows.map(([name, m]) => [
+                  name,
+                  f3(m.accuracy),
+                  f3(m.recall),
+                  f3(m.f1),
+                  String(m.fp),
+                ])}
+              />
+              <P>
+                Exact McNemar test, IG-DCTF against CVE-only: {mc.igdctf_only_correct} against{' '}
+                {mc.advanced_only_correct} discordant scenarios, p = {sci(mc.p_value)}. The 95%
+                Wilson interval for IG-DCTF accuracy is {f3(model('res.model.igdctf').accuracy_ci[0])}{' '}
+                to {f3(model('res.model.igdctf').accuracy_ci[1])}.
+              </P>
+              <DataTable
+                caption="Accuracy by presence of Channel B fields (synthetic corpus)"
+                head={['Subset', 'Weighted avg', 'CVE-only', 'Bayesian', 'IG-DCTF']}
+                rows={[
+                  [
+                    `With Channel B, n = ${strat.b.n}`,
+                    f3(strat.b.accuracy.wa),
+                    f3(strat.b.accuracy.advanced),
+                    f3(strat.b.accuracy.bayesian),
+                    f3(strat.b.accuracy.igdctf),
+                  ],
+                  [
+                    `Without Channel B, n = ${strat.nb.n}`,
+                    f3(strat.nb.accuracy.wa),
+                    f3(strat.nb.accuracy.advanced),
+                    f3(strat.nb.accuracy.bayesian),
+                    f3(strat.nb.accuracy.igdctf),
+                  ],
+                ]}
+              />
+            </div>
           </Section>
 
           <Section id="limits" title="Limits">
             <P>
-              These belong to the results above and are part of them. Claim ids refer to the claim
-              ledger in the repository.
+              These belong to the synthetic results above and are part of them. Claim ids refer to
+              the claim ledger in the repository.
             </P>
             <LimitsList />
           </Section>
 
-          <Section id="ablation" title="Ablation and fusion control">
+          <Section id="ablation" title="Ablation and fusion control" extra={<SyntheticChip />}>
             <DataTable
-              caption="Which part carries the result"
+              caption="Which part carries the result (synthetic corpus)"
               emphasisRow={3}
               head={['Configuration', 'F1', 'Missed attacks']}
               rows={[
@@ -347,7 +419,7 @@ export default function ResearchPage() {
             </P>
           </Section>
 
-          <Section id="sweep" title="Threshold sweep">
+          <Section id="sweep" title="Threshold sweep" extra={<SyntheticChip />}>
             <P>
               F1 is {f3(sw.best_f1)} at all {sw.within_0_01_of_best} of {sw.total} grid points
               tried, so within 0.01 of the best everywhere. That means the corpus cannot select the
@@ -356,7 +428,11 @@ export default function ResearchPage() {
             </P>
           </Section>
 
-          <Section id="benchmarks" title="Tier 1 and Tier 2 benchmarks">
+          <Section
+            id="benchmarks"
+            title="Synthetic Tier 1 and Tier 2 benchmarks"
+            extra={<SyntheticChip />}
+          >
             <P>
               Tier 1 ran on {t1.n} synthetic cases with {t1.fp} false positives and {t1.fn} false
               negatives, at {t1.ms_per_device.toFixed(4)} ms per device. Those cases contain only{' '}
@@ -365,7 +441,7 @@ export default function ResearchPage() {
               <SourceNote fact={facts['res.tier1']} />
             </P>
             <DataTable
-              caption="Tier 1 by category"
+              caption="Tier 1 by category (synthetic)"
               head={['Category', 'Cases', 'Drift', 'Detected']}
               rows={Object.entries(t1.categories).map(([k, v]) => [
                 k.replace(/_/g, ' '),
@@ -378,11 +454,11 @@ export default function ResearchPage() {
               Tier 2 ran on {t2.n} synthetic frame sequences with {t2.fp} false positives and{' '}
               {t2.fn} false negatives. Mean detection latency was {f1(t2.mean_latency_frames)}{' '}
               frames. Frames are synthetic, and the weights were revised after seeing this
-              benchmark.
+              benchmark (logged as tuned after seeing data).
               <SourceNote fact={facts['res.tier2']} />
             </P>
             <DataTable
-              caption="End to end, Channel A score 100 and drift 0"
+              caption="End to end, Channel A score 100 and drift 0 (synthetic)"
               head={['Category', 'n', 'Mean T_final']}
               rows={[
                 ['Genuine live', String(e2e.genuine_live.n), f1(e2e.genuine_live.mean_t_final)],
@@ -405,7 +481,7 @@ export default function ResearchPage() {
             />
           </Section>
 
-          <Section id="overhead" title="Overhead">
+          <Section id="overhead" title="Overhead" extra={<SyntheticChip />}>
             <P>
               Cost per event, in-process Python with no I/O: {f1(oh.channel_a_only_us)} us with
               Channel A only, {f1(oh.igdctf_us)} us for the full IG-DCTF.

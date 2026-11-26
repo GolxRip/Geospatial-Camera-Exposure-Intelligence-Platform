@@ -123,18 +123,12 @@ export default function EthicsPage() {
           <List items={MITIGATIONS} />
         </Section>
 
-        <Section id="heartbeat" title="The active heartbeat gap">
+        <Section id="passive" title="Strict passive boundary">
           <P>
-            The scoring path is passive: it uses stored scanner metadata only. The repository also
-            contains a heartbeat service (<code>backend/services/heartbeat_service.py</code>, routes
-            under <code>/api/heartbeat</code>) that opens TCP connections to device addresses on
-            ports 80, 554 and 8080. It is not part of scoring, and this interface does not expose
-            it.
-          </P>
-          <P>
-            It still exists, so the claim that no packet is ever sent to a discovered device is not
-            true of the repository as a whole. Whether to remove it or restrict it to an allowlist
-            is an open decision (claim C15 in the claim ledger).
+            COBRA-WATCH runs passively: scoring uses stored scanner metadata and public vulnerability
+            catalogs only. An earlier prototype active heartbeat module that opened TCP connections
+            to discovered device addresses was permanently removed from the codebase so the platform
+            sends zero outbound packets to third-party cameras.
           </P>
         </Section>
       </div>

@@ -7,7 +7,7 @@ const COLUMNS = [
     title: 'Passive only',
     lines: [
       'Scoring uses stored scanner metadata and public vulnerability catalogs.',
-      'The one known exception, an optional heartbeat check, is described on the ethics page.',
+      'Zero outbound probes or TCP connections are opened to discovered devices.',
     ],
   },
   {

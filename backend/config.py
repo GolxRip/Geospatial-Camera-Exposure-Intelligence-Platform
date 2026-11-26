@@ -6,8 +6,8 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SHODAN_API_KEY = os.getenv("SHODAN_API_KEY", "")
-CENSYS_API_ID = os.getenv("CENSYS_API_ID", "")
-CENSYS_API_SECRET = os.getenv("CENSYS_API_SECRET", "")
+CENSYS_API_TOKEN = os.getenv("CENSYS_API_TOKEN", "")
+CENSYS_ORG_ID = os.getenv("CENSYS_ORG_ID", "")
 NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 NVD_API_KEY = os.getenv("NVD_API_KEY", "")  # Optional: keyless CISA KEV + CCTV vulnerability catalog used automatically

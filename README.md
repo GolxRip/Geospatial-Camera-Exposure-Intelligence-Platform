@@ -4,190 +4,126 @@
 
 # COBRA-WATCH
 
-**A camera can be secure and still lie.** COBRA-WATCH is a camera-OSINT trust-scoring platform. It scores internet-exposed surveillance cameras on two independent channels: how vulnerable the device is, and whether its signal is still authentic. A multiplicative gate joins them, so a camera with a spotless vulnerability record but a frozen, looped or swapped feed cannot score as trustworthy.
+**A camera can be secure and still lie.** COBRA-WATCH is a passive cyber-physical surveillance trust-scoring platform (FastAPI backend + Next.js 16 web application + YOLOv8/ByteTrack video pipeline). It evaluates alert reliability using two channels joined by a multiplicative integrity gate (**IG-DCTF**):
 
-The scoring method is **IG-DCTF** (Integrity-Gated Dual-Channel Trust Fusion). A journal manuscript describing it is in [`paper/`](paper/).
+| Channel | Role | Scope in Review 2 |
+|---|---|---|
+| **A: Vulnerability Posture (`T_cve`)** | NVD + CISA KEV CVEs, authentication status, owner classification, firmware patch age, spatial corroboration | Implemented in `backend/services/trust_score_service.py` (field comparison on live devices is future scope) |
+| **B: Signal Integrity (`s`)** | Tier 1 passive banner drift + Tier 2 visual frame liveness (`FrameLivenessTracker`) | **Tier 2** evaluated on public/real video into `eval/results/`; Tier 1 real history is future scope |
+| **Multiplicative Gate (`G(s)`)** | Piece-wise multiplier (`theta_low = 0.50`, `theta_high = 0.85`, floor `0.30`, hard cap `30`) so spoofed feeds cannot score high trust | Unit-tested in `backend/tests/test_signal_integrity_gate.py` |
 
-> **Status.** The scoring engine, API, evaluation harness, paper and the Next.js web app (`frontend/`: landing page, research, lab, live console) are working. The web app is specified in [`FRONTEND_SPEC.md`](FRONTEND_SPEC.md). The backend is also usable on its own through its interactive API docs at `http://localhost:8000/docs`.
+> **Milestone & Current Data Status (Nov 26, 2026)**  
+> Primary target: **BE Major Project Review 2 (Saturday, December 19, 2026)**. `paper/` is maintained as a secondary manuscript.
+> - **Real Tier 2 video results (`eval/results/`):** Awaiting public-video evaluation runs (`eval/tier2_real_footage.py`). No real-footage numbers are published here yet.
+> - **Censys aggregates (`data/censys/`):** Aggregate-only snapshot pipeline verified in `--dry-run` mode (`scripts/censys_snapshot.py`) against the Censys Platform API v3 endpoint; awaiting live `CENSYS_API_TOKEN` / web Report Builder aggregate capture.
+> - **Console & Demo Database (`data/public.db`):** Sanitized copy contains **9,320 simulated device fixtures** (`geo_source = 'synthetic_demo'`) with `/24` IP masking (`EXPOSE_FULL_IP=false`) and **2** audit entries. No synthetic numbers are reported as real findings.
+> - **Pre-existing synthetic benchmark (`paper/data/results.json`):** Contains outputs from the 120 hand-authored synthetic scenarios only (formula sanity check, not real-world evidence). See [`paper/CLAIMS.md`](paper/CLAIMS.md).
 
 ---
 
-## The idea
+## Ethics & Privacy Boundaries (Strictly Enforced)
 
-Vulnerability-only trust models look at a camera's CVEs, authentication, owner and patch age. That misses an attack that needs no vulnerability at all: swap the camera for a decoy that presents the same banner, or loop a recording. A CVE-only model scores that device 100.
+- **Strictly Passive (Zero Outbound Probing):** All active network-probing code (`heartbeat_service.py`, `heartbeat_router.py`, `test_heartbeat_service.py`) has been **permanently removed** from the repository. The backend never sends probes or opens TCP connections to discovered device IPs.
+- **Censys Metadata & Aggregates Only:** Censys is queried strictly for aggregate bucket counts (never raw hosts or IPs). `scripts/censys_ingest.py` is hard-guarded to refuse execution. Approved Platform v3 baseline query: `host.location.country: "India" AND host.services.hardware.type: "CAMERA"`.
+- **Anonymization (`public.db`):** Read APIs mask host octets to `/24` (`a.b.c.0`) unless `EXPOSE_FULL_IP=true` is explicitly enabled locally.
+- **Demo Transparency:** Simulated alerts carry `"demo": true` and `/console` displays dataset provenance when simulated records are loaded alongside visible OpenStreetMap attribution (`Natural Earth` self-hosted boundary fallback or optional Protomaps PMTiles).
+- Full policy: [`ETHICS_AND_SCOPE_POLICY.md`](ETHICS_AND_SCOPE_POLICY.md).
 
-| Channel | Question it answers | Signals |
-|---|---|---|
-| **A: posture** | How exposed is the device? | NVD and CISA KEV CVEs by category, authentication, owner type, firmware patch age, spatial-temporal corroboration |
-| **B: integrity** | Is the feed still the real camera? | **Tier 1** passive banner drift (product, server, firmware, open ports, resolution, codec). **Tier 2** frame liveness (frozen-frame run, blur and exposure drift, declared-spec mismatch) |
+---
 
-```
-s        = (1 - Drift) * L                      signal integrity, 0..1
-G(s)     = 1                                     if s >= 0.85
-         = 0.3 + 0.7 (s - 0.50) / (0.85 - 0.50)  if 0.50 <= s < 0.85
-         = 0.3, and the score is capped at 30    if s < 0.50   (gate trips)
-T_final  = T_cve * G(s)
-```
+## Repository Layout
 
-Tiers: `high` 80 and above, `medium` 50 to 79, `low` below 50. The positive class in every evaluation is **fabricated** (an alert from an untrustworthy device or feed).
-
-## Verified results
-
-Every number below comes from [`paper/results.md`](paper/results.md), generated by `paper/scripts/compute_results.py`. Intervals are 95% Wilson.
-
-| Model | Accuracy | Recall | F1 | False positives |
-|---|---|---|---|---|
-| Weighted average | 0.792 | 0.603 | 0.753 | 0 |
-| Advanced (CVE only) | 0.833 | 0.683 | 0.811 | 0 |
-| Bayesian log-odds | 0.842 | 0.746 | 0.832 | 3 |
-| **IG-DCTF** | **0.975** | **0.952** | **0.976** | **0** |
-
-Exact McNemar test against the CVE-only model: 17 scenarios only IG-DCTF gets right, 0 the other way, p = 1.5e-5. Multiplicative fusion beats additive fusion (3 misses against 10). The gate's decision cost is 4.7 microseconds per event, in-process Python, excluding I/O.
-
-**Read these numbers with their limits.**
-- The corpus is **synthetic and hand-authored**: 120 scoreable scenarios (63 fabricated, 57 genuine). Only 30 carry Channel B fields, and the whole gain comes from those 30. On the other 90, IG-DCTF is identical to the CVE-only model.
-- The corpus cannot choose the gate thresholds: the F1 surface is flat across all 42 grid points.
-- The Tier 1 benchmark has only 13 distinct cases. Tier 2 was evaluated on synthetic frames only.
-- A loop of real footage has natural motion, so the frozen-frame rule does not detect it.
-- There is no field data yet. Real-world effectiveness is unverified.
-
-The full claim-to-evidence ledger is [`paper/CLAIMS.md`](paper/CLAIMS.md). The older [`eval/eval_report.md`](eval/eval_report.md) predates the Tier 2 weight revision of 2026-10-09 and its numbers differ; `paper/results.md` is canonical.
-
-## Architecture
-
-```mermaid
-flowchart LR
-    subgraph Sources["Passive sources (no packets to cameras)"]
-        S[Shodan / Censys metadata]
-        N[NVD + CISA KEV]
-        W[WHOIS ownership]
-    end
-    subgraph Video["video_pipeline (authorized footage only)"]
-        Y[YOLOv8 + ByteTrack] --> R[Rule engine]
-        L[Liveness tracker<br/>pHash freeze, blur, spec]
-    end
-    subgraph API["backend (FastAPI + SQLite WAL)"]
-        A[Channel A<br/>posture score]
-        B[Channel B<br/>drift + liveness]
-        G[Multiplicative gate]
-        C[Corroboration<br/>+ collusion graph]
-        M[(Merkle audit ledger)]
-    end
-    S --> A
-    N --> A
-    W --> A
-    S --> B
-    R -->|DetectionEvent| API
-    L --> B
-    A --> G
-    B --> G
-    C --> G
-    G -->|tier + action| WS[WebSocket /api/ws/alerts]
-    G --> M
-```
-
-## Repository layout
-
-| Path | What is in it |
+| Path | Description |
 |---|---|
-| `backend/` | FastAPI service: routes, trust scoring (`trust_score_service.py`), integrity gate (`signal_integrity_service.py`), corroboration, collusion graph, adaptive decay, audit ledger, 38 test modules |
-| `video_pipeline/` | Separate service: YOLOv8 detection, ByteTrack tracking, loitering and perimeter rules, Tier 2 liveness tracker. Reads authorized footage only |
-| `eval/` | The 130-scenario labelled corpus, 4-model harness, ablation and threshold-sensitivity scripts |
-| `paper/` | IEEE TIFS manuscript, one standalone TikZ file per figure, `results.md`, claim ledger, logs |
-| `assets/logo/` | Mark, wordmark and banner, generated by `build_logo.py` |
-| `FRONTEND_SPEC.md` | Specification for the new web app |
-| `ETHICS_AND_SCOPE_POLICY.md` | What the project will and will not do |
+| [`backend/`](backend/) | FastAPI service (`main.py`), passive trust scoring (`services/trust_score_service.py`), signal integrity gate, Merkle audit ledger, Censys/provenance routes |
+| [`frontend/`](frontend/) | Next.js 16 + MapLibre GL JS console, `/research`, `/lab`, `/ethics`, `/console`, `/console/devices/[id]` |
+| [`video_pipeline/`](video_pipeline/) | YOLOv8 + ByteTrack + `FrameLivenessTracker` (Tier 2 pHash freeze, Laplacian blur drift, spec check) |
+| [`eval/`](eval/) | [`eval/README.md`](eval/README.md), `eval/results/` (destination for real-footage CSV + `summary.md`), and legacy synthetic harness (`run_eval.py`) |
+| [`scripts/`](scripts/) | `censys_snapshot.py` (Platform v3 aggregate runner + web paste converter), `build_public_db.py`, `censys_ingest.py` (blocked by guard) |
+| [`data/censys/`](data/censys/) | Dated Censys aggregate snapshots (`YYYY-MM-DD/snapshot.json`, no IPs) |
+| [`paper/`](paper/) | Secondary manuscript sources, `LOG.md`, `CLAIMS.md`, `TODO.md`, and synthetic-corpus outputs |
+| [`archive/`](archive/) | Old hackathon dossiers and superseded drafts (kept for history; contain placeholder figures) |
 
-## Quick start
+---
 
-Requires Python 3.12. Docker is optional.
+## Quick Start (Local Demo)
 
-```bash
-git clone <this repository> && cd cobra
-cp .env.example .env              # add SHODAN_API_KEY, NEWS_API_KEY, GROQ_API_KEY as needed
+Requires **Python 3.12** and **Node >= 20.9**.
+
+### 1. Backend (`http://localhost:8000`)
+
+```powershell
+cp .env.example .env
 pip install -r backend/requirements.txt
-python backend/main.py            # API on http://localhost:8000, docs at /docs
+
+# Optional: rebuild sanitized public demo DB from surveillancewatch.db
+python scripts/build_public_db.py
+
+# Point backend at the sanitized public DB for demo rehearsal
+$env:DATABASE_PATH = "data/public.db"
+python backend/main.py
 ```
 
-The API starts without any keys. Shodan refresh, news and the AI risk brief need their keys; everything else works from the cached database.
+Interactive API documentation is served at `http://localhost:8000/docs`.
 
-The web app (Node 20.9 or newer):
+### 2. Frontend (`http://localhost:3000`)
 
-```bash
+```powershell
 cd frontend
-cp .env.example .env.local        # NEXT_PUBLIC_COBRA_API_URL=http://localhost:8000
+cp .env.example .env.local
 npm install
-npm run sync                      # facts from paper/data/results.json, brand assets from assets/logo
-npm run dev                       # http://localhost:3000
+npm run dev
 ```
 
-Without a basemap file the console map shows country outlines only. For streets and labels, build the self-hosted India basemap once (needs the [`pmtiles` CLI](https://github.com/protomaps/go-pmtiles); about 263 MB at zoom 11, git-ignored): `bash scripts/build-basemap.sh 11 <a build URL from maps.protomaps.com/builds>`.
+Map rendering works out of the box with the self-hosted India & South Asia boundary fallback (`/map/india-states.geojson`, `/map/south-asia-countries.geojson`) and OpenStreetMap attribution. To upgrade to full Protomaps street-level tiles (`frontend/public/tiles/india.pmtiles`), run `bash frontend/scripts/build-basemap.sh 11 <planet-url>`.
 
-```bash
-docker compose up --build         # backend :8000, frontend :3000, video pipeline
+---
+
+## Reproducing Real Snapshot & Evaluation Runs
+
+### Censys Platform API v3 Aggregate Snapshot (Aggregates Only)
+
+```powershell
+# Inspect planned CenQL v3 payloads without making API calls
+python scripts/censys_snapshot.py --dry-run --baseline-only
+
+# Run live approved baseline aggregate query (requires Censys Platform PAT)
+$env:CENSYS_API_TOKEN = "censys_..."
+python scripts/censys_snapshot.py --baseline-only
+
+# Convert aggregate tables/JSON/CSV copied from the Censys web UI into snapshot.json
+python scripts/censys_snapshot.py --from-paste pasted.txt --query 'host.location.country: "India" AND host.services.hardware.type: "CAMERA"' --field host.services.port
 ```
 
-The frontend image has not been built or tested yet. Start the backend alone with `docker compose up --build backend`.
+### Real-Footage Tier 2 Evaluation
 
-### Configuration
+See [`eval/README.md`](eval/README.md) for reproduction commands once public video clips are evaluated into `eval/results/`.
 
-| Variable | Purpose |
-|---|---|
-| `SHODAN_API_KEY` | Metadata refresh for the eight supported cities |
-| `NEWS_API_KEY` | City news feed |
-| `GROQ_API_KEY` | AI risk brief and natural-language query |
-| `DETECTION_API_KEY` | Protects `POST /api/detection-event` and verdicts with `X-API-Key`. Empty disables auth (local development only) |
-| `CORS_ORIGINS` | Allowed browser origins, default `http://localhost:3000,http://127.0.0.1:3000` |
-| `DATABASE_PATH` | SQLite file, default `data/surveillancewatch.db` |
+### Running Tests
 
-## API
+```powershell
+# Targeted backend integrity & wiring tests (runs in ~10s against a temp DB copy)
+python -m pytest backend/tests/test_tier2_live_wiring.py backend/tests/test_audit_and_decay_indepth.py backend/tests/test_signal_integrity_gate.py backend/tests/test_api.py -q
 
-Interactive reference at `/docs`. The main routes:
-
-| Route | Purpose |
-|---|---|
-| `GET /api/devices?city=` | GeoJSON of cached devices with static-posture trust score, tier and CVEs |
-| `GET /api/devices/{id}/trust-score` | On-demand score with every factor |
-| `GET /api/integrity/{id}`, `GET /api/integrity/stats` | Channel B state: drift, liveness, gate status |
-| `POST /api/detection-event` | Ingest a detection; returns the scored alert (idempotency key, 60 s freshness window, per-camera rate limit) |
-| `GET /api/alerts`, `POST /api/alerts/{id}/verdict` | Alert history and operator verdicts |
-| `WS /api/ws/alerts` | Live `ALERT` and `INTEGRITY_GATE_TRIPPED` messages |
-| `GET /api/audit/ledger`, `/verify`, `/chain-proof`, `/anchor` | Merkle audit ledger and proofs |
-| `GET /api/analytics/*`, `/api/stats`, `/api/heatmap` | Fleet, alert and score-comparison analytics |
-| `GET /api/config/thresholds` | Live tier and gate thresholds |
-| `POST /api/scenarios/run`, `/api/simulate/*` | Demo traffic and attack simulators. Alerts they create are labelled `demo: true` |
-| `POST /api/brief/stream`, `POST /api/nl-query` | AI risk brief (SSE) and natural-language device query |
-
-Read routes are open on purpose: the point of the project is public transparency about exposed infrastructure. Writes are authenticated, rate-limited and replay-protected.
-
-## Tests and evaluation
-
-```bash
-pytest backend/tests video_pipeline/tests eval/test_eval_harness.py     # 434 passed on 2026-10-16
-python eval/run_eval.py --verbose                                        # 4-model comparison
-python paper/scripts/compute_results.py                                  # regenerate paper/results.md
+# Frontend checks
+cd frontend
+npx eslint src tests
+npx tsc --noEmit
+npm run build
 ```
 
-Some backend tests write to the database named by `DATABASE_PATH`. Point it at a copy before running them against data you care about.
+---
 
-## Ethics and scope
+## Future Scope (Explicitly Out of Review 2 Scope)
 
-Passive only. COBRA-WATCH does not scan, probe, log in to, exploit or fetch video from any third-party device. It uses metadata that public scanners have already collected, public vulnerability catalogs, ownership records, and pre-authorized or synthetic footage. The video pipeline refuses any source that is not registered as authorized footage. No faces, plates or personal identity are processed.
+- Longitudinal Tier 1 passive banner-drift evaluation across historical Censys device snapshots
+- Multi-month empirical drift rate studies on real camera populations
+- Controlled testbed evaluation on owned laboratory IP cameras
+- Vulnerability-only vs. IG-DCTF comparative field study on real live deployments
 
-Aggregated exposure maps are dual-use. Mitigations are authenticated writes, rate limits, a tamper-evident audit ledger, and a commitment to report critical findings to CERT-In and the city administration before publishing. See [`ETHICS_AND_SCOPE_POLICY.md`](ETHICS_AND_SCOPE_POLICY.md).
+## Documentation & Governance
 
-Known gap: `backend/services/heartbeat_service.py` (`/api/heartbeat/*`) opens TCP connections to device addresses. It is outside the scoring path, but it is an active check, and it is tracked in [`paper/CLAIMS.md`](paper/CLAIMS.md) as claim C15.
-
-## Documentation
-
-| Document | Contents |
-|---|---|
-| [`paper/`](paper/README.md) | Manuscript, figures, results, claim ledger, Q1 plan, dataset plan |
-| [`FRONTEND_SPEC.md`](FRONTEND_SPEC.md) | Design system, pages, motion and 3D architecture, data contracts |
-| [`CLAUDE.md`](CLAUDE.md) | Working rules and maintenance protocol for agents |
-| [`COBRA_WATCH_BIBLE.md`](COBRA_WATCH_BIBLE.md) | Long-form project reference |
-| [`RESEARCH_NOVELTY.md`](RESEARCH_NOVELTY.md), [`FUTURE_SCOPE.md`](FUTURE_SCOPE.md) | Novelty analysis and roadmap |
-
-## License
-
-The repository states MIT, but no `LICENSE` file has been added yet.
+- [`CLAUDE.md`](CLAUDE.md) - Project rules, real-data mandate, and Censys boundaries
+- [`FRONTEND_SPEC.md`](FRONTEND_SPEC.md) - Web UI design system and contracts
+- [`ETHICS_AND_SCOPE_POLICY.md`](ETHICS_AND_SCOPE_POLICY.md) - Legal, privacy, and responsible disclosure policy
+- [`paper/LOG.md`](paper/LOG.md) - Append-only chronological worklog

@@ -8,7 +8,7 @@ import { env } from '@/lib/env';
 const API = env.apiUrl;
 
 /**
- * THE LAB SEAM — wired to the real backend.
+ * THE LAB SEAM - wired to the real backend.
  *
  * Returns the functions the lab instruments call (see `LabActions` in types.ts).
  * Attack simulators hit POST /api/simulate/:id, scenario replay hits POST /api/scenarios/run + SSE,

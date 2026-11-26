@@ -414,7 +414,6 @@ async def receive_detection_event(
         device=device,
         corroborating_cameras=corroborating,
         cve_categories=cve_categories if cve_categories else None,
-        ping_latency_ms=None,  # Module D heartbeat integrated via heartbeat_router
         enforce_critical_gates=True,
     )
 
@@ -847,8 +846,6 @@ async def get_device_trust_score(camera_id: str):
             return -20
         if code == "outdated_firmware":
             return -15
-        if code.startswith("high_signal_latency_"):
-            return -10
         if code == "no_corroboration":
             return -10
         if code == "corroborated":

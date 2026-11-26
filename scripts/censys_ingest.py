@@ -31,6 +31,20 @@ Usage:
 
 from __future__ import annotations
 
+import sys
+
+_AGGREGATES_ONLY_ERROR = (
+    "BLOCKED: scripts/censys_ingest.py refused to run.\n"
+    "COBRA-WATCH promised Censys Research Access metadata and aggregates ONLY —\n"
+    "no individual host records or IP addresses may be ingested, queried, or stored.\n"
+    "Use `python scripts/censys_snapshot.py` for aggregate bucket snapshots only."
+)
+
+
+def _enforce_aggregates_only_guard() -> None:
+    raise RuntimeError(_AGGREGATES_ONLY_ERROR)
+
+
 import argparse
 import asyncio
 import hashlib
@@ -273,6 +287,7 @@ def _iter_file_records(path: Path) -> Iterable[dict[str, Any]]:
 
 
 def _query_censys_api(city: str | None, max_results: int) -> list[dict[str, Any]]:
+    _enforce_aggregates_only_guard()
     api_id = os.getenv("CENSYS_API_ID", "")
     api_secret = os.getenv("CENSYS_API_SECRET", "")
     if not api_id or not api_secret:
@@ -302,6 +317,7 @@ async def ingest_records(
     mask_ips: bool,
     replace_synthetic: bool,
 ) -> dict[str, int]:
+    _enforce_aggregates_only_guard()
     await init_db()
     inserted = 0
     updated_drift = 0
@@ -373,7 +389,8 @@ async def ingest_records(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Ingest real Censys host metadata into COBRA-WATCH SQLite DB.")
+    print(_AGGREGATES_ONLY_ERROR, file=sys.stderr)
+    sys.exit(1)
     parser.add_argument("--input", type=Path, default=None, help="Path to Censys JSON/JSONL export file")
     parser.add_argument("--city", type=str, default=None, help="City to query from Censys API (when --input omitted)")
     parser.add_argument("--max-results", type=int, default=100, help="Max hosts to fetch from API (default 100)")

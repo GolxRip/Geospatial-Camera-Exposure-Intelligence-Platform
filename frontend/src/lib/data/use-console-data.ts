@@ -174,7 +174,7 @@ function toDeviceDetail(
 /* -------------------------------------------------- main hook -------------------------------------------------- */
 
 /**
- * THE SEAM — wired to the real backend.
+ * THE SEAM - wired to the real backend.
  *
  * Uses the repo's TanStack Query hooks + Zustand console store + AlertSocket to produce the
  * view-model types (`ConsoleData` / `ConsoleActions`) that the console's controlled components render.

@@ -60,6 +60,14 @@ export const AuditStatsSchema = loose({ chain_length: z.number(), head_hash: z.s
 export const AuditVerifySchema = loose({ valid: z.boolean(), chain_length: z.number(), head_hash: z.string().nullable().optional(), message: z.string() });
 export const LedgerSchema = loose({ entries: z.array(loose({ sequence_id: z.number(), hash: z.string(), previous_hash: z.string(), payload: loose({}) })) });
 export const EvalLiveSchema = loose({ total_labelled: z.number(), message: z.string().optional(), precision: num, recall: num, f1_score: num, accuracy: num });
+export const ProvenanceSchema = loose({
+  city: z.string(),
+  total_devices: z.number(),
+  real_devices: z.number(),
+  synthetic_devices: z.number(),
+  by_geo_source: z.record(z.string(), z.number()).optional(),
+  is_predominantly_synthetic: z.boolean().optional(),
+});
 export const NewsSchema = loose({ articles: z.array(loose({ id: z.string(), title: z.string(), source: z.string().optional(), city: z.string().optional() })) });
 export const DecaySchema = loose({
   base_score: z.number(), current_decayed_score: z.number(), hours_since_scan: z.number().nullable().optional(), half_life_hours: z.number(),
@@ -88,6 +96,7 @@ export const useEvalLive = () => useQuery(q(["eval-live"], "/api/eval/live", Eva
 export const useNews = (city: string) => useQuery(q(["news", city], `/api/news${cityParam(city)}`, NewsSchema));
 export const useDecay = (id: string | null) => useQuery(q(["decay", id], `/api/decay-curve?camera_id=${encodeURIComponent(id ?? "")}`, DecaySchema, { enabled: !!id }));
 export const useAuditTrail = (id: string | null) => useQuery(q(["audit-trail", id], `/api/devices/${encodeURIComponent(id ?? "")}/audit-trail?limit=20`, AuditTrailSchema, { enabled: !!id }));
+export const useProvenance = (city: string) => useQuery(q(["provenance", city], `/api/devices/provenance${cityParam(city)}`, ProvenanceSchema));
 
 /** Heat points arrive as [lat, lon, weight]; MapLibre wants [lon, lat, weight]. */
 export function useHeat(city: string, enabled: boolean) {

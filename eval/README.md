@@ -2,41 +2,69 @@
 
 COBRA-WATCH separates **real-footage evaluation** (`eval/results/`) from the **pre-existing synthetic benchmark** (`eval/labeled_events.json`). They are never mixed.
 
-## 1. Real-Footage Tier 2 Evaluation (`eval/results/`)
+## 1. Real-Footage Tier 2 Evaluation (`eval/tier2_real_footage.py`)
 
-### Directory purpose
-`eval/results/` holds outputs produced strictly from real public video datasets (e.g., CUHK Avenue) or self-recorded local camera clips evaluated with `eval/tier2_real_footage.py`.
+`eval/tier2_real_footage.py` takes real surveillance videos (`.mp4`, `.avi`, `.mov`, `.mkv`, `.m4v`) or extracted frame sequences (`.jpg`, `.png`, `.bmp`, e.g., CDnet's `<sequence>/input/`), runs a clean baseline pass, injects known tampering at 40% into the clip (`freeze`, `loop`, `blur`, `slow_blur`, `cover`, `partial_cover`, `moved`, `downscale`), and measures:
+- **Detection rate** (comparing tampered alarms against the clip's own clean run at the same frames so false-alarm-prone detectors cannot cheat)
+- **Median detection delay** in seconds at both gate thresholds: `degraded` (`< 0.85`) and `tripped` (`<= 0.50`)
+- **Clean false alarms per hour** (after a warm-up window)
 
-Each evaluated run writes:
-- Per-clip / summary **CSV** metric files in `eval/results/`
-- **`summary.md`** recording the dataset name, UTC date, exact CLI command, and measured metrics (detection latency, true/false freeze, blur drift, loop/spec detections)
+Each run writes **`summary.csv`**, **`per_run.csv`**, and **`summary.md`** (recording Dataset, UTC Date, and exact Command) into `--out` under `eval/results/`.
 
-> **Rule:** Never run `tier2_real_footage.py` on synthetic noise frames and place the output in `eval/results/`. Synthetic clips belong only in unit tests (`video_pipeline/tests/`) or the synthetic benchmark below.
+> **Rule:** Run `tier2_real_footage.py` **only** on real public datasets (CUHK Avenue, CDnet, own recordings) — never on synthetic noise clips as a research result.
 
-### How to reproduce
-Once `eval/tier2_real_footage.py` is placed in `eval/`:
+### Reproduction Commands
 
-```powershell
-# Evaluate real footage directory and save CSV + summary.md into eval/results/
-python eval/tier2_real_footage.py --input <path-to-real-videos> --dataset <dataset-name> --output-dir eval/results
+```bash
+# 1. CUHK Avenue training clips (set --min-seconds 12 if shorter Avenue clips are skipped)
+python3 eval/tier2_real_footage.py \
+  --data ~/datasets/avenue/training_videos \
+  --dataset "CUHK Avenue (training)" \
+  --width 320 \
+  --max-seconds 90 \
+  --out eval/results/avenue_train
+
+# 2. CUHK Avenue testing clips (natural jitter / camera shake false-alarm test)
+python3 eval/tier2_real_footage.py \
+  --data ~/datasets/avenue/testing_videos \
+  --dataset "CUHK Avenue (testing)" \
+  --width 320 \
+  --max-seconds 90 \
+  --out eval/results/avenue_test
+
+# 3. CDnet frame sequences (static/weather/night scenes)
+python3 eval/tier2_real_footage.py \
+  --data ~/datasets/cdnet \
+  --dataset "CDnet-2014" \
+  --dir-fps 25 \
+  --width 320 \
+  --out eval/results/cdnet_baseline
 ```
 
-*Note: Check `python eval/tier2_real_footage.py --help` after copying the script in for exact dataset/mode flags.*
+### Supported Flags
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--data` | *(required)* | Root directory of `.avi`/`.mp4` videos or `.jpg`/`.png` frame folders |
+| `--out` | `eval/results/tier2` | Output directory for `summary.csv`, `per_run.csv`, and `summary.md` |
+| `--dataset` | `--data` folder name | Human-readable dataset label written into `summary.md` |
+| `--detector` | `liveness_detector:FrameLivenessTracker` | `module:Class` under `video_pipeline/` |
+| `--attacks` | all 8 attacks | Comma-separated subset (`freeze,loop,blur,slow_blur,cover,partial_cover,moved,downscale`) |
+| `--width` | `640` | Downscale width for evaluation throughput |
+| `--max-seconds` | `180` | Cap per clip in seconds |
+| `--min-seconds` | `20.0` | Minimum clip duration required |
+| `--dir-fps` | `25` | Assumed FPS when reading image-sequence directories |
+| `--min-alarm-seconds` | `1.0` | Minimum sustained alarm duration to filter single-frame flicker |
 
 ---
 
-## 2. Synthetic Benchmark (Pre-recorded Baseline Only)
+## 2. Legacy Synthetic Benchmark (Formula Sanity Check Only)
 
-The files below evaluate the scoring equations on **hand-authored synthetic scenarios** (`130` total scenarios, `120` directly scoreable in `eval/labeled_events.json`). These numbers test formula behavior only and are **not real-world evidence**:
+The scripts below run on the **hand-authored synthetic scenarios** (`130` total, `120` directly scoreable in `eval/labeled_events.json`). They verify formula behavior and are **not real-world evidence**:
 
-```powershell
-# 4-model comparison on the 120 scoreable synthetic scenarios
-python eval/run_eval.py --verbose
-
-# Ablation & threshold sensitivity checks (synthetic corpus)
-python eval/ablation_study.py
-python eval/threshold_sensitivity.py
-
-# Regenerate canonical synthetic metrics in paper/results.md & paper/data/results.json
-python paper/scripts/compute_results.py
+```bash
+python3 eval/run_eval.py --verbose
+python3 eval/ablation_study.py
+python3 eval/threshold_sensitivity.py
+python3 paper/scripts/compute_results.py
 ```

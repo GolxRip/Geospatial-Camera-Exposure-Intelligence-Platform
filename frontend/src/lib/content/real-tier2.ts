@@ -121,7 +121,7 @@ function parseRunFolder(runId: string, dirPath: string, summaryFiles: string[], 
   }
 
   const csvTables: CsvTable[] = [];
-  for (const cp of csvFiles) {
+  for (const cp of csvFiles.sort((a, b) => (basename(a) === 'summary.csv' ? -1 : basename(b) === 'summary.csv' ? 1 : a.localeCompare(b)))) {
     const parsed = parseCsvFile(cp);
     if (parsed) csvTables.push(parsed);
   }

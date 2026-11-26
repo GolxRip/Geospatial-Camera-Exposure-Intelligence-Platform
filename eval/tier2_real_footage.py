@@ -29,9 +29,11 @@ from __future__ import annotations
 import argparse
 import csv
 import importlib
+import shlex
 import statistics
 import sys
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 import cv2
@@ -89,7 +91,7 @@ def load_frame_dir(path: Path, width: int, max_seconds: float, fps: float) -> Cl
     return Clip(name, [_resize(f, width) for f in frames], fps) if frames else None
 
 
-def discover(root: Path, width: int, max_seconds: float, dir_fps: float) -> list[Clip]:
+def discover(root: Path, width: int, max_seconds: float, dir_fps: float, min_seconds: float) -> list[Clip]:
     clips = []
     for p in sorted(root.rglob("*")):
         if p.is_file() and p.suffix.lower() in VIDEO_EXT:
@@ -98,9 +100,13 @@ def discover(root: Path, width: int, max_seconds: float, dir_fps: float) -> list
             c = load_frame_dir(p, width, max_seconds, dir_fps)
         else:
             continue
-        if c and c.seconds >= 20:
+        if not c:
+            continue
+        if c.seconds >= min_seconds:
             clips.append(c)
-            print(f"  loaded {c.name}: {len(c.frames)} frames, {c.seconds:.0f}s @ {c.fps:.0f}fps")
+            print(f"  loaded {c.name}: {len(c.frames)} frames, {c.seconds:.1f}s @ {c.fps:.0f}fps")
+        else:
+            print(f"  skipped {c.name}: {c.seconds:.1f}s < --min-seconds {min_seconds:.1f}")
     return clips
 
 
@@ -239,10 +245,12 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--data", required=True, type=Path, help="folder of videos and/or frame folders")
     ap.add_argument("--out", type=Path, default=ROOT / "eval" / "results" / "tier2")
+    ap.add_argument("--dataset", type=str, default=None, help="dataset name recorded in summary.md (defaults to --data folder name)")
     ap.add_argument("--detector", default="liveness_detector:FrameLivenessTracker")
     ap.add_argument("--attacks", default=",".join(ATTACKS))
     ap.add_argument("--width", type=int, default=640, help="downscale frames to this width for speed")
     ap.add_argument("--max-seconds", type=float, default=180)
+    ap.add_argument("--min-seconds", type=float, default=20.0, help="minimum clip duration in seconds to include (default 20)")
     ap.add_argument("--dir-fps", type=float, default=25, help="fps to assume for frame folders")
     ap.add_argument("--min-alarm-seconds", type=float, default=1.0,
                     help="an alarm must persist this long to count (filters single-frame flicker)")
@@ -250,10 +258,18 @@ def main():
 
     detector_cls = load_detector(args.detector)
     attacks = [a.strip() for a in args.attacks.split(",") if a.strip()]
+    unknown = [a for a in attacks if a not in ATTACKS]
+    if unknown:
+        sys.exit(f"Unknown attack(s): {', '.join(unknown)}. Choices: {', '.join(ATTACKS)}")
+
     print(f"Loading footage from {args.data} ...")
-    clips = discover(args.data, args.width, args.max_seconds, args.dir_fps)
+    clips = discover(args.data, args.width, args.max_seconds, args.dir_fps, args.min_seconds)
     if not clips:
-        sys.exit("No usable videos found (each needs at least 20 seconds).")
+        sys.exit(f"No usable videos found (each needs at least {args.min_seconds:g} seconds).")
+
+    dataset_label = args.dataset or args.data.resolve().name
+    run_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    cmd_str = "python3 eval/tier2_real_footage.py " + " ".join(shlex.quote(a) for a in sys.argv[1:])
 
     args.out.mkdir(parents=True, exist_ok=True)
     rows = []
@@ -261,10 +277,11 @@ def main():
     for c in clips:
         min_len = max(1, int(args.min_alarm_seconds * c.fps))
         clean = run(detector_cls, c.frames, c.fps)
-        warm = int(10 * c.fps)  # ignore the first 10 s while baselines settle
+        warm = min(int(10 * c.fps), int(0.35 * len(c.frames)))  # let baseline settle without exceeding clip length
+        clean_secs = max(0.1, round((len(c.frames) - warm) / c.fps, 1))
         for level, thr, incl in (("degraded", DEGRADED, False), ("tripped", TRIPPED, True)):
             below = (clean[warm:] <= thr) if incl else (clean[warm:] < thr)
-            rows.append(dict(video=c.name, run="clean", level=level, seconds=round(c.seconds - 10, 1),
+            rows.append(dict(video=c.name, run="clean", level=level, seconds=clean_secs,
                              false_alarms=episodes(below, min_len),
                              frac_time_alarmed=round(float(below.mean()), 4)))
         print(f"{c.name}: clean done")
@@ -282,30 +299,66 @@ def main():
     per_run = args.out / "per_run.csv"
     keys = ["video", "run", "level", "seconds", "false_alarms", "frac_time_alarmed",
             "detected", "delay_s", "min_score_after"]
-    with per_run.open("w", newline="") as f:
+    with per_run.open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=keys)
         w.writeheader()
         w.writerows(rows)
 
-    lines = [f"# Tier 2 on real footage: {len(clips)} videos, detector {args.detector}", ""]
+    summary_rows = []
+    lines = [
+        f"# Tier 2 on real footage: {len(clips)} videos, detector {args.detector}",
+        "",
+        f"- Dataset: {dataset_label}",
+        f"- Date: {run_utc}",
+        f"- Command: `{cmd_str}`",
+        "",
+    ]
     for level in ("degraded", "tripped"):
         lines += [f"## Alarm level: {level}", "", "| Run | Detected | Median delay (s) |", "|---|---|---|"]
+        cl = [r for r in rows if r["run"] == "clean" and r["level"] == level]
+        hours = sum(r["seconds"] for r in cl) / 3600
+        fa = sum(r["false_alarms"] for r in cl)
+        fa_rate = (fa / hours) if hours > 0 else 0.0
         for a in attacks:
             rs = [r for r in rows if r["run"] == a and r["level"] == level]
             hits = [r for r in rs if r["detected"]]
             med = f"{statistics.median(r['delay_s'] for r in hits):.1f}" if hits else "n/a"
             lines.append(f"| {a} | {len(hits)}/{len(rs)} | {med} |")
-        cl = [r for r in rows if r["run"] == "clean" and r["level"] == level]
-        hours = sum(r["seconds"] for r in cl) / 3600
-        fa = sum(r["false_alarms"] for r in cl)
+            summary_rows.append({
+                "level": level,
+                "run": a,
+                "detected": len(hits),
+                "total": len(rs),
+                "median_delay_s": med,
+                "clean_false_alarms": "",
+                "clean_hours": "",
+                "clean_fa_per_hour": "",
+            })
+        summary_rows.append({
+            "level": level,
+            "run": "clean",
+            "detected": "",
+            "total": len(cl),
+            "median_delay_s": "",
+            "clean_false_alarms": fa,
+            "clean_hours": f"{hours:.2f}",
+            "clean_fa_per_hour": f"{fa_rate:.1f}",
+        })
         lines += ["", f"Clean footage: {fa} false alarms over {hours:.2f} h "
-                      f"({fa / hours:.1f} per hour), "
+                      f"({fa_rate:.1f} per hour), "
                       f"{sum(1 for r in cl if r['false_alarms'])}/{len(cl)} videos with at least one.", ""]
 
+    summary_csv = args.out / "summary.csv"
+    skeys = ["level", "run", "detected", "total", "median_delay_s", "clean_false_alarms", "clean_hours", "clean_fa_per_hour"]
+    with summary_csv.open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=skeys)
+        w.writeheader()
+        w.writerows(summary_rows)
+
     summary = args.out / "summary.md"
-    summary.write_text("\n".join(lines))
+    summary.write_text("\n".join(lines), encoding="utf-8")
     print("\n" + "\n".join(lines))
-    print(f"Wrote {per_run} and {summary}")
+    print(f"Wrote {summary_csv}, {per_run}, and {summary}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,499 @@
+[
+  {
+    "query": "host.location.country: \"India\" AND host.services.hardware.type: \"CAMERA\"",
+    "label": "Ports (top 20)",
+    "source": "censys_web_paste",
+    "timestamp_utc": "2026-11-26T17:26:40+00:00",
+    "field": "host.services.port",
+    "total": 104218,
+    "total_omitted": 24794,
+    "buckets": [
+      {
+        "key": "554 (RTSP)",
+        "count": 81285
+      },
+      {
+        "key": "80 (HTTP)",
+        "count": 20987
+      },
+      {
+        "key": "81",
+        "count": 7608
+      },
+      {
+        "key": "1024",
+        "count": 4365
+      },
+      {
+        "key": "82",
+        "count": 2757
+      },
+      {
+        "key": "83",
+        "count": 1720
+      },
+      {
+        "key": "37777 (DVR_IP)",
+        "count": 1665
+      },
+      {
+        "key": "84",
+        "count": 1243
+      },
+      {
+        "key": "8088",
+        "count": 1211
+      },
+      {
+        "key": "8081",
+        "count": 1183
+      },
+      {
+        "key": "8080",
+        "count": 1170
+      },
+      {
+        "key": "1025",
+        "count": 1166
+      },
+      {
+        "key": "85",
+        "count": 1087
+      },
+      {
+        "key": "1026",
+        "count": 853
+      },
+      {
+        "key": "8554",
+        "count": 659
+      },
+      {
+        "key": "8001",
+        "count": 658
+      },
+      {
+        "key": "8000",
+        "count": 592
+      },
+      {
+        "key": "25001",
+        "count": 547
+      },
+      {
+        "key": "86",
+        "count": 546
+      },
+      {
+        "key": "1027",
+        "count": 540
+      }
+    ]
+  },
+  {
+    "query": "host.location.country: \"India\" AND host.services.hardware.type: \"CAMERA\"",
+    "label": "Cities (top 20)",
+    "source": "censys_web_paste",
+    "timestamp_utc": "2026-11-26T17:26:40+00:00",
+    "field": "host.location.city",
+    "total": 104218,
+    "total_omitted": 54196,
+    "buckets": [
+      {
+        "key": "Mumbai",
+        "count": 9935
+      },
+      {
+        "key": "Bengaluru",
+        "count": 6692
+      },
+      {
+        "key": "Chennai",
+        "count": 6106
+      },
+      {
+        "key": "Hyderabad",
+        "count": 5093
+      },
+      {
+        "key": "Delhi",
+        "count": 4065
+      },
+      {
+        "key": "Kolkata",
+        "count": 3730
+      },
+      {
+        "key": "Pune",
+        "count": 1933
+      },
+      {
+        "key": "Gurugram",
+        "count": 1894
+      },
+      {
+        "key": "Ahmedabad",
+        "count": 1563
+      },
+      {
+        "key": "Surat",
+        "count": 1268
+      },
+      {
+        "key": "Coimbatore",
+        "count": 1186
+      },
+      {
+        "key": "Vapi",
+        "count": 1082
+      },
+      {
+        "key": "Anekal",
+        "count": 1041
+      },
+      {
+        "key": "Dādri",
+        "count": 889
+      },
+      {
+        "key": "Vijayawada",
+        "count": 862
+      },
+      {
+        "key": "Lucknow",
+        "count": 731
+      },
+      {
+        "key": "Faridabad",
+        "count": 512
+      },
+      {
+        "key": "Indore",
+        "count": 500
+      },
+      {
+        "key": "Ludhiana",
+        "count": 497
+      },
+      {
+        "key": "Jaipur",
+        "count": 443
+      }
+    ]
+  },
+  {
+    "query": "host.location.country: \"India\" AND host.services.hardware.type: \"CAMERA\"",
+    "label": "Protocols",
+    "source": "censys_web_paste",
+    "timestamp_utc": "2026-11-26T17:26:40+00:00",
+    "field": "host.services.protocol",
+    "total": 104218,
+    "buckets": [
+      {
+        "key": "RTSP",
+        "count": 97221
+      },
+      {
+        "key": "HIKVISION",
+        "count": 43578
+      },
+      {
+        "key": "HTTP",
+        "count": 7495
+      },
+      {
+        "key": "DVR_IP",
+        "count": 6524
+      },
+      {
+        "key": "ONVIF",
+        "count": 1402
+      },
+      {
+        "key": "WS_DISCOVERY",
+        "count": 329
+      },
+      {
+        "key": "EZVIZ",
+        "count": 83
+      },
+      {
+        "key": "FTP",
+        "count": 6
+      }
+    ]
+  },
+  {
+    "query": "host.location.country: \"India\" AND host.services.hardware.type: \"CAMERA\"",
+    "label": "Software Vendors (top 20)",
+    "source": "censys_web_paste",
+    "timestamp_utc": "2026-11-26T17:26:40+00:00",
+    "field": "host.services.software.vendor",
+    "total": 104218,
+    "total_omitted": 849,
+    "buckets": [
+      {
+        "key": "jquery",
+        "count": 6150
+      },
+      {
+        "key": "apache",
+        "count": 323
+      },
+      {
+        "key": "hikvision",
+        "count": 267
+      },
+      {
+        "key": "openssl",
+        "count": 231
+      },
+      {
+        "key": "mobotix",
+        "count": 176
+      },
+      {
+        "key": "oracle",
+        "count": 128
+      },
+      {
+        "key": "milestonesys",
+        "count": 105
+      },
+      {
+        "key": "realnetworks",
+        "count": 87
+      },
+      {
+        "key": "acme",
+        "count": 84
+      },
+      {
+        "key": "microsoft",
+        "count": 81
+      },
+      {
+        "key": "php",
+        "count": 78
+      },
+      {
+        "key": "google",
+        "count": 70
+      },
+      {
+        "key": "gstreamer",
+        "count": 69
+      },
+      {
+        "key": "paloaltonetworks",
+        "count": 64
+      },
+      {
+        "key": "embedthis",
+        "count": 56
+      },
+      {
+        "key": "f5",
+        "count": 41
+      },
+      {
+        "key": "angularjs",
+        "count": 37
+      },
+      {
+        "key": "lighttpd",
+        "count": 34
+      },
+      {
+        "key": "joomla",
+        "count": 32
+      },
+      {
+        "key": "openwrt",
+        "count": 32
+      }
+    ]
+  },
+  {
+    "query": "host.location.country: \"India\" AND host.services.hardware.type: \"CAMERA\"",
+    "label": "Software Products (top 20)",
+    "source": "censys_web_paste",
+    "timestamp_utc": "2026-11-26T17:26:40+00:00",
+    "field": "host.services.software.product",
+    "total": 104218,
+    "total_omitted": 1083,
+    "buckets": [
+      {
+        "key": "jquery",
+        "count": 6136
+      },
+      {
+        "key": "http_server",
+        "count": 294
+      },
+      {
+        "key": "hikvision_web_server",
+        "count": 263
+      },
+      {
+        "key": "openssl",
+        "count": 231
+      },
+      {
+        "key": "mobotix_camera",
+        "count": 176
+      },
+      {
+        "key": "xprotect",
+        "count": 105
+      },
+      {
+        "key": "realserver",
+        "count": 87
+      },
+      {
+        "key": "php",
+        "count": 78
+      },
+      {
+        "key": "http_api",
+        "count": 74
+      },
+      {
+        "key": "firebase_cloud_messaging",
+        "count": 70
+      },
+      {
+        "key": "gstreamer_rtsp_server",
+        "count": 69
+      },
+      {
+        "key": "jre",
+        "count": 43
+      },
+      {
+        "key": "thttpd",
+        "count": 43
+      },
+      {
+        "key": "nginx",
+        "count": 39
+      },
+      {
+        "key": "angular.js",
+        "count": 37
+      },
+      {
+        "key": "lighttpd",
+        "count": 34
+      },
+      {
+        "key": "globalprotect",
+        "count": 32
+      },
+      {
+        "key": "joomla",
+        "count": 32
+      },
+      {
+        "key": "luci",
+        "count": 32
+      },
+      {
+        "key": "pan-os",
+        "count": 32
+      }
+    ]
+  },
+  {
+    "query": "host.location.country: \"India\" AND host.services.hardware.type: \"CAMERA\"",
+    "label": "Autonomous Systems (top 20)",
+    "source": "censys_web_paste",
+    "timestamp_utc": "2026-11-26T17:26:40+00:00",
+    "field": "host.autonomous_system.name",
+    "total": 104218,
+    "total_omitted": 39106,
+    "buckets": [
+      {
+        "key": "BSNL-NIB",
+        "count": 14506
+      },
+      {
+        "key": "RELIANCEJIO-IN",
+        "count": 13800
+      },
+      {
+        "key": "AIRTELBROADBAND-AS-AP",
+        "count": 8503
+      },
+      {
+        "key": "BBIL-AP (Bharti Airtel)",
+        "count": 7982
+      },
+      {
+        "key": "CABLELITE-AS-AP (ACT Broadband, variant 1)",
+        "count": 4072
+      },
+      {
+        "key": "CABLELITE-AS-AP (ACT Broadband, variant 2)",
+        "count": 3610
+      },
+      {
+        "key": "GTPL-AS-AP",
+        "count": 1913
+      },
+      {
+        "key": "HATHWAY-NET-AP",
+        "count": 1866
+      },
+      {
+        "key": "TTSL-MEISISP (Tata Teleservices)",
+        "count": 1157
+      },
+      {
+        "key": "EXCELL-AS (Excellmedia)",
+        "count": 932
+      },
+      {
+        "key": "INPL-IN-AP (Ishan's Network)",
+        "count": 912
+      },
+      {
+        "key": "QCPL-IN (Quest Consultancy)",
+        "count": 818
+      },
+      {
+        "key": "ALLIANCE-GATEWAY-AS-AP",
+        "count": 759
+      },
+      {
+        "key": "FIVENET-IN (Microscan)",
+        "count": 656
+      },
+      {
+        "key": "RAILTEL-AS-IN",
+        "count": 649
+      },
+      {
+        "key": "BLAZENET-IN-AP",
+        "count": 644
+      },
+      {
+        "key": "ASIANET",
+        "count": 643
+      },
+      {
+        "key": "HTIL-TTML-IN-AP",
+        "count": 627
+      },
+      {
+        "key": "ICENET-AS-IN",
+        "count": 555
+      },
+      {
+        "key": "ONEBROADBAND",
+        "count": 479
+      }
+    ]
+  }
+]

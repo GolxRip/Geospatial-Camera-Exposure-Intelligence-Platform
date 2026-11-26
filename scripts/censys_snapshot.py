@@ -256,10 +256,19 @@ def parse_pasted_aggregates(raw_text: str) -> list[dict[str, Any]]:
         if buckets:
             return buckets
 
-    # 3. Single-line tabular / whitespace / colon formats (e.g. `Hikvision   260   12.4%`)
+    # 3. Single-line tabular / markdown pipe / whitespace / colon formats
     for ln in lines:
         low = ln.lower()
         if low in ("value", "count", "%", "results", "key") or re.match(r"^(value|key|term)\s+count\b", low):
+            continue
+
+        # Markdown pipe table: | key | 1,234 |
+        if ln.startswith("|") and "|" in ln[1:]:
+            cells = [c.strip() for c in ln.strip("|").split("|")]
+            if len(cells) >= 2 and not re.match(r"^-+$", cells[0].replace(":", "")):
+                cnt = _clean_int(cells[1])
+                if cnt is not None and not _IPV4_RE.match(cells[0]):
+                    buckets.append({"key": cells[0], "count": cnt})
             continue
 
         # Tab-separated

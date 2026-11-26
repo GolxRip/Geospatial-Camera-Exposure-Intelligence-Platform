@@ -174,3 +174,8 @@ Read `FRONTEND_SPEC.md` and the DIDA web app (extracted for reference to `Downlo
 - Live Censys Platform API call not executed (no `CENSYS_API_TOKEN` configured).
 - Protomaps `india.pmtiles` not built (missing `pmtiles` CLI / daily planet URL; GeoJSON boundary fallback active).
 - No git commit or push performed (per user rule).
+
+## 2026-11-26 (night), Saved real Censys India camera aggregate baseline
+**Did:** Converted the user's real Censys Platform aggregate report for `host.location.country: "India" AND host.services.hardware.type: "CAMERA"` (`total = 104,218` hosts across 6 aggregate fields: `host.services.port`, `host.location.city`, `host.services.protocol`, `host.services.software.vendor`, `host.services.software.product`, `host.autonomous_system.name`) into [data/censys/2026-11-26/snapshot.json](data/censys/2026-11-26/snapshot.json) and `README.md` (`source: censys_web_paste`, metadata/aggregates only, zero IPs). Added Markdown pipe-table parsing support to `parse_pasted_aggregates()` in `scripts/censys_snapshot.py`.
+**Verified:** `GET /api/censys/snapshots` returns `available: true` with 6 aggregate records and `total: 104218`; Markdown pipe-table parser check passed.
+**Not verified / Pending:** No git commit or push performed. Real Tier 2 runs (`eval/tier2_real_footage.py`) still pending sync from Kali.

@@ -220,6 +220,17 @@ class FrameLivenessTracker:
         min_lag = max(10, self.consecutive_freeze_frames)
         loop_confirm = min(15, max(6, int(self.consecutive_freeze_frames * 0.6)))
 
+        if self._loop_end >= len(self._loop_hashes):
+            keep = self._loop_maxlen
+            self._loop_buf[:keep] = self._loop_buf[self._loop_end - keep : self._loop_end]
+            self._loop_hashes[:keep] = self._loop_hashes[self._loop_end - keep : self._loop_end]
+            base_m = self._loop_prefix_motion[self._loop_end - keep]
+            self._loop_prefix_motion[: keep + 1] = (
+                self._loop_prefix_motion[self._loop_end - keep : self._loop_end + 1] - base_m
+            )
+            self._loop_start = 0
+            self._loop_end = keep
+
         step_mad_16 = (
             float(np.mean(np.abs(thumb_16 - self._prev_thumb_16)))
             if self._prev_thumb_16 is not None
@@ -258,17 +269,6 @@ class FrameLivenessTracker:
         elif self.is_frozen:
             self._lag_streaks.clear()
             self._lag_motion.clear()
-
-        if self._loop_end == len(self._loop_hashes):
-            keep = self._loop_maxlen
-            self._loop_buf[:keep] = self._loop_buf[self._loop_end - keep : self._loop_end]
-            self._loop_hashes[:keep] = self._loop_hashes[self._loop_end - keep : self._loop_end]
-            base_m = self._loop_prefix_motion[self._loop_end - keep]
-            self._loop_prefix_motion[: keep + 1] = (
-                self._loop_prefix_motion[self._loop_end - keep : self._loop_end + 1] - base_m
-            )
-            self._loop_start = 0
-            self._loop_end = keep
 
         self._loop_buf[self._loop_end] = nearest_16
         self._loop_hashes[self._loop_end] = current_hash

@@ -241,3 +241,25 @@ def test_frame_liveness_tracker_partial_cover():
             caught = True
             break
     assert caught is True
+
+
+def test_long_stream_ring_buffer_wrap_and_loop():
+    """Verify ring-buffer wrap past 2 * _loop_maxlen frames does not raise IndexError and still detects loops."""
+    tracker = FrameLivenessTracker(camera_id="CAM_WRAP", window_size=10, consecutive_freeze_frames=10)
+    # window_size=10 -> _loop_maxlen=450 -> 2*_loop_maxlen=900; process 960 unique frames then loop 40
+    rng = np.random.default_rng(1234)
+    recent = []
+    for i in range(960):
+        frame = rng.integers(0, 256, (120, 160, 3), dtype=np.uint8)
+        if i >= 920:
+            recent.append(frame)
+        res = tracker.process_frame(frame, frame_idx=i, timestamp_s=i / 25.0)
+        assert res["loop_detected"] is False
+
+    caught = False
+    for j in range(40):
+        res = tracker.process_frame(recent[j], frame_idx=960 + j, timestamp_s=(960 + j) / 25.0)
+        if res["loop_detected"]:
+            caught = True
+            break
+    assert caught is True

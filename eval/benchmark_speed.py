@@ -66,11 +66,19 @@ def _load_detector(spec: str):
     return getattr(importlib.import_module(mod), cls)
 
 
-def _prepare_frames(width: int, count: int, video: Path | None) -> tuple[list[np.ndarray], str]:
-    height = int(round(width * 9 / 16))
-    if video is not None:
-        cap = cv2.VideoCapture(str(video))
-        loaded: list[np.ndarray] = []
+_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
+_VIDEO_EXT = {".mp4", ".avi", ".mov", ".mkv", ".webm", ".m4v"}
+
+
+def _load_real_source_frames(source_path: Path, width: int, count: int) -> tuple[list[np.ndarray], str]:
+    """Load real frames from a single video file, frame folder, or directory of videos/folders."""
+    if not source_path.exists():
+        sys.exit(f"Real frame source does not exist: {source_path}")
+
+    loaded: list[np.ndarray] = []
+
+    def _read_video_into(vpath: Path) -> None:
+        cap = cv2.VideoCapture(str(vpath))
         while len(loaded) < count:
             ok, frame = cap.read()
             if not ok:
@@ -78,9 +86,60 @@ def _prepare_frames(width: int, count: int, video: Path | None) -> tuple[list[np
             h, w = frame.shape[:2]
             loaded.append(cv2.resize(frame, (width, int(h * width / w)), interpolation=cv2.INTER_AREA))
         cap.release()
-        if loaded:
-            out = [loaded[i % len(loaded)] for i in range(count)]
-            return out, f"real_video:{video}"
+
+    def _read_images_into(imgs: list[Path]) -> None:
+        for ipath in imgs:
+            if len(loaded) >= count:
+                break
+            img = cv2.imread(str(ipath))
+            if img is None:
+                continue
+            h, w = img.shape[:2]
+            loaded.append(cv2.resize(img, (width, int(h * width / w)), interpolation=cv2.INTER_AREA))
+
+    if source_path.is_file():
+        _read_video_into(source_path)
+        label = f"real_video:{source_path.name}"
+    else:
+        direct_imgs = sorted(
+            p for p in source_path.iterdir()
+            if p.is_file() and not p.name.startswith("._") and p.suffix.lower() in _IMAGE_EXT
+        )
+        if direct_imgs:
+            _read_images_into(direct_imgs)
+            label = f"real_frames:{source_path.name}"
+        else:
+            clips_used = 0
+            for child in sorted(source_path.iterdir()):
+                if len(loaded) >= count:
+                    break
+                if child.name.startswith("._"):
+                    continue
+                before = len(loaded)
+                if child.is_file() and child.suffix.lower() in _VIDEO_EXT:
+                    _read_video_into(child)
+                elif child.is_dir():
+                    imgs = sorted(
+                        p for p in child.iterdir()
+                        if p.is_file() and not p.name.startswith("._") and p.suffix.lower() in _IMAGE_EXT
+                    )
+                    if imgs:
+                        _read_images_into(imgs)
+                if len(loaded) > before:
+                    clips_used += 1
+            label = f"real_dataset:{source_path.name} ({clips_used} clip(s), {len(loaded)} unique)"
+
+    if not loaded:
+        sys.exit(f"No readable real frames found under --source: {source_path}")
+
+    out = [loaded[i % len(loaded)] for i in range(count)]
+    return out, label
+
+
+def _prepare_frames(width: int, count: int, source: str) -> tuple[list[np.ndarray], str]:
+    height = int(round(width * 9 / 16))
+    if source.lower() != "synthetic":
+        return _load_real_source_frames(Path(source), width, count)
 
     rng = np.random.default_rng(2026)
     base = np.full((height, width, 3), 96, dtype=np.uint8)
@@ -101,10 +160,10 @@ def benchmark_one(
     width: int,
     n_frames: int,
     warmup: int,
-    video: Path | None,
+    source: str,
 ) -> dict[str, object]:
     cls = _load_detector(detector_spec)
-    frames, src = _prepare_frames(width, warmup + n_frames, video)
+    frames, src = _prepare_frames(width, warmup + n_frames, source)
     tracker = cls(camera_id=f"bench_{width}")
 
     for i in range(warmup):
@@ -145,10 +204,19 @@ def main() -> None:
     ap.add_argument("--widths", default="320,640")
     ap.add_argument("--frames", type=int, default=300)
     ap.add_argument("--warmup", type=int, default=30)
-    ap.add_argument("--video", type=Path, default=None, help="optional real video path to replay for realistic decode/scene complexity")
+    ap.add_argument(
+        "--source",
+        default="synthetic",
+        help="'synthetic' (default) or path to a real video file, frame folder, or clip directory (e.g. Avenue testing_videos)",
+    )
+    ap.add_argument("--video", type=Path, default=None, help="deprecated alias for --source <video>")
     ap.add_argument("--out-md", type=Path, default=None)
     ap.add_argument("--out-json", type=Path, default=None)
     args = ap.parse_args()
+
+    if args.video is not None and args.source != "synthetic":
+        sys.exit("Pass either --source or --video, not both.")
+    source = str(args.video) if args.video is not None else args.source
 
     detectors = [d.strip() for d in args.detector.split(",") if d.strip()]
     widths = [int(w.strip()) for w in args.widths.split(",") if w.strip()]
@@ -161,10 +229,11 @@ def main() -> None:
         "python_version": platform.python_version(),
         "opencv_version": cv2.__version__,
         "numpy_version": np.__version__,
+        "source": source,
     }
 
     results = [
-        benchmark_one(det, w, args.frames, args.warmup, args.video)
+        benchmark_one(det, w, args.frames, args.warmup, source)
         for det in detectors
         for w in widths
     ]

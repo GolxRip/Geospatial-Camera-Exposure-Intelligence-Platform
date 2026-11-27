@@ -40,7 +40,7 @@ export function limitLines() {
     { id: "C4, C5", text: `All of the gain comes from the ${c.n_with_signal_fields} scenarios that carry Channel B fields. On the other ${c.n_direct - c.n_with_signal_fields}, IG-DCTF equals the CVE-only model.` },
     { id: "C7", text: `The corpus cannot choose the gate thresholds: all ${sw.total} grid points in the sweep sit within 0.01 of the best F1.` },
     { id: "C8, C10", text: `Tier 1 was benchmarked on ${(t1 as { distinct_cases: number }).distinct_cases} distinct cases. Tier 2 used synthetic frames, with weights revised after seeing the benchmark.` },
-    { id: "C14", text: "Ring-buffer loop detection can miss very short clips and adaptive attackers; real-footage tests inject tamper onset programmatically on public CUHK Avenue clips." },
+    { id: "C14", text: "Avenue train and test clips share one fixed camera, scene, and illumination with our own attack generator, and 2 train + 5 test clips (<12 s) were excluded; detection rates measure simulated attacks on that scene, not cross-scene generalisation." },
     { id: "C17", text: "Evidence covers public video and aggregate host counts; live camera field deployments and longitudinal Tier 1 banner drift remain future work." },
   ];
 }

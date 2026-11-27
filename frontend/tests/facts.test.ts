@@ -11,7 +11,8 @@ const resultsPath = new URL("../../paper/data/results.json", import.meta.url);
 
 describe("facts (spec 3.4)", () => {
   it("facts.generated.ts is in sync with paper/data/results.json", () => {
-    const sha = createHash("sha256").update(readFileSync(resultsPath, "utf8")).digest("hex");
+    const raw = readFileSync(resultsPath, "utf8").replace(/\r\n/g, "\n");
+    const sha = createHash("sha256").update(raw).digest("hex");
     expect(SOURCE_SHA256, "results.json changed: run `npm run sync`").toBe(sha);
   });
 

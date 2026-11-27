@@ -97,12 +97,23 @@ python3 eval/make_figures.py \
   --after-label "Frozen v2 (held-out)" \
   --out-dir docs/figures
 
-# CPU throughput benchmark at 320 px and 640 px (writes outside eval/results/)
+# CPU throughput benchmark at 320 px and 640 px (use --source for real video/frames; default synthetic)
 python3 eval/benchmark_speed.py \
   --detector liveness_detector_v1:FrameLivenessTracker,liveness_detector:FrameLivenessTracker \
+  --source ~/datasets/avenue/"Avenue Dataset"/testing_videos \
   --widths 320,640 \
   --frames 300 \
   --out-md docs/SPEED_BENCHMARK.md
+
+# Unseen attack-variant robustness sweep (loops 2/10/30 s, blur sigma 2/4/8, slow ramps 20/120 s, semi-transparent & small cover)
+python3 eval/robustness_sweep.py \
+  --data ~/datasets/avenue/"Avenue Dataset"/testing_videos \
+  --dataset "CUHK Avenue (testing, robustness sweep)" \
+  --detector liveness_detector:FrameLivenessTracker \
+  --width 320 \
+  --min-seconds 12 \
+  --max-seconds 90 \
+  --out eval/results/robustness_sweep
 ```
 
 ---

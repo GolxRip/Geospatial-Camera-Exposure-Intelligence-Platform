@@ -56,7 +56,7 @@ Check once before starting:
 - **Click:** Top nav -> **Lab** (`/lab`).
 - **Interact:** Drag Signal Integrity `s` below `0.85` (taper region) and below `0.50` (hard gate cap `<= 30`), while keeping `T_cve = 95`.
 - **Say:**  
-  > "Notice the exact multiplicative curve verified against our Python backend on 748 vectors: once visual liveness drops signal integrity below 0.50, even a device with zero CVEs is hard-capped at trust 30 (`low_trust`), forcing operator inspection before acting on an alert."
+  > "Notice the exact multiplicative curve verified against our Python backend on 265 golden vectors: once visual liveness drops signal integrity below 0.50, even a device with zero CVEs is hard-capped at trust 30 (`low_trust`), forcing operator inspection before acting on an alert."
 
 ### `5:30 – 7:15` | Passive Triage Console & Audit Trail (`http://localhost:3000/console`)
 - **Click:** **Open console** -> `/console`.

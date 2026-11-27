@@ -45,7 +45,7 @@
 
 ### Slide 6 — Tier 2 Freeze/Loop Fix (`v1` -> `v2` at `023c5c4`)
 - **The `v1` Bug Discovered in Testing:** Comparing consecutive frames only caught identical static freezes (`0/14` training, `1/16` held-out loops), because replaying a 2–5 s real clip preserves natural frame-to-frame motion!
-- **Wait-Free `v2` Upgrades (`video_pipeline/liveness_detector.py`):**
+- **Temporal & Spatial `v2` Upgrades (`video_pipeline/liveness_detector.py`):**
   - Un-smoothed `INTER_NEAREST` grayscale ring-buffer (`pHash`, Hamming threshold `1`) + prefix-sum motion check for replay loop detection
   - Anchored blur baselines (`slow_blur`)
   - `8x8` block grid check for `partial_cover`
@@ -53,7 +53,7 @@
 
 ### Slide 7 — Real Public Video Evaluation: CUHK Avenue (`v1` vs. Held-Out `v2`)
 - **Visuals:** [`docs/figures/detection_rate_tripped.svg`](figures/detection_rate_tripped.svg), [`docs/figures/false_alarms_per_hour.svg`](figures/false_alarms_per_hour.svg)
-- **Protocol:** CUHK Avenue real surveillance clips (`training_videos`: `14/16` evaluated, `2` dropped `<12s`, `0.1306` clean h; held-out `testing_videos`: `16/21` evaluated, `5` dropped `<12s`, `0.1195` clean h) with programmatic tamper injection at `t0` across `8` failure modes (`320 px`).
+- **Protocol:** CUHK Avenue real surveillance clips (`training_videos`: `14/16` evaluated, `2` dropped `<12s`, `0.1306` clean h; held-out `testing_videos`: `16/21` evaluated, `5` dropped `<12s`, `0.1195` clean h) with programmatic tamper injection at `t0` across `8` failure modes (`320 px`). *Caveat:* Both splits share the same camera, scene, and lighting, and the tamper generator was co-developed with the detector.
 - **Held-Out `testing_videos` (`v1 -> v2`, `tripped` level):**
   - `loop`: `1/16` (`6.2%`) -> **`15/16` (`93.8%` [71.7, 98.9]%**, median delay `0.56 s`; `video 13` `14.3 s` missed)
   - `slow_blur`: `0/16` -> **`16/16` (`100%`**, median delay `5.88 s`)
@@ -62,22 +62,22 @@
   - `freeze`, `blur`, `cover`, `downscale`: **`16/16` (`100%`)**
   - Clean False Alarms (`tripped`): `4` FAs (`33.5/h` [9.1, 85.7]) -> **`0` FAs (`0.0/h` [0.0, 30.9])**. At `degraded`: `4` -> **`1` FA** on `video 06` (`8.4/h` [0.2, 46.6]).
 
-### Slide 8 — Runtime Throughput & Formula Sanity Checks
-- **Real Tier 2 CPU Throughput ([`docs/SPEED_BENCHMARK.md`](SPEED_BENCHMARK.md)):** Intel `i5-12450H`, Python `3.12.6`, OpenCV `5.0.0`, `300` frames (`synthetic_pattern` `320x180`):
-  - **`v2` (`023c5c4`):** **`281.9` FPS @ 320 px** (`3.55 ms/frame`), **`71.2` FPS @ 640 px** (`14.04 ms/frame`) vs `v1` (`606.8` / `84.8` FPS) — >2x real-time headroom at 640 px on CPU alone.
+### Slide 8 — Runtime Throughput & Synthetic Formula Sanity Check
+- **CPU Throughput ([`docs/SPEED_BENCHMARK.md`](SPEED_BENCHMARK.md)):** Intel `i5-12450H`, Python `3.12.6`, OpenCV `5.0.0`, `300` frames (`synthetic_pattern` `320x180`; real-frame `--source` option added in `eval/benchmark_speed.py`, unrun yet):
+  - **`v2` (`023c5c4`):** **`281.9` FPS @ 320 px** (`3.55 ms/frame`), **`71.2` FPS @ 640 px** (`14.04 ms/frame`) vs `v1` (`606.8` / `84.8` FPS).
 - **In-Process Gate Overhead ([`paper/results.md`](../paper/results.md)):** `4.69 us/call` full IG-DCTF vs `2.60 us/call` Channel A only (pure Python, excludes I/O).
-- **Synthetic Formula Verification (`n = 120`, strictly labelled `Synthetic`):**
-  - Verifies gate logic against baselines (`IG-DCTF` F1 `0.9756` vs `Bayesian` `0.8319`, `CVE-only` `0.8113`, `WA` `0.7525`; exact McNemar `17` vs `0`, `p = 1.53e-05`; multiplicative `FN = 3` vs additive `FN = 10`).
-  - *Honest Caveat:* Only `30` of `120` carry Channel B fields (`Acc = 1.000`); on the `90` attribute-only scenarios `IG-DCTF = CVE-only` (`0.967`).
+- **Synthetic Formula Sanity Check (`n = 120`, strictly labelled `Synthetic`):**
+  - Verifies non-compensatory fusion arithmetic across team-authored scenarios (`IG-DCTF` F1 `0.9756` vs `Bayesian` `0.8319`, `CVE-only` `0.8113`, `WA` `0.7525`; `17` vs `0` Channel-B differences; multiplicative `FN = 3` vs additive `FN = 10`).
+  - *Honest Caveats:* Only `30` of `120` carry Channel B fields (`IG-DCTF == CVE-only` `0.967` on the `90` attribute-only scenarios). Tier 2 sub-weights `(1.0, 0.6, 0.5)` were revised after inspecting the synthetic Tier 2 benchmark, and the flat threshold sweep (`F1 = 0.9756` across all `42` grid pairs) shows this corpus does not test the gate thresholds.
 
 ### Slide 9 — Hardening, Auditability & Automated Verification
 - **Security & Forensic Integrity:**
   - Idempotent `POST /api/detection-event` (`DETECTION_API_KEY` + 60 s timestamp freshness + per-camera rate limiting + collusion velocity checks).
   - Tamper-evident `audit_ledger` Merkle chain (`SHA-256` hash linking + full verification endpoint).
   - Privacy-first IP masking (`a.b.c.0` `/24` when `EXPOSE_FULL_IP=false`), explicit `demo: true` isolation, and zero orphan alerts in `data/public.db` (`9,320` masked simulated devices).
-- **Verified Engineering Quality (`2026-11-27`):**
-  - **Backend + Pipeline + Eval (`pytest`):** **`439 passed, 1 skipped, 0 warnings`** (1 skip = untrained-GNN 503 test when trained `.pt` weights exist). Asyncio loop/SQLite lock races resolved (`timeout=30.0`, sync/async ledger split).
-  - **Frontend (`Vitest` / `eslint` / `tsc`):** `7` files / `42` unit tests passing (including `265` Python-vs-TypeScript golden gate vectors), clean ESLint & TypeScript compilation.
+- **Single-Source Test Counts (`frontend/src/lib/content/facts.manual.ts`, `eval.tests`):**
+  - **Backend + Pipeline + Eval (`pytest`):** **`439 passed, 1 skipped, 0 warnings`** (`440` collected: `374` backend, `52` video pipeline, `14` eval; `1` skip = untrained-GNN 503 test when trained `.pt` weights exist). Asyncio loop/SQLite lock races resolved (`timeout=30.0`, sync/async ledger split).
+  - **Frontend (`Vitest` / `eslint` / `tsc`):** **`11` Vitest suites / `81` tests** passing on Kali at `90f3265` (`7` unit suites / `42` tests under `tests/unit/` + `4` API/SSE/contrast/facts suites / `39` tests, covering `265` Python-vs-TypeScript golden gate vectors), clean ESLint & TypeScript compilation.
 
 ### Slide 10 — Live Demo Plan (~4 Minutes)
 *(Follow [`docs/DEMO_SCRIPT.md`](DEMO_SCRIPT.md) step-by-step)*
@@ -87,10 +87,10 @@
 4. **`/ethics`:** Confirm strictly passive posture, Censys aggregates-only rule, and zero-live-RTSP enforcement.
 
 ### Slide 11 — Honest Limitations & Future Work (Post-Review 2)
+- **Same-Camera & Co-Developed Attack Scope (Avenue):** `training_videos` and `testing_videos` capture the exact same fixed camera, corridor scene, and daylight conditions, and tamper clips were generated by our own script (`eval/tier2_real_footage.py`). Results measure detection of our simulated attacks on that scene, not cross-scene generalisation (`2` train and `5` test clips `<12 s` dropped; self-recorded day/night clips and `eval/robustness_sweep.py` unseen variants pending).
 - **Tier 1 Field Evidence:** Passive banner-drift effectiveness on multi-month real Internet camera histories is **unverified** (synthetic `13`-case drift benchmark only; awaits longitudinal Censys snapshots `U3a`).
 - **Narrow Clean Baseline Window:** `0.1195 h` (~7.2 min) across 16 held-out Avenue clips leaves the `0` FA Poisson upper 95% CI at **`30.9/h`** (`8.4/h` at `degraded` due to `video 06`).
-- **Controlled Tamper & Adaptive Adversary (`U2`/`U4`):** Avenue uses programmatic onset on real surveillance clips; `video 13` (`14.3 s`) missed `loop`, and sub-perceptual frame noise against ring-buffer pHash remains open.
-- **Infrastructure Scope:** Single-node SQLite (`surveillancewatch.db` / `public.db`) fits Review 2 demo/eval scale, not horizontal multi-writer deployment.
+- **Infrastructure & Adaptive Adversary (`U2`/`U4`):** Sub-perceptual frame noise against ring-buffer pHash remains open; single-node SQLite fits Review 2 demo/eval scale, not horizontal multi-writer deployment.
 
 ---
 

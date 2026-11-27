@@ -114,14 +114,16 @@ See [`eval/README.md`](eval/README.md) for reproduction commands once public vid
 ### Running Tests
 
 ```powershell
-# Full backend + pipeline + eval harness suites (439 passed, 1 skipped, 0 warnings across all three; 1 skip if GNN weights exist)
+# Full backend + pipeline + eval harness suites (440 collected: 374 backend, 52 video_pipeline, 14 eval -> 439 passed, 1 skipped)
+# Single source of truth for all test counts: frontend/src/lib/content/facts.manual.ts (eval.tests)
 python -m pytest backend/tests/ video_pipeline/tests/ eval/ -q
 python -m pytest backend/tests/ -q
 python -m pytest video_pipeline/tests/ -q
 python -m pytest eval/test_eval_harness.py eval/test_full_system_stress_and_benchmark.py eval/test_run_eval_api_mode_indepth.py -q
 
-# Frontend checks
+# Frontend checks (11 Vitest suites / 81 tests = 7 unit suites / 42 tests + 4 contract suites / 39 tests; 265 golden vectors)
 cd frontend
+npm run test
 npx eslint src tests
 npx tsc --noEmit
 npm run build

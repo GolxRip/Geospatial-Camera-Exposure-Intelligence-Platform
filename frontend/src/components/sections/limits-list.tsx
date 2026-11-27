@@ -17,7 +17,7 @@ export const LIMITS = [
   },
   {
     id: 'C14',
-    text: 'Ring-buffer loop detection can miss very short clips and adaptive attackers; real-footage tests inject tamper onset programmatically on public CUHK Avenue clips.',
+    text: 'Avenue train and test clips share one fixed camera, scene, and illumination with our own attack generator, and 2 train + 5 test clips (<12 s) were excluded; detection rates measure simulated attacks on that scene, not cross-scene generalisation.',
   },
   {
     id: 'C17',

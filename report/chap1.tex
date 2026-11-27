@@ -15,7 +15,7 @@ At the same time, security-only defenses address only half the threat surface. S
 Given heterogeneous passive camera posture metadata and optional authorized video frame streams, single-channel vulnerability trust scorers cannot detect spoofed, relayed, frozen, looped, blurred, occluded, or resolution-downgraded feeds, allowing malicious or tampered feeds from nominally secure devices to trigger high-trust alerts.
 
 \subsection*{Objectives}
-The project targets four verifiable engineering objectives within a strict passive ethics and legal boundary (India's IT Act, 2000 \S43/\S66 and DPDP Act, 2023):
+The project targets four verifiable engineering objectives and operates within India's IT Act, 2000 (\S43/\S66) and DPDP Act, 2023 boundaries:
 \begin{enumerate}
   \item \textbf{IG-DCTF Scoring and Hard Integrity Gating:} Formulate and implement a dual-channel scoring engine with a piece-wise multiplicative gate ($\theta_{\mathrm{low}} = 0.50$, $\theta_{\mathrm{high}} = 0.85$, floor $0.30$, hard cap $30$) ensuring non-compensation for compromised signal integrity while preserving tolerance for benign single-field firmware drift.
   \item \textbf{Real-Video Tier~2 Tamper Detection (\texttt{v2}):} Build and validate \texttt{FrameLivenessTracker} capable of flagging freezes, natural-motion replay loops, abrupt/slow blur, full/partial lens occlusion, camera displacement, and resolution downgrades at real-time CPU speeds on public CUHK Avenue surveillance footage.

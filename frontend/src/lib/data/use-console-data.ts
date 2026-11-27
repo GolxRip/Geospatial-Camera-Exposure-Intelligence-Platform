@@ -11,6 +11,7 @@ import {
   useRunScenario as useRunScenarioMutation, useVerifyChain, useVerdict as useVerdictMutation,
 } from '@/lib/api/console-hooks';
 import { useConsoleStore } from '@/lib/state/console-store';
+import { manualFacts } from '@/lib/content/facts.manual';
 import { AlertSocket } from '@/lib/api/socket';
 import { prettifyFactor } from '@/lib/api/normalize';
 import type { Device } from '@/lib/api/normalize';
@@ -91,13 +92,14 @@ function toDeviceDetail(
     current_fingerprint?: Record<string, unknown>;
   };
   if (tsRecord.component_distances) {
+    const tier1W = manualFacts['const.tier1.weights'].value;
     const compWeights: Record<BannerRow['field'], { key: string; weight: number }> = {
-      Product: { key: 'product', weight: 0.35 },
-      Server: { key: 'server', weight: 0.25 },
-      Firmware: { key: 'firmware', weight: 0.20 },
-      Ports: { key: 'ports', weight: 0.20 },
-      Resolution: { key: 'resolution', weight: 0.0 },
-      Codec: { key: 'codec', weight: 0.0 },
+      Firmware: { key: 'firmware_version', weight: tier1W.firmware_version },
+      Server: { key: 'http_server', weight: tier1W.http_server },
+      Ports: { key: 'open_ports', weight: tier1W.open_ports },
+      Resolution: { key: 'resolution', weight: tier1W.resolution },
+      Product: { key: 'product_string', weight: tier1W.product_string },
+      Codec: { key: 'codec', weight: tier1W.codec },
     };
     for (const [field, meta] of Object.entries(compWeights) as [BannerRow['field'], { key: string; weight: number }][]) {
       const dist = tsRecord.component_distances[meta.key];

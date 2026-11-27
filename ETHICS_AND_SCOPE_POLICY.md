@@ -11,7 +11,7 @@
 
 COBRA-WATCH is a research and civic-transparency platform designed to evaluate and enhance the **integrity and cyber-resilience of municipal and public surveillance infrastructures**. By analyzing open-source intelligence (OSINT), public vulnerability disclosures (NVD/CISA KEV), and spatial-temporal corroboration dynamics, the system quantifies the reliability of physical alert signals prior to operational dispatch.
 
-This document establishes the **strict ethical boundaries, legal compliance standards, and architectural scope restrictions** governing COBRA-WATCH.
+This document establishes the **strict ethical boundaries, operative statutory framing, and architectural scope restrictions** governing COBRA-WATCH.
 
 ---
 
@@ -56,9 +56,9 @@ The video AI detection module (`video_pipeline/`) is architecturally decoupled f
 
 ---
 
-## 4. Legal Compliance Framework (Indian Law)
+## 4. Operative Legal Boundaries (Indian Law)
 
-COBRA-WATCH operates in full alignment with the following Indian statutory and constitutional frameworks:
+COBRA-WATCH is designed to operate within the following Indian statutory and constitutional boundaries:
 
 ### 4.1 Digital Personal Data Protection Act (DPDP Act 2023)
 - **Data Minimization (§6)**: The platform stores only device IP, manufacturer, port, and security posture. No personal data of citizens is collected, stored, or processed.
@@ -66,7 +66,7 @@ COBRA-WATCH operates in full alignment with the following Indian statutory and c
 
 ### 4.2 Information Technology Act, 2000 & Amendments
 - **Section 43 & Section 66**: Strict prohibition against unauthorized access, data extraction, or system damage. COBRA-WATCH performs no active port manipulation, packet injection, or penetration testing against third-party systems.
-- **Section 69 & 69A Compliance**: The platform supports legitimate security auditing and defense transparency for public smart-city infrastructure.
+- **Section 69 & 69A Boundary**: The platform supports legitimate security auditing and defense transparency within statutory bounds for public smart-city infrastructure.
 
 ### 4.3 Constitutional Privacy (Justice K.S. Puttaswamy v. Union of India, 2017)
 - The Supreme Court of India recognized privacy as a fundamental right under Article 21, subject to the test of **legality, necessity, and proportionality**.

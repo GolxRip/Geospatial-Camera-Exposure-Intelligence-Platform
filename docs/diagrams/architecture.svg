@@ -128,7 +128,7 @@
   <rect x="948" y="472" width="244" height="106" rx="4" fill="#FFFFFF" stroke="#111111" stroke-width="1.5" />
   <text x="960" y="494" font-size="14" font-weight="700" fill="#111111">/lab &amp; /ethics</text>
   <text x="960" y="514" font-size="12" fill="#4A4A4A">/lab: live G(s) curve (lib/scoring/gate.ts,</text>
-  <text x="960" y="532" font-size="12" fill="#4A4A4A">verified on 748 Python gate vectors)</text>
+  <text x="960" y="532" font-size="12" fill="#4A4A4A">verified on 265 Python gate vectors)</text>
   <text x="960" y="550" font-size="12" fill="#4A4A4A">/ethics: passive boundary, IT Act, DPDP,</text>
   <text x="960" y="566" font-size="12" fill="#4A4A4A">simulated-data justification</text>
 

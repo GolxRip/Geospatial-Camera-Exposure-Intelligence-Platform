@@ -10,7 +10,8 @@ const r3 = (n: number) => Math.round(n * 1000) / 1000;
 
 describe('generated facts', () => {
   it('are generated from the current paper/data/results.json (content hash, not mtime)', () => {
-    const sha = createHash('sha256').update(readFileSync(RESULTS_JSON, 'utf8')).digest('hex');
+    const raw = readFileSync(RESULTS_JSON, 'utf8').replace(/\r\n/g, '\n');
+    const sha = createHash('sha256').update(raw).digest('hex');
     expect(SOURCE_SHA256).toBe(sha);
   });
 
@@ -108,5 +109,16 @@ describe('manual facts', () => {
     for (const [key, fact] of Object.entries(manualFacts)) {
       expect(fact.source.trim().length, key).toBeGreaterThan(0);
     }
+  });
+
+  it('tracks consistent Python, Vitest, and golden-vector test totals in eval.tests', () => {
+    const t = manualFacts['eval.tests'].value;
+    expect(t.backend_passed + t.video_pipeline_passed + t.eval_passed).toBe(t.passed);
+    expect(t.passed + t.skipped).toBe(t.python_collected);
+    expect(t.frontend_suites).toBe(11);
+    expect(t.frontend_tests).toBe(81);
+    expect(t.frontend_unit_suites).toBe(7);
+    expect(t.frontend_unit_tests).toBe(42);
+    expect(t.golden_vectors).toBe(265);
   });
 });

@@ -47,8 +47,23 @@ export const manualFacts = {
     source: 'video_pipeline/liveness_detector.py (FrameLivenessTracker defaults)',
   },
   'eval.tests': {
-    value: { passed: 439, date: '2026-11-27' },
-    source: 'README.md ("439 passed, 1 skipped, 0 warnings") and paper/CLAIMS.md claim C16',
+    value: {
+      passed: 439,
+      skipped: 1,
+      python_collected: 440,
+      backend_collected: 374,
+      backend_passed: 373,
+      video_pipeline_passed: 52,
+      eval_passed: 14,
+      frontend_suites: 11,
+      frontend_tests: 81,
+      frontend_unit_suites: 7,
+      frontend_unit_tests: 42,
+      golden_vectors: 265,
+      date: '2026-11-27',
+    },
+    source:
+      'Single source of truth for automated test counts: pytest --collect-only -q backend/tests/ video_pipeline/tests/ eval/ (440 collected; 439 passed, 1 skipped on run), frontend/vitest.config.mts (11 suites / 81 tests at commit 90f3265 = 7 unit suites / 42 tests + 4 contract suites / 39 tests), frontend/tests/fixtures/gate_golden.json (265 vectors), paper/CLAIMS.md C16',
   },
 } as const satisfies Record<string, ManualFact<unknown>>;
 

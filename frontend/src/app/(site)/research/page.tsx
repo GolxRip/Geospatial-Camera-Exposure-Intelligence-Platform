@@ -9,7 +9,7 @@ import { SyntheticChip } from '@/components/ui/synthetic-chip';
 import { facts } from '@/lib/content/facts.generated';
 import { manualFacts } from '@/lib/content/facts.manual';
 import { loadRealTier2Results } from '@/lib/content/real-tier2';
-import { f1, f2, f3, sci } from '@/lib/format';
+import { f1, f2, f3 } from '@/lib/format';
 import { repoFileUrl } from '@/lib/env';
 import { GATE } from '@/lib/scoring/gate';
 
@@ -257,7 +257,8 @@ export default function ResearchPage() {
               <a className="text-bone underline underline-offset-4" href="/lab">
                 lab
               </a>
-              , checked against the Python implementation on 748 vectors.
+              , checked against the Python implementation on{' '}
+              {manualFacts['eval.tests'].value.golden_vectors} golden vectors.
             </P>
           </Section>
 
@@ -486,10 +487,12 @@ export default function ResearchPage() {
                 ])}
               />
               <P>
-                Exact McNemar test, IG-DCTF against CVE-only: {mc.igdctf_only_correct} against{' '}
-                {mc.advanced_only_correct} discordant scenarios, p = {sci(mc.p_value)}. The 95%
-                Wilson interval for IG-DCTF accuracy is {f3(model('res.model.igdctf').accuracy_ci[0])}{' '}
-                to {f3(model('res.model.igdctf').accuracy_ci[1])}.
+                IG-DCTF differs from CVE-only on {mc.igdctf_only_correct} of the synthetic Channel-B
+                scenarios ({mc.advanced_only_correct} reverse) and matches it on all attribute-only
+                scenarios (formula sanity check only; not a test of real-world significance). On
+                these hand-authored cases, the 95% Wilson interval for IG-DCTF accuracy is{' '}
+                {f3(model('res.model.igdctf').accuracy_ci[0])} to{' '}
+                {f3(model('res.model.igdctf').accuracy_ci[1])}.
               </P>
               <DataTable
                 caption="Accuracy by presence of Channel B fields (synthetic corpus)"

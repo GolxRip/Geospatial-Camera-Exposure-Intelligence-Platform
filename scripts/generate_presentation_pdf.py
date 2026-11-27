@@ -190,9 +190,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <h1>⚡ COBRA-WATCH</h1>
     <p>Cyber-Physical Surveillance Threat Intelligence & Detection Engine</p>
     <div class="badge-row">
-      <span class="badge">STATUS: PRODUCTION-READY</span>
-      <span class="badge badge-success">309 / 309 TESTS PASSED (100%)</span>
-      <span class="badge">DPDP ACT 2023 COMPLIANT</span>
+      <span class="badge">STATUS: REVIEW 2 PROTOTYPE (LEGACY GENERATOR)</span>
+      <span class="badge badge-success">TEST COUNTS TRACKED IN facts.manual.ts (439 PYTEST + 81 VITEST)</span>
+      <span class="badge">OPERATES WITHIN DPDP ACT 2023 BOUNDARIES</span>
     </div>
   </div>
 

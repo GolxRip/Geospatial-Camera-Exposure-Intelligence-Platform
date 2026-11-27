@@ -16,7 +16,8 @@ Tick items with the date; add new ones at the bottom of their section. Mirror im
 - [ ] Verify every `references.bib` entry marked VERIFY.
 - [ ] Fill in authors/affiliations in `main.tex`.
 - [ ] Compile all 10 figures and `main.tex` in Overleaf; fix layout issues; tell the agent about compile errors.
-- [x] 2026-11-27 Re-run full pytest suite: `backend/tests/` (`373 passed, 1 skipped`) and `video_pipeline/tests/` (`52 passed` after `conftest.py` path fix).
+- [x] 2026-11-27 Re-run full pytest suite: `backend/tests/` (`373 passed, 1 skipped`) and `video_pipeline/tests/` (`52 passed` after `conftest.py` path fix); single-source test totals (`439 pytest` / `81 Vitest across 11 suites` / `265 golden vectors`) synced in `frontend/src/lib/content/facts.manual.ts`.
+- [ ] Run pending slow/Linux verifications on Kali after Review 2 doc updates: full `pytest`, Playwright E2E, `docker compose build`, `eval/robustness_sweep.py`, `eval/benchmark_speed.py --source <avenue_testing>`, and self-recorded `Own clips (day/night)`.
 
 ## Technical debt found in audit
 - [x] 2026-11-27 Tier 2 freeze rule missed loops of real footage (C14): fixed with un-smoothed `INTER_NEAREST` ring-buffer + prefix-sum motion check, anchored blur baselines, $8{\times}8$ `partial_cover`, edge/layout `moved`, and static freeze guard (`v2` frozen at `023c5c4`).

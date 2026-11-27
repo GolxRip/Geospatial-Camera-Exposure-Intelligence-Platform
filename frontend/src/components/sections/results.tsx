@@ -8,7 +8,7 @@ import { facts } from '@/lib/content/facts.generated';
 import { manualFacts } from '@/lib/content/facts.manual';
 import { loadRealTier2Results } from '@/lib/content/real-tier2';
 import { ROUTES } from '@/lib/constants/routes';
-import { f1, f3, sci } from '@/lib/format';
+import { f1, f3 } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { LimitsList } from './limits-list';
 
@@ -151,9 +151,9 @@ export function Results() {
           <li>
             <Stat
               value={`${mc.value.igdctf_only_correct} vs ${mc.value.advanced_only_correct}`}
-              label="Discordant scenarios, IG-DCTF vs CVE-only"
+              label="Channel-B scenario gap, IG-DCTF vs CVE-only"
               fact={mc}
-              detail={`Exact McNemar p = ${sci(mc.value.p_value)}`}
+              detail="Formula check only (not real-world significance)"
             />
           </li>
           <li>
@@ -172,7 +172,11 @@ export function Results() {
             />
           </li>
           <li>
-            <Stat value={tests.passed} label="Tests passed" detail={`Run on ${tests.date}`} />
+            <Stat
+              value={tests.passed}
+              label="Python tests passed"
+              detail={`Run ${tests.date} (${tests.backend_passed} backend, ${tests.video_pipeline_passed} video, ${tests.eval_passed} eval); ${tests.frontend_tests} Vitest across ${tests.frontend_suites} suites`}
+            />
           </li>
         </ul>
 

@@ -1,0 +1,258 @@
+%=====================================================================
+% COBRA-WATCH — Self-Contained Overleaf Single-File LaTeX Script
+% Ready to paste directly into Overleaf main.tex (Compiler: pdfLaTeX).
+% Note: For official RAIT Certificate/Approval formatting, upload
+% report/cobra_watch_rait_report_overleaf.zip into Overleaf instead.
+%=====================================================================
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[a4paper,top=25mm,bottom=25mm,left=30mm,right=25mm]{geometry}
+\usepackage{mathptmx}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{setspace}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{./}{./figures/}{./report/}{./report/figures/}}
+\onehalfspacing
+
+% Renders uploaded vector PDF figures automatically if present in Overleaf,
+% otherwise draws a clean framed placeholder so single-file paste never errors.
+\newcommand{\safegraphic}[3][0.88\textwidth]{%
+  \IfFileExists{#2}{%
+    \includegraphics[width=#1]{#2}%
+  }{%
+    \IfFileExists{figures/#2}{%
+      \includegraphics[width=#1]{figures/#2}%
+    }{%
+      \fbox{\parbox{0.84\textwidth}{\centering\vspace{6mm}\small
+        \textbf{[Upload \texttt{report/figures/#2} in Overleaf to render vector graphic]}\\[2pt]
+        #3\vspace{6mm}}}%
+    }%
+  }%
+}
+
+\title{\textbf{COBRA-WATCH: Passive Cyber-Physical Trust Scoring for Exposed Surveillance Cameras}\\[0.5em]
+\large B.Tech Computer Engineering Major Project Report (Review 2 Draft)}
+
+\author{Goldie Ghadi (Aditya) [TODO: Surname, USN -- Roll No]\\
+More [TODO: Full Name, USN -- Roll No]\\
+Kavtik [TODO: Full Name, USN -- Roll No]\\
+Ankita [TODO: Full Name, USN -- Roll No]\\[0.6em]
+\small Supervisor: [TODO: Prof. Miss Gaikwad Full Name]\\
+\small Department of Computer Engineering, Ramrao Adik Institute of Technology, Navi Mumbai}
+
+\date{December 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Automated video surveillance pipelines routinely treat every incoming stream as authentic, while conventional IoT risk scanners score cameras purely from static vulnerability metadata. Consequently, an authenticated, patched device with zero known vulnerabilities can be subverted through a swapped decoy endpoint, a downscaling Man-in-the-Middle relay, or a looped video feed and still earn maximum trust. This report presents \textbf{COBRA-WATCH}, a strictly passive cyber-physical trust scoring system implementing \emph{Integrity-Gated Dual-Channel Trust Fusion} (IG-DCTF). Channel~A evaluates vulnerability posture $T_{\mathrm{cve}} \in [0, 100]$ from authentication flags, NVD/CISA KEV vulnerability classes, ownership inference, patch staleness, and multi-camera spatial corroboration. Channel~B quantifies signal authenticity $s \in [0, 1]$ by combining passive Tier~1 banner drift with Tier~2 visual frame liveness (\texttt{FrameLivenessTracker}). Both channels combine multiplicatively through a piece-wise Integrity Gate $T_{\mathrm{final}} = \mathrm{round}(T_{\mathrm{cve}} \cdot G(s))$ that hard-caps corrupted feeds at $T_{\mathrm{final}} \le 30$ (\texttt{low\_trust}) whenever $s < 0.50$.
+
+Under an explicit passive-only legal boundary (zero outbound network probing to third-party hosts, zero raw IP redistribution, and whitelisted local footage only), real aggregate exposure analysis over Censys Platform metadata documents \textbf{104,218} exposed Indian camera hosts (\textbf{81,285} exposing RTSP port~554). On real public CUHK Avenue surveillance videos with controlled tamper injection, the tuned Tier~2 detector (\texttt{v2}, frozen at commit \texttt{023c5c4}) raises replay-loop detection on held-out test footage ($n = 16$ clips) from \textbf{1/16} (\textbf{6.2\%}) to \textbf{15/16} (\textbf{93.8\%}), achieves \textbf{16/16} detection across freeze, abrupt blur, gradual blur, full occlusion, partial occlusion, camera movement, and downscaling, reduces clean false alarms at the \texttt{tripped} tier to \textbf{0.0/h} ([0.0, 30.9], $0.1195$~h clean video), and executes at \textbf{281.9~FPS} ($320$~px) and \textbf{71.2~FPS} ($640$~px) on an Intel Core i5-12450H CPU. An anonymized FastAPI and Next.js~16 operator console (\texttt{9,320} simulated \texttt{/24}-masked fixtures in \texttt{data/public.db}) demonstrates interactive gate exploration, live demo alert replay, and SHA-256 Merkle audit verification. Longitudinal Tier~1 historical drift and physical laboratory camera trials remain explicitly outside Review~2 scope as future work.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+\subsection{Overview}
+Networked surveillance cameras are increasingly wired directly into automated analytics workflows: person and perimeter detectors such as YOLOv8~\cite{jocher2023yolov8} and ByteTrack~\cite{zhang2022bytetrack} inspect frames and emit operational alerts, dispatch systems triage incidents across neighbouring devices, and forensic logs archive events for review. Throughout this pipeline sits an unexamined trust assumption---namely, that if an endpoint's software profile appears free of critical Common Vulnerabilities and Exposures (CVEs) and responds on its configured port, the video frames arriving from that device faithfully represent the live physical scene.
+
+COBRA-WATCH addresses the resulting cyber-physical gap through \textbf{Integrity-Gated Dual-Channel Trust Fusion} (IG-DCTF). Instead of collapsing all trust into vulnerability counts, COBRA-WATCH separates \emph{vulnerability posture} (Channel~A, $T_{\mathrm{cve}} \in [0, 100]$) from \emph{signal authenticity} (Channel~B, $s \in [0, 1]$) and couples them through a multiplicative gate $T_{\mathrm{final}} = T_{\mathrm{cve}} \cdot G(s)$. When a feed fails physical or protocol liveness checks ($s < 0.50$), the gate floor ($G = 0.30$) caps the final score at $T_{\mathrm{final}} \le 30$ (\texttt{low\_trust}) regardless of how clean Channel~A looks. All exposure analysis operates strictly passively on aggregate search metadata, and visual analysis executes strictly offline on local or public benchmark video without ever opening unauthorized remote Real-Time Streaming Protocol (RTSP) streams.
+
+\subsection{Motivation}
+Internet-exposed surveillance infrastructure presents both massive cyber-posture exposure and asymmetric physical deception risk. Public scan metadata indexed by search engines such as Shodan~\cite{matherly2015shodan} and Censys routinely surfaces hundreds of thousands of unmanaged embedded camera interfaces, many vulnerable to Mirai-class credential brute-forcing~\cite{antonakakis2017mirai,griffioen2020mirai} or vendor firmware flaws~\cite{das2022kalay}. In a non-attributive aggregate snapshot collected under Censys research access (Ticket RS-469; \texttt{data/censys/2026-11-26/snapshot.json}), the query \texttt{host.location.country: "India" AND host.services.hardware.type: "CAMERA"} returned \textbf{104,218} exposed Indian camera hosts across six aggregate telemetry dimensions, with \textbf{81,285} hosts advertising unencrypted or exposed RTSP service port~554.
+
+Suppose two identical IP cameras declare the same HTTP server banner, firmware version, and clean CVE catalog ($T_{\mathrm{cve}} = 100$). An attacker who replaces one endpoint behind a proxy with a replayed video loop, degrades optical sharpness gradually, occludes part of the lens, or proxies a lower-resolution stream leaves vulnerability metadata completely unchanged. Pure CVE scorers rate both feeds equally trustworthy, forwarding tampered alarms into automated dispatch queues. Bridging cyber-posture intelligence with signal liveness checks motivates the dual-channel IG-DCTF architecture.
+
+\subsection{Problem Statement and Objectives}
+Single-channel vulnerability trust scorers cannot detect spoofed, relayed, frozen, looped, blurred, occluded, or resolution-downgraded feeds, allowing malicious or tampered feeds from nominally secure devices to trigger high-trust alerts. Within India's IT Act, 2000 (\S43/\S66) and DPDP Act, 2023 boundaries, the project achieves:
+\begin{enumerate}
+  \item \textbf{IG-DCTF Scoring and Hard Integrity Gating:} Formulate and implement a dual-channel scoring engine with a piece-wise multiplicative gate ($\theta_{\mathrm{low}} = 0.50$, $\theta_{\mathrm{high}} = 0.85$, floor $0.30$, hard cap $30$).
+  \item \textbf{Real-Video Tier~2 Tamper Detection (\texttt{v2}):} Build and validate \texttt{FrameLivenessTracker} capable of flagging freezes, natural-motion replay loops, abrupt/slow blur, full/partial lens occlusion, camera displacement, and resolution downgrades at real-time CPU speeds on public CUHK Avenue surveillance footage.
+  \item \textbf{Passive Metadata Integration and Forensic Auditability:} Collect aggregate Censys exposure counts without storing raw target IP addresses, persist API alert decisions in an idempotent SHA-256 Merkle-chained ledger (\texttt{audit\_ledger}), and permanently prohibit active outbound host probing.
+  \item \textbf{Interactive Console and Experimental Transparency:} Deliver an anonymized FastAPI + Next.js~16 operator console (\texttt{/console}, \texttt{/lab}, \texttt{/research}, \texttt{/ethics}) enforcing \texttt{/24} IP masking while separating real metrics from simulated fixtures (\texttt{data/public.db}, $n = 9,320$) and counterfactual formula checks ($n = 120$).
+\end{enumerate}
+
+\section{Literature Survey and Research Gap}
+Prior work spans four domains: (i) \emph{IoT compromise measurement}~\cite{antonakakis2017mirai,griffioen2020mirai,zhang2020forensics,famera2025mirai,matherly2015shodan}, which documents rapid Mirai recruitment and turnover; (ii) \emph{camera vulnerability auditing}~\cite{bernot2025cctv,oliver2025ipcam,kth2018cameras,auti2025vapt} backed by NIST NVD~\cite{nvd}, EPSS~\cite{jacobs2021epss}, and CISA KEV~\cite{cisakev}; (iii) \emph{IoT trust and reputation models}~\cite{ferraris2024trust,iottrust2023slr,biot2026trust,swami2025sciiot,kipf2017gcn}; and (iv) \emph{automated video analytics}~\cite{jocher2023yolov8,zhang2022bytetrack,luna2018aod,nayak2019loitering,yilmazer2025abandoned,rasal2025suspicious,liu2025epipolar} plus frame primitives~\cite{zauner2010phash,pech2000focus} and Merkle logs~\cite{merkle1987}. Table~\ref{tab:lit_gap} summarizes the resulting research gap.
+
+\begin{table}[!ht]
+  \centering
+  \caption{Capability comparison across representative system classes}
+  \label{tab:lit_gap}
+  \begin{tabular}{@{}lcccc@{}}
+    \toprule
+    \textbf{Work Class} & \textbf{Vuln. Posture} & \textbf{Feed Authenticity} & \textbf{Fused Gate} & \textbf{Per-Alert Audit} \\
+    \midrule
+    Camera vuln. assessment~\cite{bernot2025cctv,oliver2025ipcam,auti2025vapt} & Yes & No & No & No \\
+    IoT trust \& certification~\cite{swami2025sciiot,ferraris2024trust,biot2026trust} & Partial & No & No & No \\
+    Video analytics \& tracking~\cite{jocher2023yolov8,zhang2022bytetrack,nayak2019loitering} & No & No & No & Yes \\
+    \textbf{COBRA-WATCH (IG-DCTF)} & \textbf{Yes} & \textbf{Yes} & \textbf{Yes} & \textbf{Yes} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Proposed System and Methodology}
+
+\subsection{Passive Threat Model}
+The system models four attack classes: ($\mathcal{A}_1$) decoy swaps or MITM downscaling relays, ($\mathcal{A}_2$) stream freezes, natural-motion loops, slow blur, partial/full occlusion, or camera movement, ($\mathcal{A}_3$) collusive cross-camera corroboration rings, and ($\mathcal{A}_4$) API payload spoofing. By strict security boundary, legacy active heartbeat modules are deleted, Censys queries return aggregates only, and video ingestion rejects non-whitelisted RTSP URIs via \texttt{\_assert\_source\_is\_authorized()}.
+
+\subsection{Dual-Channel Scoring Engine (IG-DCTF)}
+Channel~A computes $T_{\mathrm{cve}} \in [0, 100]$ solely from server-stored attributes:
+\begin{equation}
+  T_{\mathrm{cve}} = \mathrm{clip}_{[0, U]}\!\Big(100 - 30\,\mathbf{1}[\neg \mathrm{auth}] - \Delta_{\mathrm{cat}} - 20\,\mathbf{1}[\text{owner unknown}] - 15\,\mathbf{1}[\mathrm{stale}] - 10\,\mathbf{1}[\mathrm{lat} > 500] + \beta(k)\Big),
+\end{equation}
+where $U = 49$ if unauthenticated ($100$ otherwise). Channel~B evaluates Tier~1 passive banner drift across six weighted fields $w = (0.25, 0.20, 0.20, 0.20, 0.10, 0.05)$ (firmware, HTTP server, open ports, resolution, product, codec; anomaly threshold $0.15$) and Tier~2 frame liveness (\texttt{v2}) using un-smoothed \texttt{INTER\_NEAREST} $32 \times 32$ perceptual hashes~\cite{zauner2010phash} with a ring buffer and prefix-sum motion check for replay loops, anchored EWMA Laplacian sharpness ($\alpha = 0.05$)~\cite{pech2000focus}, $8 \times 8$ block occlusion detection, edge/layout correlation for camera displacement, and resolution checks:
+\begin{equation}
+  L(t) = 1 - \max\big(1.0\,F_t,\, 0.6\,q_t,\, 0.5\,m_t\big) \in [0, 1].
+\end{equation}
+Signal integrity $s = (1 - \mathrm{Drift})\,L$ (or $1 - \mathrm{Drift}$ without Tier~2) feeds the multiplicative gate:
+\begin{equation}
+  G(s) = \begin{cases}
+    1, & s \ge 0.85 \quad (\texttt{nominal}), \\[4pt]
+    0.30 + 0.70\,\dfrac{s - 0.50}{0.35}, & 0.50 \le s < 0.85 \quad (\texttt{tapered}), \\[6pt]
+    0.30, & s < 0.50 \quad (\texttt{hard\_gated}),
+  \end{cases}
+  \qquad T_{\mathrm{final}} = \mathrm{round}\big(T_{\mathrm{cve}}\,G(s)\big).
+\end{equation}
+
+\begin{figure}[!ht]
+  \centering
+  \safegraphic[0.90\textwidth]{fig05_tier2_liveness.pdf}{Tier 2 Visual Frame Liveness Pipeline}
+  \caption{Tier~2 frame liveness computation across pHash freeze/loop, Laplacian blur drift, and resolution validation}
+  \label{fig:tier2}
+\end{figure}
+
+\begin{figure}[!ht]
+  \centering
+  \safegraphic[0.72\textwidth]{fig06_gate_function.pdf}{Multiplicative Integrity Gate G(s)}
+  \caption{Multiplicative Integrity Gate $G(s)$ with thresholds $\theta_{\mathrm{low}} = 0.50$, $\theta_{\mathrm{high}} = 0.85$, floor $0.30$, and hard cap $30$}
+  \label{fig:gate}
+\end{figure}
+
+\subsection{Full-Stack Passive Architecture}
+COBRA-WATCH comprises: (1) a FastAPI backend (\texttt{backend/}) with \texttt{X-API-Key} admission, 5-minute idempotency keys (HTTP~409), 10~events/min rate limits (HTTP~429), 60~s timestamp checks (HTTP~400), \texttt{/24} IP masking, SHA-256 Merkle ledger chaining~\cite{merkle1987}, and sync/async SQLite isolation; (2) an offline YOLOv8 + ByteTrack + \texttt{FrameLivenessTracker} video pipeline (\texttt{video\_pipeline/}); and (3) a Next.js~16 + MapLibre GL JS frontend (\texttt{frontend/}) with clear simulated-fixture provenance banners.
+
+\begin{figure}[!ht]
+  \centering
+  \safegraphic[0.92\textwidth]{fig02_architecture.pdf}{COBRA-WATCH Passive Dual-Channel Architecture}
+  \caption{COBRA-WATCH end-to-end passive cyber-physical architecture}
+  \label{fig:arch}
+\end{figure}
+
+\section{Results and Discussion}
+
+\subsection{Automated Verification Coverage}
+Python suites (\texttt{pytest backend/tests/ video\_pipeline/tests/ eval/}) passed \textbf{439 tests, 1 skipped, 0 warnings} prior to adding a lightweight Docker \texttt{ImportError} handler on \texttt{GET /api/audit/collusion/gnn}, after which \texttt{test\_gnn\_collusion\_model.py} passed (\texttt{16 passed, 1 skipped}). On Kali at commit \texttt{90f3265}, all \textbf{11} frontend Vitest suites (\textbf{81 passed}) validated 265 golden gate vectors, API/WebSocket/SSE contracts, \texttt{/24} IP masking, WCAG contrast (12/12), and zero hard-coded section digits, alongside clean \texttt{eslint} (0~errors/warnings), \texttt{tsc --noEmit}, and \texttt{next build}.
+
+\subsection{Real India Exposure Aggregates (Censys Platform, Zero IPs)}
+Under Censys research access (\texttt{RS-469}), \texttt{data/censys/2026-11-26/snapshot.json} records \textbf{104,218} exposed Indian camera hosts across six aggregate dimensions (\textbf{81,285} exposing RTSP port~554) with zero raw target IP addresses persisted or published.
+
+\subsection{Real Public Video Evaluation (CUHK Avenue: \texttt{v1} vs. Tuned \texttt{v2})}
+Evaluated across CUHK Avenue surveillance clips ($320$~px width, minimum $12$~s clip length: $14/16$ training = $0.1306$~h clean video; $16/21$ held-out test = $0.1195$~h clean video) using controlled programmatic tamper onset, Table~\ref{tab:avenue_test} summarizes held-out generalization of baseline \texttt{v1} versus frozen \texttt{v2} (\texttt{023c5c4}).
+
+\begin{table}[!ht]
+  \centering
+  \caption{CUHK Avenue held-out test set ($16$ clips, $0.1195$ clean hours): \texttt{v1} baseline vs. frozen \texttt{v2}}
+  \label{tab:avenue_test}
+  \begin{tabular}{@{}llccccc@{}}
+    \toprule
+    \textbf{Level} & \textbf{Attack / Metric} & \textbf{v1 Hits} & \textbf{v1 Rate} & \textbf{v2 Hits} & \textbf{v2 Rate [95\% CI]} & \textbf{v2 Delay} \\
+    \midrule
+    tripped & freeze & 16/16 & 100.0\% & \textbf{16/16} & \textbf{100.0\%} [80.6, 100.0] & 1.00 s \\
+    tripped & loop & 1/16 & 6.2\% & \textbf{15/16} & \textbf{93.8\%} [71.7, 98.9] & 0.56 s \\
+    tripped & blur & 16/16 & 100.0\% & \textbf{16/16} & \textbf{100.0\%} [80.6, 100.0] & 0.00 s \\
+    tripped & slow\_blur & 0/16 & 0.0\% & \textbf{16/16} & \textbf{100.0\%} [80.6, 100.0] & 5.88 s \\
+    tripped & cover & 16/16 & 100.0\% & \textbf{16/16} & \textbf{100.0\%} [80.6, 100.0] & 0.00 s \\
+    tripped & partial\_cover & 13/16 & 81.2\% & \textbf{16/16} & \textbf{100.0\%} [80.6, 100.0] & 0.76 s \\
+    tripped & moved & 2/16 & 12.5\% & \textbf{16/16} & \textbf{100.0\%} [80.6, 100.0] & 1.96 s \\
+    tripped & downscale & 16/16 & 100.0\% & \textbf{16/16} & \textbf{100.0\%} [80.6, 100.0] & 0.00 s \\
+    \midrule
+    tripped & Clean FA / hour & 4 FA & 33.5/h & \textbf{0 FA} & \textbf{0.0/h} [0.0, 30.9] & --- \\
+    degraded & Clean FA / hour & 4 FA & 33.5/h & \textbf{1 FA} & \textbf{8.4/h} [0.2, 46.6] & --- \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+On held-out Avenue, \texttt{v2} lifts \texttt{loop} from \textbf{1/16} to \textbf{15/16}, eliminates misses on \texttt{slow\_blur} (\textbf{0/16} $\rightarrow$ \textbf{16/16}) and \texttt{moved} (\textbf{2/16} $\rightarrow$ \textbf{16/16}), and lowers \texttt{tripped} false alarms to \textbf{0.0/h} ($[0.0, 30.9]$). On the tuning training set ($n = 14$ clips, $0.1306$~h), \texttt{v2} detected \textbf{14/14} across all 8 attacks with \textbf{0.0/h} ($[0.0, 28.2]$) clean FA. Honest edge cases: held-out \texttt{video~13} ($14.3$~s) missed \texttt{loop} (min score $0.986$), and \texttt{video~06} ($41.3$~s) had 1 transient \texttt{degraded} warning ($2.61\%$).
+
+\begin{figure}[!ht]
+  \centering
+  \safegraphic[0.90\textwidth]{detection_rate_tripped.pdf}{Held-Out CUHK Avenue Detection Rates (Tripped)}
+  \caption{Held-out CUHK Avenue detection rate at the \texttt{tripped} threshold (\texttt{v1} baseline vs. \texttt{v2} tuned)}
+  \label{fig:tripped}
+\end{figure}
+
+\begin{figure}[!ht]
+  \centering
+  \safegraphic[0.76\textwidth]{false_alarms_per_hour.pdf}{Clean Footage False Alarm Rate Comparison}
+  \caption{Clean-footage false alarm rates per hour (with exact 95\% Poisson bounds)}
+  \label{fig:fa}
+\end{figure}
+
+\subsection{CPU Throughput Benchmark and Synthetic Formula Check (\texorpdfstring{$n = 120$}{n = 120})}
+On an Intel Core i5-12450H CPU (Python~3.12.6, OpenCV~5.0.0, 300 frames), \texttt{v2} achieves \textbf{281.9~FPS} ($320$~px, $3.55$~ms/frame) and \textbf{71.2~FPS} ($640$~px, $14.04$~ms/frame) compared with \texttt{v1}'s $606.8$/$84.8$~FPS. Pure-Python IG-DCTF fusion takes $4.69~\mu$s/call ($2.60~\mu$s Channel~A only).
+
+On the separate \textbf{synthetic counterfactual sanity check} ($n = 120$: $63$ fabricated, $57$ genuine; $30$ with Channel~B, $90$ attributes only), Table~\ref{tab:syn} shows IG-DCTF achieves $F_1 = \mathbf{0.9756}$ (Accuracy $\mathbf{0.9750}$, $60$ TP, $0$ FP, $57$ TN, $3$ FN; exact McNemar~\cite{mcnemar1947} $p = 1.53 \times 10^{-5}$ vs. CVE-only $0.8113$, Bayesian $0.8319$, WA $0.7525$, additive $0.9138$). On the 90 non-Channel-B scenarios, IG-DCTF equals CVE-only ($0.967$ Acc).
+
+\begin{table}[!ht]
+  \centering
+  \caption{Synthetic formula sanity check ($n = 120$, positive = \texttt{fabricated}; \textbf{synthetic corpus, not field accuracy})}
+  \label{tab:syn}
+  \begin{tabular}{@{}lcccccc@{}}
+    \toprule
+    \textbf{Model} & \textbf{Acc.} & \textbf{Recall} & \textbf{Spec.} & \textbf{$F_1$} & \textbf{TP/FP} & \textbf{TN/FN} \\
+    \midrule
+    Weighted Average (WA) & 0.7917 & 0.6032 & 1.0000 & 0.7525 & 38/0 & 57/25 \\
+    Advanced (Channel~A only) & 0.8333 & 0.6825 & 1.0000 & 0.8113 & 43/0 & 57/20 \\
+    Bayesian Log-Odds & 0.8417 & 0.7460 & 0.9474 & 0.8319 & 47/3 & 54/16 \\
+    Additive fusion & 0.9167 & 0.8413 & 1.0000 & 0.9138 & 53/0 & 57/10 \\
+    \textbf{IG-DCTF (Gate)} & \textbf{0.9750} & \textbf{0.9524} & \textbf{1.0000} & \textbf{0.9756} & \textbf{60/0} & \textbf{57/3} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Conclusion and Future Scope}
+COBRA-WATCH prevents compromised video streams from masquerading behind clean vulnerability profiles by enforcing multiplicative integrity gating ($T_{\mathrm{final}} = T_{\mathrm{cve}} \cdot G(s)$) strictly under a passive, zero-probing, IP-masked architecture. Review~2 evidence establishes \textbf{104,218} Indian camera exposure aggregates (no IPs), \textbf{15/16} (\texttt{93.8\%}) held-out replay-loop detection and \textbf{16/16} detection across seven additional tamper modes with \textbf{0.0/h} \texttt{tripped} clean false alarms at \textbf{71.2~FPS} ($640$~px CPU), and reproducible full-stack verification. Open future work comprises longitudinal Censys Tier~1 drift calibration, long-duration owned laboratory camera trials (day/night), adaptive-noise evasion hardening, and PostgreSQL scaling.
+
+\begin{thebibliography}{99}
+\bibitem{antonakakis2017mirai} M. Antonakakis et al., ``Understanding the Mirai botnet,'' in \emph{Proc. 26th USENIX Security Symp.}, 2017, pp. 1093--1110.
+\bibitem{griffioen2020mirai} H. Griffioen and C. Doerr, ``Examining Mirai's battle over the Internet of Things,'' in \emph{Proc. ACM CCS}, 2020, pp. 743--756.
+\bibitem{zhang2020forensics} X. Zhang et al., ``IoT botnet forensics: A comprehensive digital forensic case study on Mirai botnet servers,'' \emph{Forensic Sci. Int.: Digit. Investig.}, vol. 32, p. 300926, 2020.
+\bibitem{famera2025mirai} A. Famera et al., ``Analyzing the Mirai IoT botnet and its recent variants,'' arXiv:2508.01909, 2025.
+\bibitem{das2022kalay} S. Das, M. Omurzakov, and Y. Du, ``CVE-2021-28372: ThroughTek Kalay P2P SDK vulnerability in IP cameras,'' Unit 42 Advisory, 2022.
+\bibitem{bernot2025cctv} A. Bernot et al., ``Cyber vulnerabilities and regulation of China-made CCTV IoT cameras in Australia,'' \emph{J. Cybersecurity}, 2025.
+\bibitem{oliver2025ipcam} J. Oliver, ``Investigating security vulnerabilities of IP cameras,'' CoVaCCI Showcase, 2025.
+\bibitem{kth2018cameras} KTH Royal Institute of Technology, ``An investigation of vulnerabilities in smart connected cameras,'' \emph{Proc. PerLS}, 2018.
+\bibitem{auti2025vapt} A. Auti et al., ``Automated VAPT tool for CCTV cameras and DVR,'' \emph{IJSRCSEIT}, 2025.
+\bibitem{iottrust2023slr} Systematic Literature Review, ``IoT trust and reputation management,'' arXiv:2304.06119, 2023.
+\bibitem{biot2026trust} MDPI Authors, ``Blockchain-based IoT trust assessment at the perception layer,'' \emph{Appl. Sci.}, vol. 16, no. 6, p. 2949, 2026.
+\bibitem{ferraris2024trust} D. Ferraris et al., ``A survey on IoT trust model frameworks,'' \emph{J. Supercomput.}, vol. 80, pp. 8259--8296, 2024.
+\bibitem{swami2025sciiot} A. Swami, A. Singh, and P. Pant, ``SCI-IoT: Quantitative framework for trust scoring of IoT devices,'' arXiv:2511.18045, 2025.
+\bibitem{jocher2023yolov8} G. Jocher, A. Chaurasia, and J. Qiu, ``Ultralytics YOLOv8,'' Software, 2023.
+\bibitem{zhang2022bytetrack} Y. Zhang et al., ``ByteTrack: Multi-object tracking by associating every detection box,'' \emph{ECCV}, 2022, pp. 1--21.
+\bibitem{luna2018aod} E. Luna et al., ``Abandoned object detection in video-surveillance,'' \emph{Sensors}, vol. 18, no. 12, p. 4290, 2018.
+\bibitem{nayak2019loitering} R. Nayak et al., ``Multi-camera loitering detection with person re-identification,'' \emph{IEEE iSES}, 2019.
+\bibitem{yilmazer2025abandoned} R. Yilmazer and M. Karakose, ``Abandoned object detection with YOLOv8, DeepSORT, and LLM explanation,'' \emph{Appl. Sci.}, 2025.
+\bibitem{rasal2025suspicious} S. Rasal et al., ``Suspicious activity detection using YOLOv8 and OpenCV,'' \emph{Springer LNNS}, 2025.
+\bibitem{liu2025epipolar} Liu et al., ``Multi-view industrial anomaly detection with epipolar constrained cross-view fusion,'' arXiv:2503.11088, 2025.
+\bibitem{zauner2010phash} C. Zauner, ``Implementation and benchmarking of perceptual image hash functions,'' Master's thesis, 2010.
+\bibitem{pech2000focus} J. L. Pech-Pacheco et al., ``Diatom autofocusing in brightfield microscopy,'' \emph{ICPR}, vol. 3, pp. 314--317, 2000.
+\bibitem{merkle1987} R. C. Merkle, ``A digital signature based on a conventional encryption function,'' \emph{CRYPTO '87}, Springer, 1988, pp. 369--378.
+\bibitem{jacobs2021epss} J. Jacobs et al., ``Exploit prediction scoring system (EPSS),'' \emph{Digit. Threats: Res. Pract.}, 2021.
+\bibitem{matherly2015shodan} J. Matherly, \emph{Complete Guide to Shodan}, Lean Publishing, 2015.
+\bibitem{kipf2017gcn} T. N. Kipf and M. Welling, ``Semi-supervised classification with graph convolutional networks,'' \emph{ICLR}, 2017.
+\bibitem{mcnemar1947} Q. McNemar, ``Note on sampling error of difference between correlated proportions,'' \emph{Psychometrika}, vol. 12, no. 2, pp. 153--157, 1947.
+\bibitem{cisakev} CISA, ``Known Exploited Vulnerabilities Catalog,'' \url{https://www.cisa.gov/known-exploited-vulnerabilities-catalog}, 2026.
+\bibitem{nvd} NIST, ``National Vulnerability Database,'' \url{https://nvd.nist.gov}, 2026.
+\end{thebibliography}
+
+\end{document}

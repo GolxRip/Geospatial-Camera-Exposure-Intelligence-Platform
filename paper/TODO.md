@@ -16,26 +16,25 @@ Tick items with the date; add new ones at the bottom of their section. Mirror im
 - [ ] Verify every `references.bib` entry marked VERIFY.
 - [ ] Fill in authors/affiliations in `main.tex`.
 - [ ] Compile all 10 figures and `main.tex` in Overleaf; fix layout issues; tell the agent about compile errors.
-- [ ] Re-run the full pytest suite once after the Tier 2 weight change (only 5 dependent files were run).
+- [x] 2026-11-27 Re-run full pytest suite: `backend/tests/` (`373 passed, 1 skipped`) and `video_pipeline/tests/` (`52 passed` after `conftest.py` path fix).
 
 ## Technical debt found in audit
-- [ ] Tier 2 freeze rule misses loops of real footage (C14): add hash-sequence periodicity / self-similarity detection.
+- [x] 2026-11-27 Tier 2 freeze rule missed loops of real footage (C14): fixed with un-smoothed `INTER_NEAREST` ring-buffer + prefix-sum motion check, anchored blur baselines, $8{\times}8$ `partial_cover`, edge/layout `moved`, and static freeze guard (`v2` frozen at `023c5c4`).
 - [ ] Tier 1 benchmark has 13 distinct cases (C8): replace with real or properly randomised cases.
 - [ ] Evaluation corpus labels are partly tautological: replace with externally grounded labels (see `DATASETS.md`).
 - [ ] `RESEARCH_NOVELTY.md`, `PAPER_DRAFT.md`, `eval/eval_report.md`, `PROJECT_SUMMARY_AND_FUTURE_SCOPE.md` still carry the old
       metric convention and numbers; mark them superseded by `paper/results.md` (needs user's OK to edit).
-- [ ] Figures 8-10 numbers are typed by hand; generate them from `results.json` if the figures change often.
+- [ ] Figures 8-10 numbers are typed by hand; generate them from `results.json` if the figures change often (real-footage SVG/PDF figures in `docs/figures/` are generated directly from `eval/results/` via `eval/make_figures.py`).
 
 ## Q1 work (see Q1.md)
 - [ ] U1 Calibrated evidence + conformal gate
-- [ ] U2 Loop/replay detection + adaptive-attacker evaluation
-- [ ] U3 Real data: (a) longitudinal Censys, (b) controlled testbed
+- [~] U2 Loop/replay detection solved in `v2` (`15/16` held-out Avenue); adaptive-attacker evaluation remains open
+- [ ] U3 Real data: (a) longitudinal Censys (single-day `104,218`-host aggregate saved), (b) controlled physical camera testbed
 - [ ] U4 Adaptive-adversary analysis
 - [ ] U5 Decision-theoretic dispatch evaluation (optional)
 
 ## Ethics guard (found 2026-10-10)
-- [ ] Decide how to neutralise `backend/services/heartbeat_service.py` / `/api/heartbeat/*` (it opens TCP connections to device IPs): disable by default behind an
-      env flag, or remove, before any study that touches third-party hosts. Not changed yet (needs the user's decision). Related: `CENSYS_APPLICATION.md`.
+- [x] 2026-11-26 Permanently removed `backend/services/heartbeat_service.py`, `/api/heartbeat/*`, and `test_heartbeat_service.py` (strictly zero outbound packets to third-party cameras).
 - [ ] Send the Censys application answers (`CENSYS_APPLICATION.md`) after filling the mentor details.
 
 ## Frontend follow-ups (2026-10-12)

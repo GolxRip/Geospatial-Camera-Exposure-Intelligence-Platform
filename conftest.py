@@ -34,7 +34,9 @@ import pytest
 import pytest_asyncio
 
 # Ensure backend/ is importable from every test context
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "backend"))
+_BACKEND_DIR = os.path.join(os.path.dirname(__file__), "backend")
+if _BACKEND_DIR not in sys.path:
+    sys.path.insert(0, _BACKEND_DIR)
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
@@ -50,8 +52,21 @@ async def initialize_real_database():
     Tests using isolated tmp-path fixtures are unaffected: they patch
     DATABASE_PATH to a separate temp file and never touch this DB.
     """
-    from database import init_db
-    await init_db()
+    # video_pipeline/tests inserts video_pipeline/ at sys.path[0] during collection
+    # and may cache video_pipeline/config.py under bare module name "config".
+    old_config = sys.modules.get("config")
+    swapped_vp_config = old_config is not None and not hasattr(old_config, "DATABASE_PATH")
+    if swapped_vp_config:
+        sys.modules.pop("config", None)
+    if _BACKEND_DIR in sys.path:
+        sys.path.remove(_BACKEND_DIR)
+    sys.path.insert(0, _BACKEND_DIR)
+    try:
+        from database import init_db
+        await init_db()
+    finally:
+        if swapped_vp_config:
+            sys.modules["config"] = old_config
     yield
     # No teardown — the real DB is persistent across test runs by design.
     # Individual test files that need isolation use tmp_path fixtures.

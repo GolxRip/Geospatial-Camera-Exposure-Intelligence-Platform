@@ -255,3 +255,14 @@ Updated [video_pipeline/liveness_detector.py](video_pipeline/liveness_detector.p
 3. Polished `formatDelayCell` in [frontend/src/app/(site)/research/page.tsx](frontend/src/app/(site)/research/page.tsx) so missing median delays print `n/a` instead of `n/a s`.
 **Verified:** `eslint` (3 modified UI files), `tsc --noEmit`, `cd frontend && $env:NEXT_PUBLIC_DESIGN_PREVIEW='true'; npm run build` (all exited `0`), restarted Next.js server outside sandbox (`http://localhost:3000`) alongside FastAPI (`http://localhost:8000`, `data/public.db`).
 **Not verified / Pending:** Re-verify `/console` Inspector & Forensics click in browser (`chrome_devtools` MCP unavailable for subagent); two legacy alerts (`cam-eval-225`, `cam-eval-185`) in `data/public.db` lack device rows (`404` on `/trust-score`). Push pending.
+
+## 2026-11-27 (10:17 IST), Fixed standalone `video_pipeline/tests/` `conftest.py` import collision & updated manuscript/claims
+**Did:**
+1. **Fixed standalone `video_pipeline/tests/` import collision:** Root [conftest.py](conftest.py) previously ran `from database import init_db` while `video_pipeline/` sat ahead of `backend/` on `sys.path`, causing `ImportError: cannot import name 'DATABASE_PATH' from 'config' (video_pipeline/config.py)` across all 52 tests. Updated [conftest.py](conftest.py) (`initialize_real_database`) to ensure `backend/` is temporarily at `sys.path[0]` without cached `video_pipeline/config.py` during `init_db()`, then restore `video_pipeline`'s `config` module cleanly.
+2. **Updated secondary manuscript ([paper/main.tex](paper/main.tex)):** Added real-footage `v2` architecture summary under Channel B Tier 2, a new **Real-Footage Liveness and Passive Exposure Baseline** subsection + `tab:avenue` (baseline `v1` vs `v2` across CUHK Avenue `training_videos` tuned and held-out `testing_videos`, 95% Wilson & exact Garwood Poisson CIs, CPU throughput benchmark from [docs/SPEED_BENCHMARK.md](docs/SPEED_BENCHMARK.md), and Censys `104,218`-host India aggregates from [data/censys/2026-11-26/snapshot.json](data/censys/2026-11-26/snapshot.json)), and aligned `Threats to Validity`, `Discussion`, and `Conclusion` (keeping the 120-scenario synthetic corpus clearly separate).
+3. **Updated [paper/CLAIMS.md](paper/CLAIMS.md) (`C10`, `C12`, `C14`, `C16`, `C17`) and [paper/TODO.md](paper/TODO.md).**
+**Verified:**
+- `pytest video_pipeline/tests/ -q --tb=short` -> **`52 passed in 2.45s`** (`52 passed in 1.31s` initial, `52 passed in 2.45s` combined pass).
+- `pytest backend/tests/test_api.py video_pipeline/tests/ -q --tb=short` -> **`57 passed in 6.56s`**.
+- [paper/main.tex](paper/main.tex) LaTeX environment/brace balance check: zero unmatched environments, `unescaped_brace_delta: 0`.
+**Not verified / Pending:** `pdflatex` / `xelatex` / `tectonic` is not installed on Windows, so compiling [paper/main.tex](paper/main.tex) to PDF was not run (compile in Overleaf or on Linux TeX Live). No git commit or push performed.

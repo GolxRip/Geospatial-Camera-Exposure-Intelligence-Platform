@@ -35,10 +35,11 @@ Academic significance (citable in Major Project report):
 
 from __future__ import annotations
 
-import asyncio
 import json
 import hashlib
+import logging
 import os
+import sqlite3
 from datetime import datetime, timezone
 
 import aiosqlite
@@ -102,15 +103,37 @@ async def load_from_db() -> None:
     _loaded = True
 
 
-async def _persist_entry(entry: dict) -> None:
-    """Write a new ledger entry to the `audit_ledger` table."""
-    # Guard: ensure DB directory exists before aiosqlite's background thread
-    # opens it. aiosqlite's thread can fail with OperationalError if the parent
-    # directory is missing, even when sqlite3 itself would succeed.
+def _persist_entry_sync(entry: dict) -> None:
+    """Write a new ledger entry synchronously via stdlib sqlite3 (for sync callers)."""
     db_dir = os.path.dirname(DATABASE_PATH)
     if db_dir:
         os.makedirs(db_dir, exist_ok=True)
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    db = sqlite3.connect(DATABASE_PATH, timeout=30.0)
+    try:
+        db.execute(
+            """
+            INSERT OR IGNORE INTO audit_ledger
+              (previous_hash, hash, payload, created_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                entry["previous_hash"],
+                entry["hash"],
+                json.dumps(entry["payload"], sort_keys=True),
+                entry["payload"].get("timestamp", datetime.now(timezone.utc).isoformat()),
+            ),
+        )
+        db.commit()
+    finally:
+        db.close()
+
+
+async def _persist_entry(entry: dict) -> None:
+    """Write a new ledger entry asynchronously without blocking the event loop."""
+    db_dir = os.path.dirname(DATABASE_PATH)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+    async with aiosqlite.connect(DATABASE_PATH, timeout=30.0) as db:
         await db.execute(
             """
             INSERT OR IGNORE INTO audit_ledger
@@ -127,19 +150,12 @@ async def _persist_entry(entry: dict) -> None:
         await db.commit()
 
 
-
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
-def _append_to_chain(payload: dict) -> dict:
-    """
-    Core hash-chain append operation shared by every entry type. Computes the
-    next link, appends it in-memory, and schedules fire-and-forget SQLite
-    persistence. Extracted from `record_audit_event` so additional entry
-    types (e.g. `record_integrity_gate_trip`) reuse the exact same chaining
-    and persistence semantics rather than duplicating them.
-    """
+def _append_entry_in_memory(payload: dict) -> dict:
+    """Compute the next Merkle chain link and append it to the in-memory chain."""
     global _last_hash
 
     entry_hash = compute_entry_hash(_last_hash, payload)
@@ -152,31 +168,79 @@ def _append_to_chain(payload: dict) -> dict:
 
     _ledger_chain.append(entry)
     _last_hash = entry_hash
-
-    # Persist asynchronously — fire-and-forget with safe exception handling.
-    # Using ensure_future + done-callback prevents the aiosqlite "Event loop is
-    # closed" PytestUnhandledThreadExceptionWarning that occurs when pytest tears
-    # down the loop before the background DB thread completes its callback.
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            task = asyncio.ensure_future(_persist_entry(entry))
-
-            def _on_done(t: "asyncio.Task[None]") -> None:
-                if not t.cancelled() and t.exception() is not None:
-                    import logging
-                    logging.getLogger(__name__).debug(
-                        "[audit_ledger] Background persist failed (non-fatal): %s",
-                        t.exception(),
-                    )
-
-            task.add_done_callback(_on_done)
-        else:
-            asyncio.run(_persist_entry(entry))
-    except RuntimeError:
-        pass  # Non-async context (e.g. tests) — persistence is best-effort
-
     return entry
+
+
+def _append_to_chain(payload: dict) -> dict:
+    """Append payload to the chain and persist synchronously to SQLite."""
+    entry = _append_entry_in_memory(payload)
+    try:
+        _persist_entry_sync(entry)
+    except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "[audit_ledger] DB persist skipped/failed (non-fatal): %s",
+            exc,
+        )
+    return entry
+
+
+async def _append_to_chain_async(payload: dict) -> dict:
+    """Append payload to the chain and await aiosqlite persistence safely."""
+    entry = _append_entry_in_memory(payload)
+    try:
+        await _persist_entry(entry)
+    except Exception as exc:
+        logging.getLogger(__name__).debug(
+            "[audit_ledger] Async DB persist skipped/failed (non-fatal): %s",
+            exc,
+        )
+    return entry
+
+
+def _build_trust_decision_payload(
+    alert_id: str,
+    camera_id: str,
+    trust_score: int,
+    action_tier: str,
+    factors: list[str],
+    probabilistic_score: int | None = None,
+    decayed_score: int | None = None,
+    max_cvss: float | None = None,
+) -> dict:
+    payload: dict = {
+        "entry_type": "TRUST_DECISION",
+        "alert_id": alert_id,
+        "camera_id": camera_id,
+        "trust_score": trust_score,
+        "action_tier": action_tier,
+        "factors": factors,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    if probabilistic_score is not None:
+        payload["probabilistic_score"] = probabilistic_score
+    if decayed_score is not None:
+        payload["decayed_score"] = decayed_score
+    if max_cvss is not None:
+        payload["max_cvss"] = max_cvss
+    return payload
+
+
+def _build_gate_trip_payload(
+    camera_id: str,
+    drift_score: float,
+    signal_integrity: float,
+    gate_status: str,
+    alert_id: str | None = None,
+) -> dict:
+    return {
+        "entry_type": "INTEGRITY_GATE_TRIP",
+        "camera_id": camera_id,
+        "alert_id": alert_id,
+        "drift_score": drift_score,
+        "signal_integrity": signal_integrity,
+        "gate_status": gate_status,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 def record_audit_event(
@@ -189,31 +253,30 @@ def record_audit_event(
     decayed_score: int | None = None,
     max_cvss: float | None = None,
 ) -> dict:
-    """
-    Append a new alert decision to the in-memory Merkle hash chain and
-    schedule its persistence to SQLite.
-
-    Extended for BTP to include probabilistic_score, decayed_score, and
-    max_cvss so the full dual-model scoring result is forensically auditable.
-    """
-    timestamp = datetime.now(timezone.utc).isoformat()
-    payload: dict = {
-        "entry_type": "TRUST_DECISION",
-        "alert_id": alert_id,
-        "camera_id": camera_id,
-        "trust_score": trust_score,
-        "action_tier": action_tier,
-        "factors": factors,
-        "timestamp": timestamp,
-    }
-    if probabilistic_score is not None:
-        payload["probabilistic_score"] = probabilistic_score
-    if decayed_score is not None:
-        payload["decayed_score"] = decayed_score
-    if max_cvss is not None:
-        payload["max_cvss"] = max_cvss
-
+    """Append a TRUST_DECISION entry and persist synchronously."""
+    payload = _build_trust_decision_payload(
+        alert_id, camera_id, trust_score, action_tier, factors,
+        probabilistic_score, decayed_score, max_cvss,
+    )
     return _append_to_chain(payload)
+
+
+async def record_audit_event_async(
+    alert_id: str,
+    camera_id: str,
+    trust_score: int,
+    action_tier: str,
+    factors: list[str],
+    probabilistic_score: int | None = None,
+    decayed_score: int | None = None,
+    max_cvss: float | None = None,
+) -> dict:
+    """Async variant for FastAPI request handlers; awaits SQLite write completion."""
+    payload = _build_trust_decision_payload(
+        alert_id, camera_id, trust_score, action_tier, factors,
+        probabilistic_score, decayed_score, max_cvss,
+    )
+    return await _append_to_chain_async(payload)
 
 
 def record_integrity_gate_trip(
@@ -223,36 +286,25 @@ def record_integrity_gate_trip(
     gate_status: str,
     alert_id: str | None = None,
 ) -> dict:
-    """
-    Append a DEDICATED `INTEGRITY_GATE_TRIP` entry to the same Merkle chain
-    used for trust decisions (research_work.md §4.6: "New audit-ledger entry
-    type so every gate trip is Merkle-logged (reuses Module E, no new
-    infrastructure)").
-
-    Previously a gate trip only surfaced as a factor string buried inside the
-    normal TRUST_DECISION entry's `factors` list — this makes it a
-    first-class, independently queryable forensic event (see
-    `get_ledger_entries_by_type("INTEGRITY_GATE_TRIP")` and
-    `GET /api/audit/integrity-trips`), so an operator or auditor can pull
-    "every time a camera's feed authenticity failed" without re-parsing
-    every alert's factor list.
-
-    Chained onto the SAME hash sequence as TRUST_DECISION entries — this is
-    still one append-only ledger, not a second parallel chain, so overall
-    chain integrity verification (`verify_ledger_integrity_report`) covers
-    these entries too.
-    """
-    timestamp = datetime.now(timezone.utc).isoformat()
-    payload: dict = {
-        "entry_type": "INTEGRITY_GATE_TRIP",
-        "camera_id": camera_id,
-        "alert_id": alert_id,
-        "drift_score": drift_score,
-        "signal_integrity": signal_integrity,
-        "gate_status": gate_status,
-        "timestamp": timestamp,
-    }
+    """Append an INTEGRITY_GATE_TRIP entry to the shared Merkle chain synchronously."""
+    payload = _build_gate_trip_payload(
+        camera_id, drift_score, signal_integrity, gate_status, alert_id,
+    )
     return _append_to_chain(payload)
+
+
+async def record_integrity_gate_trip_async(
+    camera_id: str,
+    drift_score: float,
+    signal_integrity: float,
+    gate_status: str,
+    alert_id: str | None = None,
+) -> dict:
+    """Async variant for FastAPI request handlers; awaits SQLite write completion."""
+    payload = _build_gate_trip_payload(
+        camera_id, drift_score, signal_integrity, gate_status, alert_id,
+    )
+    return await _append_to_chain_async(payload)
 
 
 def verify_ledger_integrity() -> bool:

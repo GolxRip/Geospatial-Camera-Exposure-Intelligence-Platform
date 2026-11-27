@@ -114,7 +114,8 @@ See [`eval/README.md`](eval/README.md) for reproduction commands once public vid
 ### Running Tests
 
 ```powershell
-# Full backend + pipeline + eval harness suites (`backend/tests/` 373 passed, 1 skipped if GNN weights exist; `video_pipeline/tests/` 52 passed; `eval/test_*.py` 14 passed)
+# Full backend + pipeline + eval harness suites (439 passed, 1 skipped, 0 warnings across all three; 1 skip if GNN weights exist)
+python -m pytest backend/tests/ video_pipeline/tests/ eval/ -q
 python -m pytest backend/tests/ -q
 python -m pytest video_pipeline/tests/ -q
 python -m pytest eval/test_eval_harness.py eval/test_full_system_stress_and_benchmark.py eval/test_run_eval_api_mode_indepth.py -q

@@ -69,7 +69,7 @@ from services.corroboration_service import (
     check_reid_corroboration,
     get_velocity_alerts,
 )
-from services.audit_ledger import record_audit_event, record_integrity_gate_trip
+from services.audit_ledger import record_audit_event_async, record_integrity_gate_trip_async
 from services.notification_service import dispatch_alert
 from services.vulnerability_service import get_max_epss_score, get_kev_active_fraction
 from services.cold_start_service import is_cold_start_device, compute_stereotype_prior
@@ -222,7 +222,7 @@ class OperatorVerdictRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 async def _get_device(camera_id: str) -> dict | None:
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with aiosqlite.connect(DATABASE_PATH, timeout=30.0) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM devices WHERE id = ?", (camera_id,)
@@ -250,7 +250,7 @@ async def _save_alert(
     integrity_gate_tripped: bool = False,
     is_demo: bool = False,
 ) -> None:
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with aiosqlite.connect(DATABASE_PATH, timeout=30.0) as db:
         await db.execute(
             """
             INSERT INTO alerts
@@ -503,7 +503,7 @@ async def receive_detection_event(
     )
 
     # 12. Module E — Persistent Merkle audit ledger (BIoT SLR 2026)
-    record_audit_event(
+    await record_audit_event_async(
         alert_id=alert_id,
         camera_id=event.camera_id,
         trust_score=trust_result["score"],
@@ -517,7 +517,7 @@ async def receive_detection_event(
         # Dedicated INTEGRITY_GATE_TRIP ledger entry (§4.6) — independently
         # queryable via GET /api/audit/integrity-trips, rather than only
         # existing as a factor string inside the TRUST_DECISION entry above.
-        record_integrity_gate_trip(
+        await record_integrity_gate_trip_async(
             camera_id=event.camera_id,
             drift_score=live_drift_score,
             signal_integrity=live_signal_integrity,
@@ -611,7 +611,7 @@ async def get_alerts(city: str | None = None, limit: int = 20, decayed: bool = F
     limit = max(1, min(limit, 200))
     filter_city = city.strip() if city and city.strip() not in ("All India", "All", "all", "") else None
 
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with aiosqlite.connect(DATABASE_PATH, timeout=30.0) as db:
         db.row_factory = aiosqlite.Row
         if filter_city:
             query = """
@@ -683,7 +683,7 @@ async def record_operator_verdict(
 
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with aiosqlite.connect(DATABASE_PATH, timeout=30.0) as db:
         async with db.execute("SELECT id FROM alerts WHERE id = ?", (alert_id,)) as cursor:
             existing = await cursor.fetchone()
         if not existing:
@@ -714,7 +714,7 @@ async def get_live_evaluation_metrics():
     Rolling Live Precision/Recall & Tier Efficacy Evaluation (Luna 2018).
     Computes performance metrics across all operator-labelled alerts in the system.
     """
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with aiosqlite.connect(DATABASE_PATH, timeout=30.0) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT trust_score, action_tier, operator_verdict FROM alerts WHERE operator_verdict IS NOT NULL"
@@ -766,7 +766,7 @@ async def get_device_trust_score(camera_id: str):
             detail=f"Camera '{camera_id}' not found.",
         )
 
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    async with aiosqlite.connect(DATABASE_PATH, timeout=30.0) as db:
         async with db.execute(
             "SELECT event_type FROM alerts WHERE camera_id = ? ORDER BY detected_at DESC LIMIT 1",
             (camera_id,),

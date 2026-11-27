@@ -14,8 +14,10 @@ const BANNER = [
   ['Ports', '80, 554'],
 ] as const;
 
+const T_CVE_DEMO = 100;
+
 const LIVE = fuse({
-  tCve: 100,
+  tCve: T_CVE_DEMO,
   drift: 0,
   freeze: false,
   qualityDrift: 0,
@@ -23,7 +25,7 @@ const LIVE = fuse({
   tier2: true,
 });
 const FROZEN = fuse({
-  tCve: 100,
+  tCve: T_CVE_DEMO,
   drift: 0,
   freeze: true,
   qualityDrift: 0,
@@ -63,7 +65,7 @@ function Camera({
         <dl className="flex gap-8">
           <div className="flex flex-col gap-1">
             <dt className="text-sm text-bone-2">CVE-only score</dt>
-            <dd className="num text-3xl">100</dd>
+            <dd className="num text-3xl">{T_CVE_DEMO}</dd>
           </div>
           <div className="flex flex-col gap-1">
             <dt className="text-sm text-bone-2">IG-DCTF score</dt>

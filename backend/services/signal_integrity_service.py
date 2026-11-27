@@ -430,31 +430,33 @@ async def record_device_drift_and_integrity(
     """
     current_fp = extract_banner_fingerprint(raw_shodan_data)
 
-    async with aiosqlite.connect(DATABASE_PATH) as db:
+    # Read baseline in its own connection before writing so SQLite never holds
+    # a shared read lock while upgrading to a write transaction under concurrency.
+    async with aiosqlite.connect(DATABASE_PATH, timeout=30.0) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT banner_fingerprint FROM devices WHERE id = ?", (device_id,)
         ) as cursor:
             row = await cursor.fetchone()
 
-        if row and row["banner_fingerprint"]:
-            try:
-                baseline_fp = json.loads(row["banner_fingerprint"])
-            except Exception:
-                baseline_fp = current_fp
-        else:
+    if row and row["banner_fingerprint"]:
+        try:
+            baseline_fp = json.loads(row["banner_fingerprint"])
+        except Exception:
             baseline_fp = current_fp
+    else:
+        baseline_fp = current_fp
 
-        drift_result = compute_banner_drift(baseline_fp, current_fp)
-        drift_score = drift_result["drift_score"]
+    drift_result = compute_banner_drift(baseline_fp, current_fp)
+    drift_score = drift_result["drift_score"]
 
-        integrity_res = compute_composite_signal_integrity(drift_score, visual_liveness)
-        sig_integrity = integrity_res["signal_integrity"]
+    integrity_res = compute_composite_signal_integrity(drift_score, visual_liveness)
+    sig_integrity = integrity_res["signal_integrity"]
 
-        gate_res = evaluate_integrity_gate(sig_integrity)
-        is_tripped = 1 if gate_res["gate_tripped"] else 0
+    gate_res = evaluate_integrity_gate(sig_integrity)
+    is_tripped = 1 if gate_res["gate_tripped"] else 0
 
-        # Update devices table
+    async with aiosqlite.connect(DATABASE_PATH, timeout=30.0) as db:
         await db.execute("""
             UPDATE devices
             SET banner_fingerprint = ?,
@@ -471,11 +473,11 @@ async def record_device_drift_and_integrity(
         ))
         await db.commit()
 
-        return {
-            "device_id": device_id,
-            "fingerprint": current_fp,
-            "drift_score": drift_score,
-            "drift_factors": drift_result["drift_factors"],
-            "signal_integrity": sig_integrity,
-            "gate": gate_res,
-        }
+    return {
+        "device_id": device_id,
+        "fingerprint": current_fp,
+        "drift_score": drift_score,
+        "drift_factors": drift_result["drift_factors"],
+        "signal_integrity": sig_integrity,
+        "gate": gate_res,
+    }

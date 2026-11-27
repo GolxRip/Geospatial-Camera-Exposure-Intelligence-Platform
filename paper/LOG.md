@@ -276,3 +276,14 @@ Updated [video_pipeline/liveness_detector.py](video_pipeline/liveness_detector.p
 - `pytest eval/test_eval_harness.py eval/test_full_system_stress_and_benchmark.py eval/test_run_eval_api_mode_indepth.py -q --tb=short` -> **`14 passed in 2.06s`**.
 - `npx eslint tests/api.test.ts` and `npx tsc --noEmit` -> exited `0`.
 **Not verified / Pending:** Vitest (`npm run test`, blocked on Windows by missing `@rolldown/binding-win32-x64-msvc`), Playwright E2E, `Own clips (day/night)` real footage runs, and PDF LaTeX compile (`pdflatex` absent on Windows). No git commit or push performed.
+
+## 2026-11-27 (10:44 IST), Fixed `facts.test` static-digit check, eliminated `aiosqlite` / SQLite concurrency race & passed full 439-test suite with 0 warnings
+**Did:**
+1. **Frontend `facts.test` parity:** Replaced hard-coded `100` JSX literal in [twin-cameras.tsx](frontend/src/components/sections/twin-cameras.tsx) with shared constant `T_CVE_DEMO = 100` (`facts_offenders = 0`; confirmed LF-normalized SHA of `paper/data/results.json` matches `SOURCE_SHA256` `915642ac948d48660be9f31ae1a70419bdcf3302a728833d65ee865f6c9c0cbe` cleanly).
+2. **Eliminated Windows `aiosqlite` closed-loop crash (`0xc0000008`), 9 unhandled-thread warnings, and SQLite lock deadlock:**
+   - Replaced fire-and-forget `asyncio.ensure_future(_persist_entry)` in [audit_ledger.py](backend/services/audit_ledger.py) with clean synchronous `_persist_entry_sync` (`stdlib sqlite3`) for sync callers and non-blocking `await record_audit_event_async` / `await record_integrity_gate_trip_async` (`aiosqlite`, `timeout=30.0`) inside [backend/routes/alerts.py](backend/routes/alerts.py).
+   - Separated deferred read (`SELECT banner_fingerprint`) and write (`UPDATE devices`) connections with `timeout=30.0` inside `record_device_drift_and_integrity()` in [signal_integrity_service.py](backend/services/signal_integrity_service.py) (preventing SQLite deferred read-to-write `SQLITE_BUSY` upgrade contention under 50 concurrent POST events).
+**Verified:**
+- `frontend`: `facts_offenders = 0`, `npx eslint src/components/sections/twin-cameras.tsx`, `npx tsc --noEmit`, and `npm run build` (`NEXT_PUBLIC_DESIGN_PREVIEW=true`) -> exited `0`.
+- `pytest backend/tests/ video_pipeline/tests/ eval/ -q --tb=short` -> **`439 passed, 1 skipped, 0 warnings in 122.35s (0:02:02)`** (1 intentional skip: `TestGnnEndpointUntrainedState::test_endpoint_returns_503_when_untrained` because trained weights exist on disk).
+**Not verified / Pending:** Vitest native runner on Linux (`@rolldown/binding-win32-x64-msvc` absent on Windows), Playwright E2E (Chromium cache absent on Windows), optional `Own clips (day/night)` on Kali, PDF compile of `paper/main.tex`. No git commit or push performed.

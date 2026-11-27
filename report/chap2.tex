@@ -1,0 +1,37 @@
+\chapter{Literature Survey}
+
+\section{Survey of Existing System}
+Research relevant to trustworthy surveillance alerting spans four largely disconnected domains: empirical IoT compromise measurement, camera vulnerability auditing, multi-attribute trust scoring, and automated video tamper analytics.
+
+\subsection{IoT Compromise and Exposure Measurement}
+Foundational empirical studies demonstrate how rapidly exposed consumer and enterprise IP cameras fall under adversarial control. Antonakakis et al.~\cite{antonakakis2017mirai} reconstructed the global Mirai botnet outbreak, showing that default telnet/web credentials on embedded cameras and DVRs enable large-scale automated recruitment. Griffioen and Doerr~\cite{griffioen2020mirai} measured device turnover under active botnet competition on time scales spanning hours to days, while Zhang et al.~\cite{zhang2020forensics} and Famera et al.~\cite{famera2025mirai} documented Mirai variants and server-side forensic artifacts. Commercial banner indexing described by Matherly~\cite{matherly2015shodan} and platform telemetry from Censys make this public exposure observable at country scale. However, measurement studies describe population compromise rates; they do not evaluate individual alert reliability at dispatch time.
+
+\subsection{Camera Vulnerability Assessment}
+Dedicated camera security audits score device firmware and service exposure using public vulnerability databases such as NIST NVD~\cite{nvd}, EPSS exploit probabilities~\cite{jacobs2021epss}, and the CISA Known Exploited Vulnerabilities (KEV) catalog~\cite{cisakev}. Bernot et al.~\cite{bernot2025cctv} assessed China-made IoT cameras via CVSS vectors, Oliver~\cite{oliver2025ipcam} categorized IP-camera CVE patterns across NVD records, KTH researchers mapped public camera banners to known advisories~\cite{kth2018cameras}, and Auti et al.~\cite{auti2025vapt} proposed automated VAPT auditing scripts for CCTV and DVR appliances. These pipelines establish cyber risk posture ($T_{\mathrm{cve}}$), but remain blind to whether the physical camera stream is live or spoofed.
+
+\subsection{IoT Trust and Reputation Models}
+Comprehensive surveys~\cite{ferraris2024trust,iottrust2023slr,biot2026trust} organize IoT trust computation into weighted-average aggregators, Bayesian log-odds inference, graph-based reputation models, and game-theoretic formulations. Common hazards across deployed trust engines include susceptibility to collusive rating rings, Sybil node inflation, cold-start ambiguity for unseen hosts, and linear compensation where healthy metrics mask failing components. SCI-IoT~\cite{swami2025sciiot} addresses static certification using explicit critical gates; COBRA-WATCH extends that gating concept from procurement-time device evaluation into per-alert run-time gating over dynamic feed health. Graph Convolutional Networks~\cite{kipf2017gcn} offer structural detection for collusive corroboration graphs when topological labels exist.
+
+\subsection{Automated Video Analytics and Tamper Primitives}
+Modern surveillance stacks combine real-time object detection (YOLOv8~\cite{jocher2023yolov8}) and multi-object association (ByteTrack~\cite{zhang2022bytetrack}) for downstream tasks such as abandoned-object alerting~\cite{luna2018aod,yilmazer2025abandoned}, multi-camera loitering tracking~\cite{nayak2019loitering}, and scene anomaly detection~\cite{rasal2025suspicious,liu2025epipolar}. While vision systems rely on perceptual hashing~\cite{zauner2010phash} and focus sharpness metrics such as variance of the Laplacian~\cite{pech2000focus} for low-level tamper primitives, conventional alerting stacks process every decoded frame uniformly without conditioning dispatch confidence on either OSINT cyber posture or real-time cryptographic audit trails~\cite{merkle1987}.
+
+\section{Limitations of Existing System or Research Gap}
+Comparing representative systems across existing domains highlights a structural blind spot summarized in Table~\ref{tab:lit_gap}. Security scanners verify vulnerability posture without checking feed liveness, while computer-vision pipelines evaluate video content without consulting vulnerability, banner consistency, or tamper-evident audit chains.
+
+\begin{table}[!ht]
+  \centering
+  \caption{Capability comparison across representative system classes}
+  \label{tab:lit_gap}
+  \begin{tabular}{@{}lcccc@{}}
+    \toprule
+    \textbf{Work Class} & \textbf{Vuln. Posture} & \textbf{Feed Authenticity} & \textbf{Fused Gate} & \textbf{Per-Alert Audit} \\
+    \midrule
+    Camera vuln. assessment~\cite{bernot2025cctv,oliver2025ipcam,auti2025vapt} & Yes & No & No & No \\
+    IoT trust \& certification~\cite{swami2025sciiot,ferraris2024trust,biot2026trust} & Partial & No & No & No \\
+    Video analytics \& tracking~\cite{jocher2023yolov8,zhang2022bytetrack,nayak2019loitering} & No & No & No & Yes \\
+    \textbf{COBRA-WATCH (IG-DCTF)} & \textbf{Yes} & \textbf{Yes} & \textbf{Yes} & \textbf{Yes} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Crucially, even hybrid scoring schemes that rely on simple additive combinations ($T_{\mathrm{cve}} - c(1-s)$) suffer from linear compensation: a camera with $T_{\mathrm{cve}} = 100$ subjected to an acute signal integrity drop can still retain sufficient points to land in \texttt{medium\_trust} or delay operator triage. Closing this cyber-physical gap requires (i) non-compensatory multiplicative gating tied to explicit threshold bounds, (ii) memory-efficient temporal loop and spatial occlusion detection that operates without ground-truth remote camera probing, and (iii) tamper-evident logging paired with transparent separation of real public telemetry from simulated console demonstration fixtures.

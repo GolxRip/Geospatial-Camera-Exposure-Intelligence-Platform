@@ -1,0 +1,15 @@
+\chapter{Conclusion and Further Work}
+
+\section{Conclusion}
+COBRA-WATCH addresses the blind spot between cyber vulnerability posture and surveillance feed authenticity through Integrity-Gated Dual-Channel Trust Fusion (IG-DCTF). By combining passive vulnerability risk scoring ($T_{\mathrm{cve}}$) with multiplicative signal-integrity gating ($G(s)$), a nominal camera with zero known CVEs is systematically bounded to \texttt{low\_trust} ($T_{\mathrm{final}} \le 30$) whenever its feed integrity drops below $\theta_{\mathrm{low}} = 0.50$, while preserving full tolerance for benign single-field firmware changes.
+
+Within the strict passive legal boundary established for BE Major Project Review~2, the platform demonstrates three grounded results: (i) non-attributive Censys aggregate analysis documenting \textbf{104,218} exposed Indian camera hosts (\textbf{81,285} exposing RTSP port~554) with zero raw target IP redistribution; (ii) frozen \texttt{v2} Tier~2 visual liveness detection on held-out real CUHK Avenue videos raising replay-loop detection from \textbf{1/16} to \textbf{15/16} ($93.8\%$), hitting \textbf{16/16} across seven additional tamper modes (\texttt{freeze}, \texttt{blur}, \texttt{slow\_blur}, \texttt{cover}, \texttt{partial\_cover}, \texttt{moved}, \texttt{downscale}), keeping \texttt{tripped} clean false alarms at \textbf{0.0/h} ([0.0, 30.9]), and executing at \textbf{281.9~FPS} ($320$~px) / \textbf{71.2~FPS} ($640$~px) CPU throughput; and (iii) an end-to-end verified FastAPI + Next.js~16 system with SHA-256 Merkle audit chains, \texttt{/24} IP masking, clear simulated-fixture disclosure, 439 passing backend/pipeline/eval tests (prior to final guard refinement; 16/16 post-guard GNN tests), and 81 passing frontend unit/contract tests.
+
+\section{Limitations and Future Scope}
+Transparent reporting requires stating four open boundaries planned beyond Review~2:
+\begin{enumerate}
+  \item \textbf{Longitudinal Tier~1 Field Evaluation:} Because Censys history access spans multi-month time series, empirical false-positive rates for passive banner drift between legitimate firmware upgrades and proxy substitutions remain future scope.
+  \item \textbf{Owned Laboratory Camera Testbed:} Real-footage Avenue validation relies on programmatic tamper onset over $0.1195$~h of clean held-out video (producing a wide Poisson upper CI of $30.9$/h). Recording long-duration un-tampered and physically tampered RTSP streams on owned laboratory IP cameras---including day/night lighting transitions---will narrow false-alarm bounds.
+  \item \textbf{Adaptive Evasion Analysis:} While \texttt{v2} catches frame replays carrying natural scene motion, an adaptive adversary injecting subtle per-frame sensor noise to bypass perceptual-hash matching remains open for adversarial hardening.
+  \item \textbf{Scalable Production Backend:} Single-writer SQLite suits single-node Review~2 demonstration and evaluation scale; high-concurrency enterprise deployment requires migrating to PostgreSQL and horizontally scalable worker queues.
+\end{enumerate}

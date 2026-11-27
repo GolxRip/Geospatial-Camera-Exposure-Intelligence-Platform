@@ -14,10 +14,12 @@ $env:DATABASE_PATH = "data/public.db"
 python backend/main.py
 # Verify: http://localhost:8000/health -> {"status": "ok"}
 
-# Terminal 2 — Frontend production server (run `npm run build` beforehand if edited)
+# Terminal 2 — Frontend production server (enable console-preview fallback cleanly in build)
 cd c:\Users\goldi\Downloads\COBRA-WATCH-Project\frontend
+$env:NEXT_PUBLIC_DESIGN_PREVIEW = "true"
+npm run build
 npm run start
-# Verify: http://localhost:3000
+# Verify: http://localhost:3000 (and fallback http://localhost:3000/console-preview)
 ```
 
 Check once before starting:
@@ -46,7 +48,7 @@ Check once before starting:
 - **Point out clearly:**
   1. **Real CUHK Avenue baseline (`v1`) vs. frozen (`v2`) side-by-side** tables.
   2. Explicit split badges: **`development set (tuned)`** (`training_videos`: 14 evaluated, 2 dropped < 12s) vs. **`held-out`** (`testing_videos`: 16 evaluated, 5 dropped < 12s; plus any self-recorded `Own clips (day/night)`).
-  3. Clean false-alarm rate column with **clean hours (`0.131 h` / `0.119 h`)** and **exact 95% Poisson intervals** (`45.9/h -> 0.0/h [0.0, 28.4]` on training split).
+  3. Clean false-alarm rate column with **clean hours (`0.131 h` / `0.119 h`)** and **exact 95% Poisson intervals** (`45.9/h -> 0.0/h [0.0, 28.2]` on training; `33.5/h -> 0.0/h [0.0, 30.9]` at `tripped` and `8.4/h [0.2, 46.6]` at `degraded` on held-out `testing_videos`, alongside `15/16` (`93.8%`) on `loop` and `16/16` across the other 7 transforms).
   4. **Expand** one `Per-video breakdown: per_run.csv` `<details>` toggle briefly so panel sees every single clip row is parsed dynamically from `eval/results/`, not hardcoded.
   5. **Scroll to `#limits`:** Show `Synthetic corpus, n = 120` clearly separated + why `slow_blur`, `loop`, `partial_cover`, and `moved` improved after fixing `FrameLivenessTracker` without fitting to test footage.
 
@@ -63,7 +65,7 @@ Check once before starting:
 - **Explicitly state what is simulated:**  
   > "All 9,320 device markers here are intentionally simulated (`synthetic_demo`) with `/24` IP masking so the demo never exposes real third-party camera targets."
 - **Click 1 (City Filter):** Change **All India** -> **Mumbai** -> show map smooth zoom over India/South Asia OpenStreetMap-attributed boundary layer + cluster badges.
-- **Click 2 (Alert Stream -> Inspector):** Click any device / alert row in **Alert Stream** -> inspect the right-hand **Inspector**:
+- **Click 2 (Alert Stream -> Inspector):** If the feed starts empty after a clean `scripts/build_public_db.py` rebuild, click **Run scenario** to stream labeled `demo: true` events; then click any device marker or alert row in **Alert Stream** to inspect the right-hand **Inspector**:
   - Point to the **`Simulated fixture`** badge and `Provenance` row (`geoProvenance`), Channel A CVE factors, Channel B status (`Tier 2 unavailable: no authorized footage` for internet cameras), and **Gate** curve.
 - **Click 3 (Device Forensics + Analytics Drawer):** Click **Open forensics** (`/console/devices/...`) -> verify **`SimulatedBanner`** persists at the top! Return/open **Analytics** bottom drawer -> show `Ledger` tab (`Verify full chain` cryptographic Merkle check) and `Alerts` tab (`Real` vs `Demo` dashed series kept apart).
 

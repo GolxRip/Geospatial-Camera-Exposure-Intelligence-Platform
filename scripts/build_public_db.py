@@ -59,9 +59,10 @@ def build_public_db(src: Path, dst: Path) -> dict[str, int]:
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # 1. Remove simulator scratch rows
+    # 1. Remove simulator scratch rows and orphan alerts lacking a device row
     cur.execute("DELETE FROM devices WHERE id LIKE 'SIM_%'")
     cur.execute("DELETE FROM alerts WHERE camera_id LIKE 'SIM_%'")
+    cur.execute("DELETE FROM alerts WHERE camera_id NOT IN (SELECT id FROM devices)")
 
     # 2. Mask all device IPs
     cur.execute("SELECT id, ip FROM devices")

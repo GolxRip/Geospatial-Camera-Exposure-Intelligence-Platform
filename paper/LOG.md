@@ -266,3 +266,13 @@ Updated [video_pipeline/liveness_detector.py](video_pipeline/liveness_detector.p
 - `pytest backend/tests/test_api.py video_pipeline/tests/ -q --tb=short` -> **`57 passed in 6.56s`**.
 - [paper/main.tex](paper/main.tex) LaTeX environment/brace balance check: zero unmatched environments, `unescaped_brace_delta: 0`.
 **Not verified / Pending:** `pdflatex` / `xelatex` / `tectonic` is not installed on Windows, so compiling [paper/main.tex](paper/main.tex) to PDF was not run (compile in Overleaf or on Linux TeX Live). No git commit or push performed.
+
+## 2026-11-27 (10:24 IST), Orphan-alert DB hygiene, `api.test.ts` contract guard, eval suite run & doc sync
+**Did:**
+1. Updated [scripts/build_public_db.py](scripts/build_public_db.py) to strip orphan alerts (`DELETE FROM alerts WHERE camera_id NOT IN (SELECT id FROM devices)`) before rebuilding the Merkle chain, eliminating the two `cam-eval-225`/`cam-eval-185` 404 rows, and rebuilt local `data/public.db` (`9,320` masked devices, `0` orphan alerts).
+2. Added regression case in [frontend/tests/api.test.ts](frontend/tests/api.test.ts) verifying `TrustScoreSchema` parses the live `alerts.py` shape (`factor_details` `{key, delta, kev}` + provenance fields).
+3. Synced [README.md](README.md), [docs/REVIEW2_SCOPE.md](docs/REVIEW2_SCOPE.md), and [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) with held-out CUHK Avenue `testing_videos` outcomes (`avenue_test_tuned`), generated comparisons/figures/speed benchmark artifacts, `NEXT_PUBLIC_DESIGN_PREVIEW=true` build flag for `/console-preview`, and clean test totals.
+**Verified:**
+- `pytest eval/test_eval_harness.py eval/test_full_system_stress_and_benchmark.py eval/test_run_eval_api_mode_indepth.py -q --tb=short` -> **`14 passed in 2.06s`**.
+- `npx eslint tests/api.test.ts` and `npx tsc --noEmit` -> exited `0`.
+**Not verified / Pending:** Vitest (`npm run test`, blocked on Windows by missing `@rolldown/binding-win32-x64-msvc`), Playwright E2E, `Own clips (day/night)` real footage runs, and PDF LaTeX compile (`pdflatex` absent on Windows). No git commit or push performed.

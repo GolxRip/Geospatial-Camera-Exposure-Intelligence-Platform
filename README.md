@@ -15,8 +15,8 @@
 > **Milestone & Current Data Status (Nov 27, 2026)**  
 > Primary target: **BE Major Project Review 2 (Saturday, December 19, 2026)**. `paper/` is maintained as a secondary manuscript.
 > - **Real Censys India Camera Aggregates ([`data/censys/2026-11-26/snapshot.json`](data/censys/2026-11-26/snapshot.json)):** **104,218** real Indian camera hosts (`host.location.country: "India" AND host.services.hardware.type: "CAMERA"`) across 6 aggregate dimensions (ports: RTSP 554 = 81,285; top cities; protocols; vendors; products; ASNs) with **zero raw IP addresses**.
-> - **Real Tier 2 Video Evaluation ([`eval/results/`](eval/results/)):** Real public CUHK Avenue surveillance clips evaluated with [`eval/tier2_real_footage.py`](eval/tier2_real_footage.py) (untuned baseline snapshots for `training_videos` and `testing_videos` committed; tuned detector verified on `training_videos` with `14/14` detection across all 8 attacks and `0.0/hr` clean false alarms, with held-out `testing_videos` next).
-> - **Console & Demo Database (`data/public.db` — Simulated):** Contains **9,320 simulated device fixtures** (`geo_source = 'synthetic_demo'`) with `/24` IP masking (`EXPOSE_FULL_IP=false`) and **2** audit entries. Explicitly labeled `Simulated fixture` / `Simulated data active` across `/console`, map legend, inspector, and `/console/devices/[id]`.
+> - **Real Tier 2 Video Evaluation ([`eval/results/`](eval/results/)):** Real public CUHK Avenue surveillance clips evaluated with [`eval/tier2_real_footage.py`](eval/tier2_real_footage.py) comparing un-tuned `v1` baseline against frozen `v2` (`023c5c4`): on `training_videos` (`14` clips, `2` dropped `<12s`, `0.131 clean h`), `v2` detects `14/14` across all `8` attacks with `0.0/h [0.0, 28.2]` clean false alarms; on held-out `testing_videos` (`16` clips, `5` dropped `<12s`, `0.119 clean h`), `v2` raises `loop` detection from `1/16` (`6.2%`) to `15/16` (`93.8%`) and hits `16/16` across the remaining `7` tamper types with `0.0/h [0.0, 30.9]` clean false alarms at `tripped` (`1` FA = `8.4/h` at `degraded`). Comparisons, vector figures, and CPU throughput benchmarks live in [`docs/`](docs/).
+> - **Console & Demo Database (`data/public.db` — Simulated):** Contains **9,320 simulated device fixtures** (`geo_source = 'synthetic_demo'`) with `/24` IP masking (`EXPOSE_FULL_IP=false`) and zero orphan alerts (click **Run scenario** in `/console` to stream live `demo: true` alerts and Merkle ledger entries). Explicitly labeled `Simulated fixture` / `Simulated data active` across `/console`, map legend, inspector, and `/console/devices/[id]`.
 > - **Pre-existing Synthetic Benchmarks (`paper/data/results.json`, CI fixtures):** Hand-authored **120-scenario** formula sanity check and synthetic unit-test arrays, strictly separated under `<SyntheticChip />` (`Synthetic corpus, n = 120`).
 
 ---
@@ -49,7 +49,8 @@
 | [`backend/`](backend/) | FastAPI service (`main.py`), passive trust scoring (`services/trust_score_service.py`), signal integrity gate, Merkle audit ledger, Censys/provenance routes |
 | [`frontend/`](frontend/) | Next.js 16 + MapLibre GL JS console, `/research`, `/lab`, `/ethics`, `/console`, `/console/devices/[id]` |
 | [`video_pipeline/`](video_pipeline/) | YOLOv8 + ByteTrack + `FrameLivenessTracker` (Tier 2 pHash freeze, Laplacian blur drift, spec check) |
-| [`eval/`](eval/) | [`eval/README.md`](eval/README.md), `eval/results/` (destination for real-footage CSV + `summary.md`), and legacy synthetic harness (`run_eval.py`) |
+| [`eval/`](eval/) | [`eval/README.md`](eval/README.md), `eval/results/` (real-footage CSV + `summary.md`), `compare_runs.py`, `make_figures.py`, `benchmark_speed.py`, and legacy synthetic harness (`run_eval.py`) |
+| [`docs/`](docs/) | [`REVIEW2_SCOPE.md`](docs/REVIEW2_SCOPE.md), [`DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md), [`SPEED_BENCHMARK.md`](docs/SPEED_BENCHMARK.md), [`comparisons/`](docs/comparisons/), [`figures/`](docs/figures/), [`diagrams/`](docs/diagrams/) |
 | [`scripts/`](scripts/) | `censys_snapshot.py` (Platform v3 aggregate runner + web paste converter), `build_public_db.py`, `censys_ingest.py` (blocked by guard) |
 | [`data/censys/`](data/censys/) | Dated Censys aggregate snapshots (`YYYY-MM-DD/snapshot.json`, no IPs) |
 | [`paper/`](paper/) | Secondary manuscript sources, `LOG.md`, `CLAIMS.md`, `TODO.md`, and synthetic-corpus outputs |
@@ -113,8 +114,10 @@ See [`eval/README.md`](eval/README.md) for reproduction commands once public vid
 ### Running Tests
 
 ```powershell
-# Targeted backend integrity & wiring tests (runs in ~10s against a temp DB copy)
-python -m pytest backend/tests/test_tier2_live_wiring.py backend/tests/test_audit_and_decay_indepth.py backend/tests/test_signal_integrity_gate.py backend/tests/test_api.py -q
+# Full backend + pipeline + eval harness suites (`backend/tests/` 373 passed, 1 skipped if GNN weights exist; `video_pipeline/tests/` 52 passed; `eval/test_*.py` 14 passed)
+python -m pytest backend/tests/ -q
+python -m pytest video_pipeline/tests/ -q
+python -m pytest eval/test_eval_harness.py eval/test_full_system_stress_and_benchmark.py eval/test_run_eval_api_mode_indepth.py -q
 
 # Frontend checks
 cd frontend

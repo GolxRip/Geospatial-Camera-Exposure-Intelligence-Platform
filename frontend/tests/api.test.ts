@@ -52,6 +52,20 @@ describe("response contracts", () => {
     const parsed = TrustScoreSchema.parse(fx("trust-score.sample.json"));
     expect(parsed.trust_score).toBe(parsed.trust_score_ig_dctf);
   });
+  it("trust-score backend live shape (key/kev factor_details + provenance) parses cleanly", () => {
+    const live = {
+      ...(fx("trust-score.sample.json") as Record<string, unknown>),
+      ip: "6.214.88.0",
+      device_type: "IP Camera",
+      owner_org: "TCS Solutions Pvt Ltd",
+      ownership_confidence: "high",
+      geo_source: "synthetic_demo",
+      factor_details: [{ key: "unauthenticated_stream", delta: -30, kev: false }],
+    };
+    const parsed = TrustScoreSchema.parse(live);
+    expect(parsed.factor_details?.[0]?.key).toBe("unauthenticated_stream");
+    expect(parsed.geo_source).toBe("synthetic_demo");
+  });
 });
 
 describe("WebSocket contract (recorded from /api/ws/alerts)", () => {

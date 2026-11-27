@@ -121,7 +121,7 @@ python -m pytest backend/tests/ -q
 python -m pytest video_pipeline/tests/ -q
 python -m pytest eval/test_eval_harness.py eval/test_full_system_stress_and_benchmark.py eval/test_run_eval_api_mode_indepth.py -q
 
-# Frontend checks (11 Vitest suites / 81 tests = 7 unit suites / 42 tests + 4 contract suites / 39 tests; 265 golden vectors)
+# Frontend checks (11 Vitest suites / 82 tests = 7 unit suites / 43 tests + 4 contract suites / 39 tests; 265 golden vectors)
 cd frontend
 npm run test
 npx eslint src tests

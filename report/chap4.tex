@@ -11,7 +11,7 @@ All three system services run reproducibly from the repository root. The FastAPI
 Software correctness and contract parity are guarded by two complementary automated suites executed across backend, video pipeline, evaluation harness, and frontend codebases:
 \begin{enumerate}
   \item \textbf{Backend, Video Pipeline, and Evaluation Harness (\texttt{pytest}):} Across \textbf{440 collected tests} (\textbf{374} backend, \textbf{52} video pipeline, \textbf{14} eval), prior runs recorded \textbf{439 passed, 1 skipped, 0 warnings} (the single skip verifies the untrained-GNN 503 path when trained weights exist on disk; full totals are maintained centrally in \texttt{frontend/src/lib/content/facts.manual.ts}). Unit and concurrency suites verify 50-request write locking without \texttt{SQLITE\_BUSY} failures, async event-loop cleanup, idempotency (409), clock-skew rejection (400), rate limiting (429), Merkle tamper detection, and strict refusal of unauthorized remote RTSP sources. Following the Docker-compatibility \texttt{ImportError} guard in \texttt{backend/routes/audit\_router.py}, \texttt{backend/tests/test\_gnn\_collusion\_model.py} passed (\texttt{16 passed, 1 skipped}).
-  \item \textbf{Frontend Unit, Contract, and Build Verification (\texttt{Vitest}, \texttt{ESLint}, \texttt{TypeScript}):} Configured in \texttt{frontend/vitest.config.mts}, all \textbf{11} Vitest suites (\textbf{81 passed} on Kali at commit \texttt{90f3265}: \textbf{7} unit suites / \textbf{42} tests under \texttt{tests/unit/} plus \textbf{4} API, SSE, facts, and WCAG contrast suites / \textbf{39} tests) validate Python-vs-TypeScript gate parity on \textbf{265} golden test vectors, \texttt{/24} and IPv6 \texttt{/48} IP masking invariants, GeoJSON/TrustScore/WebSocket Zod contracts, SSE brief stream parsing, contrast pairs, brand SVG geometry, zero hard-coded numeric literals in section components, and generated SHA-256 sync with metric fixtures. Static verification confirms \texttt{npx eslint .} (0~errors, 0~warnings), \texttt{npx tsc --noEmit} (0~errors), and production \texttt{next build} completion across all routes.
+  \item \textbf{Frontend Unit, Contract, and Build Verification (\texttt{Vitest}, \texttt{ESLint}, \texttt{TypeScript}):} Configured in \texttt{frontend/vitest.config.mts}, all \textbf{11} Vitest suites (\textbf{82 passed} on Kali Linux: \textbf{7} unit suites / \textbf{43} tests under \texttt{tests/unit/} plus \textbf{4} API, SSE, facts, and WCAG contrast suites / \textbf{39} tests) validate Python-vs-TypeScript gate parity on \textbf{265} golden test vectors, \texttt{/24} and IPv6 \texttt{/48} IP masking invariants, GeoJSON/TrustScore/WebSocket Zod contracts, SSE brief stream parsing, contrast pairs, brand SVG geometry, zero hard-coded numeric literals in section components, and generated SHA-256 sync with metric fixtures. Static verification confirms \texttt{npx eslint src tests} (0~errors, 0~warnings), \texttt{npx tsc --noEmit} (0~errors), Playwright multi-viewport verification, and production \texttt{next build} completion across all routes. Following an initial Kali \texttt{docker compose build} failure caused by Debian Trixie removing \texttt{libgl1-mesa-glx}, \texttt{video\_pipeline/Dockerfile} was updated to \texttt{libgl1}.
 \end{enumerate}
 
 \textbf{[TODO — More / Manual \& E2E Testing]:} Add the manual cross-browser checklist across \texttt{/}, \texttt{/research}, \texttt{/lab}, \texttt{/console}, and \texttt{/ethics} tested against \texttt{90f3265} on two team laptops, plus Chromium Playwright E2E and \texttt{docker compose build} verification logs before final freeze.
@@ -94,8 +94,37 @@ On held-out test footage, \texttt{v2} dramatically closes the earlier detector b
   \label{fig:fa_rates}
 \end{figure}
 
+\subsection{Unseen Attack-Variant Robustness Sweep (All 10 Variants Reported)}
+To test whether frozen \texttt{v2} generalises beyond the default attack strengths used during development without retuning any threshold or buffer parameter, \texttt{eval/robustness\_sweep.py} ran ten previously unseen parameter variants across all $16$ retained Avenue held-out clips ($320$~px width, $5$ dropped $<12$~s; Table~\ref{tab:robustness}). All variants---including every failure---are reported verbatim alongside un-tuned \texttt{v1}.
+
+\begin{table}[!ht]
+  \centering
+  \caption{Unseen attack-variant robustness sweep on CUHK Avenue held-out clips ($n = 16$, $320$~px; \texttt{v1} vs.\ frozen \texttt{v2})}
+  \label{tab:robustness}
+  \begin{tabular}{@{}lcccc@{}}
+    \toprule
+    \textbf{Unseen Variant} & \textbf{v1 Degraded} & \textbf{v1 Tripped} & \textbf{v2 Degraded (Delay)} & \textbf{v2 Tripped (Delay)} \\
+    \midrule
+    \texttt{loop\_2s} & 1/16 (0.0 s) & 1/16 (0.0 s) & \textbf{15/16} (0.6 s) & \textbf{15/16} (0.6 s) \\
+    \texttt{loop\_10s} & 1/16 (0.0 s) & 1/16 (0.0 s) & \textbf{15/16} (0.6 s) & \textbf{15/16} (0.6 s) \\
+    \texttt{loop\_30s} & 2/16 (3.5 s) & 2/16 (3.5 s) & 10/16 (0.6 s) & 10/16 (0.6 s) \\
+    \texttt{blur\_sigma2} & 16/16 (0.0 s) & 16/16 (0.0 s) & \textbf{16/16} (0.0 s) & \textbf{16/16} (0.0 s) \\
+    \texttt{blur\_sigma4} & 16/16 (0.0 s) & 16/16 (0.0 s) & \textbf{16/16} (0.0 s) & \textbf{16/16} (0.0 s) \\
+    \texttt{blur\_sigma8} & 16/16 (0.0 s) & 16/16 (0.0 s) & \textbf{16/16} (0.0 s) & \textbf{16/16} (0.0 s) \\
+    \texttt{slow\_blur\_20s} & 16/16 (1.0 s) & 0/16 (n/a) & \textbf{16/16} (1.0 s) & \textbf{16/16} (2.0 s) \\
+    \texttt{slow\_blur\_120s} & 0/16 (n/a) & 0/16 (n/a) & \textbf{16/16} (6.0 s) & 13/16 (11.8 s) \\
+    \texttt{cover\_semi\_transparent} & 16/16 (0.0 s) & 16/16 (0.0 s) & \textbf{16/16} (0.0 s) & \textbf{16/16} (0.0 s) \\
+    \texttt{partial\_cover\_small} ($\approx 9\%$) & 0/16 (n/a) & 0/16 (n/a) & \textbf{0/16} (n/a) & \textbf{0/16} (n/a) \\
+    \midrule
+    Clean FA / hour ($0.12$ h) & 4 (33.5/h) & 4 (33.5/h) & 1 (8.4/h) & \textbf{0 (0.0/h)} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Frozen \texttt{v2} retains full or near-full detection across short/medium loops ($2$~s, $10$~s), varied Gaussian blur ($\sigma \in \{2,4,8\}$), semi-transparent overlays, and $20$~s slow ramps while keeping clean \texttt{tripped} false alarms at $0.0$/h. However, the sweep exposes three concrete architectural boundaries without modifying \texttt{v2}: (1) \texttt{partial\_cover\_small} ($\approx 9\%$ frame corner/side occlusion) registers \textbf{0/16} on both \texttt{v1} and \texttt{v2} because the $8 \times 8$ block check requires $\ge 12/64$ ($18.75\%$) dead blocks; (2) \texttt{loop\_30s} drops to \textbf{10/16} because \texttt{\_loop\_maxlen = 450} frames corresponds to $18$~s at $25$~fps; and (3) \texttt{slow\_blur\_120s} triggers \texttt{degraded} on $16/16$ clips ($6.0$~s) but reaches \texttt{tripped} on only \textbf{13/16} ($11.8$~s) before shorter held-out clips terminate.
+
 \subsection{Runtime CPU Throughput Benchmark}
-Timed across 300 frames (\texttt{synthetic\_pattern} $320 \times 180$ test frames) on an Intel Core i5-12450H CPU using Python~3.12.6 and OpenCV~5.0.0 (\texttt{eval/benchmark\_speed.py}), \texttt{v2} sustains \textbf{281.9~FPS} ($3.55$~ms/frame) at $320$~px width and \textbf{71.2~FPS} ($14.04$~ms/frame) at $640$~px width against \texttt{v1}'s $606.8$~FPS and $84.8$~FPS (real-frame timing via the new \texttt{--source} option remains a pending run on Linux/Avenue). Pure-Python IG-DCTF fusion adds $4.69~\mu$s/call vs. $2.60~\mu$s/call for Channel~A alone, excluding I/O.
+Timed on Kali Linux (Intel Core i5-12450H, 6 logical cores, Python~3.13.9, OpenCV~5.0.0, NumPy~2.3.5) across $300$ measured frames ($+30$ warmup) sourced directly from real decoded CUHK Avenue \texttt{testing\_videos} frames (\texttt{eval/benchmark\_speed.py --source}), frozen \texttt{v2} sustains \textbf{242.7~FPS} ($4.119$~ms/frame, $p_{95} = 7.536$~ms) at $320$~px width and \textbf{59.9~FPS} ($16.691$~ms/frame, $p_{95} = 23.179$~ms) at $640$~px width, against \texttt{v1}'s $1776.7$~FPS ($0.562$~ms/frame) and $67.7$~FPS ($14.765$~ms/frame). Pure-Python IG-DCTF fusion adds $4.69~\mu$s/call vs. $2.60~\mu$s/call for Channel~A alone, excluding I/O.
 
 \subsection{Demoted Synthetic Formula Sanity Check (\texorpdfstring{$n = 120$}{n = 120}, Not Field Evidence)}
 As an internal sanity check that the multiplicative gate enforces non-compensation without regressing posture-only cases, Table~\ref{tab:syn_models} and Figures~\ref{fig:syn_cmp}--\ref{fig:decision_map} report metrics across $120$ team-authored synthetic scenarios ($63$ fabricated, $57$ genuine; only $30$ carry Channel~B fields, $90$ carry attribute posture only). Because this corpus was constructed by the project team, it cannot measure real-world accuracy or statistical significance; no hypothesis-test $p$-values are claimed.

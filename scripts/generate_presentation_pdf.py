@@ -191,7 +191,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <p>Cyber-Physical Surveillance Threat Intelligence & Detection Engine</p>
     <div class="badge-row">
       <span class="badge">STATUS: REVIEW 2 PROTOTYPE (LEGACY GENERATOR)</span>
-      <span class="badge badge-success">TEST COUNTS TRACKED IN facts.manual.ts (439 PYTEST + 81 VITEST)</span>
+      <span class="badge badge-success">TEST COUNTS TRACKED IN facts.manual.ts (439 PYTEST + 82 VITEST)</span>
       <span class="badge">OPERATES WITHIN DPDP ACT 2023 BOUNDARIES</span>
     </div>
   </div>

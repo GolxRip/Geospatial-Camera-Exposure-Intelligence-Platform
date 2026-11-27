@@ -116,9 +116,9 @@ describe('manual facts', () => {
     expect(t.backend_passed + t.video_pipeline_passed + t.eval_passed).toBe(t.passed);
     expect(t.passed + t.skipped).toBe(t.python_collected);
     expect(t.frontend_suites).toBe(11);
-    expect(t.frontend_tests).toBe(81);
+    expect(t.frontend_tests).toBe(82);
     expect(t.frontend_unit_suites).toBe(7);
-    expect(t.frontend_unit_tests).toBe(42);
+    expect(t.frontend_unit_tests).toBe(43);
     expect(t.golden_vectors).toBe(265);
   });
 });

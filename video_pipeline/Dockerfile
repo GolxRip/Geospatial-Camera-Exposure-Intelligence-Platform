@@ -19,7 +19,7 @@ WORKDIR /app
 # Install system dependencies needed by OpenCV headless
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
-    libgl1-mesa-glx \
+    libgl1 \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 

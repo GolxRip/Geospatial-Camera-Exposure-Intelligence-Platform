@@ -57,6 +57,6 @@ Tick items with the date; add new ones at the bottom of their section. Mirror im
 - [x] 2026-10-14 Phase 2: tokens, primitives, HoodGauge, TierTag, SourceNote, contrast table re-verified
 - [ ] Build `public/tiles/india.pmtiles` locally: `bash frontend/scripts/build-basemap.sh 11 <planet URL>`; record the size
 - [ ] Phase 3 onward (nav/footer, landing sections, 3D hood, gate explorer, console)
-- [ ] Backend touchpoints still awaiting approval: B1 server-side IP masking, B2 heartbeat decision, B3 operation ids/tags, B4 OpenAPI + WS/SSE docs and response models, B5 demo scenario list, B6 temp test DB / ledger reset, B7 `geo_precision`, B8 `/api/results`, B9 LICENSE
+- [ ] Backend touchpoints still awaiting approval: B1 server-side IP masking (implemented in `mask_ip_for_public`), B3 operation ids/tags, B4 OpenAPI + WS/SSE docs and response models, B5 demo scenario list, B6 temp test DB / ledger reset, B7 `geo_precision`, B8 `/api/results`, B9 LICENSE (B2 heartbeat permanently removed 2026-11-26)
 - [ ] Decide: keep the dev-only `/design-system` route (not in spec section 4)?
 - [ ] Spec 3.2 / 7.6: change WA F1 from 0.753 to 0.752

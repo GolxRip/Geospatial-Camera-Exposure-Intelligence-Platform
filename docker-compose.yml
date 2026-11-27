@@ -1,5 +1,3 @@
-version: "3.9"
-
 # COBRA-WATCH Docker Compose
 # ==========================
 # Brings up: backend (FastAPI) + frontend (Next.js) + video-pipeline (PyTorch/YOLOv8)
@@ -27,6 +25,7 @@ services:
       # Mount the data directory so the SQLite DB persists across container restarts
       - ./data:/app/data
     environment:
+      # For the prebuilt anonymized evaluation fixture, use DATABASE_PATH=/app/data/public.db
       - DATABASE_PATH=/app/data/surveillancewatch.db
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]

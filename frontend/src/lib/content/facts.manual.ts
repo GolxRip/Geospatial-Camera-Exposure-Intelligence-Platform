@@ -47,8 +47,8 @@ export const manualFacts = {
     source: 'video_pipeline/liveness_detector.py (FrameLivenessTracker defaults)',
   },
   'eval.tests': {
-    value: { passed: 431, date: '2026-10-12' },
-    source: 'README.md ("431 passed on 2026-10-12") and paper/CLAIMS.md claim C16',
+    value: { passed: 439, date: '2026-11-27' },
+    source: 'README.md ("439 passed, 1 skipped, 0 warnings") and paper/CLAIMS.md claim C16',
   },
 } as const satisfies Record<string, ManualFact<unknown>>;
 

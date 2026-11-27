@@ -233,12 +233,18 @@ async def get_collusion_gnn_scores():
     (see GNN_TRAINING_GUIDE.md). Returns HTTP 503 with setup instructions if
     no trained weights exist yet — this endpoint never trains a model itself.
     """
-    from services.collusion_graph_service import detect_collusion_gnn
-    from services.gnn_collusion_model import ModelNotTrainedError
+    try:
+        from services.collusion_graph_service import detect_collusion_gnn
+        from services.gnn_collusion_model import ModelNotTrainedError
+    except ImportError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"GNN collusion scoring unavailable in this environment: {e}",
+        )
 
     try:
         result = detect_collusion_gnn()
-    except ModelNotTrainedError as e:
+    except (ModelNotTrainedError, ImportError) as e:
         raise HTTPException(status_code=503, detail=str(e))
 
     return {

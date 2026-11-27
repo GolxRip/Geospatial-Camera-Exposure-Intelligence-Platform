@@ -17,9 +17,12 @@ export const LIMITS = [
   },
   {
     id: 'C14',
-    text: 'A loop of real footage has natural motion and is not caught by the frozen-frame rule.',
+    text: 'Ring-buffer loop detection can miss very short clips and adaptive attackers; real-footage tests inject tamper onset programmatically on public CUHK Avenue clips.',
   },
-  { id: 'C17', text: 'There is no field data. Real-world effectiveness is unverified.' },
+  {
+    id: 'C17',
+    text: 'Evidence covers public video and aggregate host counts; live camera field deployments and longitudinal Tier 1 banner drift remain future work.',
+  },
 ] as const;
 
 export function LimitsList({ className }: { className?: string }) {

@@ -10,8 +10,6 @@ import { manualFacts } from "@/lib/content/facts.manual";
 import { feedBus } from "@/lib/three/feed-bus";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
 /** Frame counters: the live feed keeps counting, the looped one stops at the freeze threshold. */
 function useFrameCounters(active: boolean, stopAt: number, reduced: boolean) {
   const [live, setLive] = React.useState(0);

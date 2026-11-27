@@ -1,9 +1,10 @@
 'use client';
 
-import type { LabActions, AlertRow, SimulationResult, ScenarioOutcome, NlQueryResult, MapDevice } from './types';
+import type { LabActions, SimulationResult, ScenarioOutcome, NlQueryResult, MapDevice } from './types';
 import { tierFromAction } from '@/lib/tier';
 import { maskIp } from '@/lib/privacy/mask-ip';
 import { env } from '@/lib/env';
+import { AlertSocket } from '@/lib/api/socket';
 
 const API = env.apiUrl;
 
@@ -49,26 +50,69 @@ export function useLabActions(): LabActions {
     },
 
     onRunScenario: async (onEvent): Promise<ScenarioOutcome> => {
-      const res = await fetch(`${API}/api/scenarios/run`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenario: 'default' }),
-      });
+      const seenIds = new Set<string>();
+      let received = 0;
+      let expected = 12;
+      let settleWait: (() => void) | null = null;
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as Record<string, unknown>;
-        return { status: res.status, message: String(body.detail ?? body.message ?? res.statusText) };
+      const socket = typeof WebSocket !== 'undefined'
+        ? new AlertSocket({
+            onMessage: (msg) => {
+              if (msg.type !== 'ALERT' || !msg.demo || seenIds.has(msg.id)) return;
+              seenIds.add(msg.id);
+              received += 1;
+              onEvent({
+                id: msg.id,
+                time: msg.detected_at,
+                deviceId: msg.camera_id,
+                deviceLabel: msg.camera_id.slice(0, 12),
+                tier: tierFromAction(msg.action_tier),
+                gateTripped: Boolean(msg.integrity_gate_tripped),
+                action: msg.action_tier,
+                score: msg.trust_score,
+                demo: true,
+              });
+              if (received >= expected) settleWait?.();
+            },
+            onState: () => {},
+          })
+        : null;
+
+      socket?.connect();
+
+      try {
+        const res = await fetch(`${API}/api/scenarios/run`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scenario: 'default' }),
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({})) as Record<string, unknown>;
+          return { status: res.status, message: String(body.detail ?? body.message ?? res.statusText) };
+        }
+
+        const data = await res.json() as { events?: number; interval_seconds?: number; message?: string };
+        expected = Math.max(1, data.events ?? 12);
+        const intervalMs = Math.max(500, (data.interval_seconds ?? 2) * 1000);
+
+        if (socket && received < expected) {
+          await new Promise<void>((resolve) => {
+            const timer = setTimeout(resolve, expected * intervalMs + 4_000);
+            settleWait = () => {
+              clearTimeout(timer);
+              resolve();
+            };
+          });
+        }
+
+        return {
+          status: res.status,
+          message: data.message ?? `Scenario completed: ${received} of ${expected} demo events received`,
+        };
+      } finally {
+        socket?.close();
       }
-
-      const data = await res.json() as { events?: number; interval_seconds?: number; message?: string };
-
-      // The scenario endpoint returns events count + interval. The SSE feed delivers them.
-      // We wait for the events to come in through the WebSocket and collect them here.
-      // For now, we signal completion based on the returned data.
-      return {
-        status: res.status,
-        message: data.message ?? `Scenario started: ${data.events ?? 0} events at ${data.interval_seconds ?? 0}s intervals`,
-      };
     },
 
     onNlQuery: async (query): Promise<NlQueryResult> => {

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { SOURCE_SHA256 } from "@/lib/content/facts.generated";
 import { manualFacts } from "@/lib/content/facts.manual";
@@ -54,7 +55,7 @@ describe("facts (spec 3.4)", () => {
   it("renders no hard-coded digits in section and page components", () => {
     // Heuristic for ground rule 1: JSX text between tags must not contain decimals or multi-digit numbers
     // (result figures). Single-digit method constants such as "G(s) = 1" are allowed.
-    const roots = [new URL("../src/components/sections", import.meta.url).pathname];
+    const roots = [fileURLToPath(new URL("../src/components/sections", import.meta.url))];
     const offenders: string[] = [];
     const walk = (dir: string) => {
       let entries: string[] = [];

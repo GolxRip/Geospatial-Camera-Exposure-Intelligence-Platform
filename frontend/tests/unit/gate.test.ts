@@ -1,31 +1,26 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { evaluateGate, fuse, roundHalfEven, GATE } from '@/lib/scoring/gate';
+import { manualFacts } from '@/lib/content/facts.manual';
+import { evaluateGate, fuse, roundHalfEven, tierOf, GATE } from '@/lib/scoring/gate';
+
+interface GoldenCase {
+  t_cve: number;
+  drift: number;
+  freeze: boolean | null;
+  quality: number;
+  spec: boolean;
+  liveness: number | null;
+  s: number;
+  multiplier: number;
+  status: string;
+  tripped: boolean;
+  hard_cap: number | null;
+  t_final: number;
+}
 
 interface Golden {
-  theta_high: number;
-  theta_low: number;
-  vectors: {
-    in: {
-      t_cve: number;
-      drift: number;
-      freeze: boolean;
-      quality: number;
-      spec: boolean;
-      tier2: boolean;
-    };
-    out: {
-      liveness: number | null;
-      signal_integrity: number;
-      multiplier: number;
-      hard_cap: number | null;
-      gate_status: string;
-      gate_tripped: boolean;
-      final: number;
-      tier: string;
-    };
-  }[];
+  cases: GoldenCase[];
 }
 
 const golden = JSON.parse(
@@ -33,41 +28,47 @@ const golden = JSON.parse(
 ) as Golden;
 
 describe('gate port against the Python implementation (FRONTEND_SPEC.md 14.4)', () => {
-  it('uses the same thresholds as the exported fixture', () => {
-    expect(GATE.theta_high).toBe(golden.theta_high);
-    expect(GATE.theta_low).toBe(golden.theta_low);
+  it('uses the same thresholds as manualFacts and threshold edge cases in the fixture', () => {
+    expect(GATE.theta_high).toBe(manualFacts['const.gate'].value.theta_high);
+    expect(GATE.theta_low).toBe(manualFacts['const.gate'].value.theta_low);
+    const atLow = golden.cases.find((c) => Math.abs(c.s - 0.5) < 1e-9);
+    const belowLow = golden.cases.find((c) => Math.abs(c.s - 0.4999) < 1e-9);
+    const atHigh = golden.cases.find((c) => Math.abs(c.s - 0.85) < 1e-9);
+    expect(atLow?.status).toBe('tapered');
+    expect(belowLow?.status).toBe('hard_gated');
+    expect(atHigh?.status).toBe('nominal');
   });
 
   it('has a fixture with the edges, the half-integer rounding cases and the random vectors', () => {
-    expect(golden.vectors.length).toBeGreaterThanOrEqual(700);
+    expect(golden.cases.length).toBeGreaterThanOrEqual(265);
   });
 
   it('matches every golden vector to 4 decimals, and the integer score and tier exactly', () => {
     const failures: string[] = [];
-    for (const v of golden.vectors) {
+    for (const v of golden.cases) {
       const r = fuse({
-        tCve: v.in.t_cve,
-        drift: v.in.drift,
-        freeze: v.in.freeze,
-        qualityDrift: v.in.quality,
-        specMismatch: v.in.spec,
-        tier2: v.in.tier2,
+        tCve: v.t_cve,
+        drift: v.drift,
+        freeze: v.freeze ?? false,
+        qualityDrift: v.quality,
+        specMismatch: v.spec,
+        tier2: v.freeze !== null,
       });
-      const tag = JSON.stringify(v.in);
+      const tag = JSON.stringify({ t_cve: v.t_cve, drift: v.drift, freeze: v.freeze });
       if (
-        r.liveness !== v.out.liveness &&
-        Math.abs((r.liveness ?? -1) - (v.out.liveness ?? -1)) > 1e-4
+        r.liveness !== v.liveness &&
+        Math.abs((r.liveness ?? -1) - (v.liveness ?? -1)) > 1e-4
       )
         failures.push(`liveness ${tag}`);
-      if (Math.abs(r.signalIntegrity - v.out.signal_integrity) > 1e-4)
-        failures.push(`s ${tag}: ${r.signalIntegrity} vs ${v.out.signal_integrity}`);
-      if (Math.abs(r.gate.multiplier - v.out.multiplier) > 1e-4)
-        failures.push(`G ${tag}: ${r.gate.multiplier} vs ${v.out.multiplier}`);
-      if (r.gate.hardCap !== v.out.hard_cap) failures.push(`cap ${tag}`);
-      if (r.gate.status !== v.out.gate_status) failures.push(`status ${tag}`);
-      if (r.gate.tripped !== v.out.gate_tripped) failures.push(`tripped ${tag}`);
-      if (r.final !== v.out.final) failures.push(`final ${tag}: ${r.final} vs ${v.out.final}`);
-      if (r.tier !== v.out.tier) failures.push(`tier ${tag}`);
+      if (Math.abs(r.signalIntegrity - v.s) > 1e-4)
+        failures.push(`s ${tag}: ${r.signalIntegrity} vs ${v.s}`);
+      if (Math.abs(r.gate.multiplier - v.multiplier) > 1e-4)
+        failures.push(`G ${tag}: ${r.gate.multiplier} vs ${v.multiplier}`);
+      if (r.gate.hardCap !== v.hard_cap) failures.push(`cap ${tag}`);
+      if (r.gate.status !== v.status) failures.push(`status ${tag}`);
+      if (r.gate.tripped !== v.tripped) failures.push(`tripped ${tag}`);
+      if (r.final !== v.t_final) failures.push(`final ${tag}: ${r.final} vs ${v.t_final}`);
+      if (r.tier !== tierOf(v.t_final)) failures.push(`tier ${tag}`);
     }
     expect(failures).toEqual([]);
   });

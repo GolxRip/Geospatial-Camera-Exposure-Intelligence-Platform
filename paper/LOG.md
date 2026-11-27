@@ -287,3 +287,8 @@ Updated [video_pipeline/liveness_detector.py](video_pipeline/liveness_detector.p
 - `frontend`: `facts_offenders = 0`, `npx eslint src/components/sections/twin-cameras.tsx`, `npx tsc --noEmit`, and `npm run build` (`NEXT_PUBLIC_DESIGN_PREVIEW=true`) -> exited `0`.
 - `pytest backend/tests/ video_pipeline/tests/ eval/ -q --tb=short` -> **`439 passed, 1 skipped, 0 warnings in 122.35s (0:02:02)`** (1 intentional skip: `TestGnnEndpointUntrainedState::test_endpoint_returns_503_when_untrained` because trained weights exist on disk).
 **Not verified / Pending:** Vitest native runner on Linux (`@rolldown/binding-win32-x64-msvc` absent on Windows), Playwright E2E (Chromium cache absent on Windows), optional `Own clips (day/night)` on Kali, PDF compile of `paper/main.tex`. No git commit or push performed.
+
+## 2026-11-27 (11:10 IST), Fixed `tests/unit/gate.test.ts` schema against `export-golden.py` fixture
+**Did:** Kali Vitest run (`39 passed, 3 failed`) revealed [frontend/tests/unit/gate.test.ts](frontend/tests/unit/gate.test.ts) read legacy `{theta_high, theta_low, vectors}` keys while [frontend/scripts/export-golden.py](frontend/scripts/export-golden.py) generates `{cases, banner}` (`265` vectors) in [gate_golden.json](frontend/tests/fixtures/gate_golden.json). Updated [frontend/tests/unit/gate.test.ts](frontend/tests/unit/gate.test.ts) to consume `golden.cases` (`>= 265`) and check threshold constants against `manualFacts['const.gate']`.
+**Verified:** All `265` vectors pass against `gate.ts` (`fails = []`, `0.5 = tapered`, `0.4999 = hard_gated`, `0.85 = nominal`); `npx eslint tests/unit/gate.test.ts` and `npx tsc --noEmit` exited `0`.
+**Not verified / Pending:** Re-running `npm run test` on Kali after pushing this fix. No git commit or push performed.

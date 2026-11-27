@@ -387,12 +387,15 @@ function buildLevels(
     return { attacks, clean };
   };
 
+  const degraded = parseLevel('degraded');
+  const tripped = parseLevel('tripped');
+
   return {
     attackOrder,
-    evaluatedVideos,
+    evaluatedVideos: evaluatedVideos ?? tripped.clean?.videos ?? degraded.clean?.videos ?? null,
     levels: {
-      degraded: parseLevel('degraded'),
-      tripped: parseLevel('tripped'),
+      degraded,
+      tripped,
     },
   };
 }

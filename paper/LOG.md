@@ -236,3 +236,14 @@ Updated [video_pipeline/liveness_detector.py](video_pipeline/liveness_detector.p
 **Not verified / Pending:**
 - `docs/figures/` remains empty because `avenue_train_tuned` (on Kali, unpushed) and held-out `avenue_test_tuned` / `own/day` / `own/night` runs have not been pushed to this workspace yet.
 - Frontend `npm run test` (Vitest) blocked on Windows (`@rolldown/binding-win32-x64-msvc` missing); live browser/Playwright UI smoke after final edits and standalone `video_pipeline/tests/` run were not executed. No `git commit` or `git push` performed.
+
+## 2026-11-27 (09:53 IST), Pulled Kali held-out Avenue results, comparisons, figures & fixed UI clip-count bug
+**Did:**
+1. Pulled commit `6173eb0` from Kali (`eval/results/avenue_train_tuned/`, `eval/results/avenue_test_tuned/`, `docs/comparisons/avenue_train/`, `docs/comparisons/avenue_test/`, `docs/figures/{detection_rate_degraded,detection_rate_tripped,false_alarms_per_hour}.{svg,pdf}`, and `docs/figures/CAPTIONS.md`).
+2. Reviewed held-out CUHK Avenue `testing_videos` (`16` clips evaluated, `5` dropped `< 12s`, `0.119` clean h): frozen `v2` improved over baseline `v1` on `loop` (`1/16` `6.2%` -> `15/16` `93.8%` `[71.7, 98.9]%`, `0.56s` median delay; `video 13` missed at `min_score_after = 0.986`), `slow_blur` tripped (`0/16` -> `16/16`, `5.88s`), `partial_cover` (`13/16` `81.2%` -> `16/16`, `0.76s`), and `moved` tripped (`2/16` `12.5%` -> `16/16`, `1.96s`); clean false alarms dropped from `4` (`33.5/h` `[9.1, 85.7]`) to **`0` (`0.0/h` `[0.0, 30.9]`) at `tripped`** and `1` (`8.4/h` `[0.2, 46.6]` on `video 06`) at `degraded`.
+3. Caught and fixed an object-literal evaluation-order bug in [frontend/src/lib/content/real-tier2.ts](frontend/src/lib/content/real-tier2.ts) where `evaluatedVideos` inside `buildLevels()` was read before `parseLevel()` ran (causing `? evaluated (dropped clip count not recorded in summary.md)` on live SSR).
+**Verified:**
+- XML parse across all 3 SVGs in `docs/figures/` passed (`svg_xml_ok`).
+- `npx eslint src/lib/content/real-tier2.ts`, `npx tsc --noEmit`, `cd frontend && npm run build` (`exit 0`, all routes built), and live `next start` SSR probe on `/` and `/research` (`HTTP 200`, `home_dropped_5=True`, `home_dropped_2=True`, `home_no_qmark=True`, `research_dropped_5=True`, `research_dropped_2=True`, `research_no_qmark=True`, `research_has_0_0_ci=True`, `research_has_93_8=True`).
+**Not verified / Pending:**
+- Push the [real-tier2.ts](frontend/src/lib/content/real-tier2.ts) fix and `paper/LOG.md` update to `origin/master`; held-out `Own clips (day)` and `Own clips (night)` evaluations on Kali (`v1` & `v2`) remain pending; Playwright/Vitest and standalone `video_pipeline/tests/` not re-run. No `git commit` or `git push` performed.

@@ -71,12 +71,12 @@ function toDeviceDetail(
   geoSource?: string,
 ): DeviceDetail {
   // Channel A factors
-  const factorDetails = (ts as unknown as { factor_details?: { label: string; delta: number; is_kev?: boolean }[] }).factor_details;
+  const factorDetails = ts.factor_details;
   const factors: Factor[] = factorDetails && factorDetails.length > 0
     ? factorDetails.map((fd) => ({
-        label: prettifyFactor(fd.label),
+        label: prettifyFactor(fd.label ?? fd.key ?? 'unknown'),
         delta: fd.delta,
-        kev: !!fd.is_kev,
+        kev: !!(fd.is_kev ?? fd.kev),
       }))
     : (ts.contributing_factors ?? []).map((f) => {
         const isKev = /kev/i.test(f);
@@ -135,17 +135,17 @@ function toDeviceDetail(
 
   return {
     id: ts.camera_id,
-    maskedIp: maskIp(ts.camera_id),
+    maskedIp: ts.ip ? maskIp(ts.ip) : maskIp(ts.camera_id),
     manufacturer: ts.manufacturer ?? 'Unknown',
-    deviceType: 'IP camera',
-    owner: ts.owner_type ?? 'Unknown',
+    deviceType: ts.device_type ?? 'IP camera',
+    owner: ts.owner_org ?? ts.owner_type ?? 'Unknown',
     ownerType: ts.owner_type ?? 'unknown',
     city: ts.city ?? '',
     tier: tierFromAction(ts.action_tier),
     gateTripped: ts.integrity_gate_tripped,
     score: ts.trust_score ?? null,
     basis: 'on demand',
-    geoSource,
+    geoSource: geoSource ?? ts.geo_source ?? undefined,
     channelA: {
       tCve: ts.cyber_trust_score ?? ts.trust_score_advanced ?? 0,
       factors,

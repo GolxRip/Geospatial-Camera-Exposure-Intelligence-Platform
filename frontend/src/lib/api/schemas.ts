@@ -71,9 +71,14 @@ export const DeviceCollectionSchema = z.object({
 /** GET /api/devices/{id}/trust-score (the authoritative on-demand score). */
 export const TrustScoreSchema = z.object({
   camera_id: z.string(),
+  ip: z.string().nullable().optional(),
   city: z.string().nullable().optional(),
   manufacturer: z.string().nullable().optional(),
+  device_type: z.string().nullable().optional(),
+  owner_org: z.string().nullable().optional(),
   owner_type: z.string().nullable().optional(),
+  ownership_confidence: z.string().nullable().optional(),
+  geo_source: z.string().nullable().optional(),
   auth_required: z.union([z.boolean(), z.number()]).nullable().optional(),
   known_cve_count: z.number().nullable().optional(),
   cve_categories: z.array(z.string()).optional(),
@@ -98,8 +103,10 @@ export const TrustScoreSchema = z.object({
   gate_status: GateStatusSchema,
   gate_multiplier: z.number(),
   factor_details: z.array(z.object({
-    label: z.string(),
+    key: z.string().optional(),
+    label: z.string().optional(),
     delta: z.number(),
+    kev: z.boolean().optional(),
     is_kev: z.boolean().optional(),
   })).optional(),
   has_baseline_banner: z.boolean().optional(),

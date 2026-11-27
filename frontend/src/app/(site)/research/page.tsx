@@ -308,7 +308,8 @@ export default function ResearchPage() {
                       atk: string,
                     ) => {
                       const row = run?.levels[level].attacks[atk];
-                      return row ? `${row.medianDelayS} s` : 'Pending';
+                      if (!row) return 'Pending';
+                      return row.medianDelayS === 'n/a' ? 'n/a' : `${row.medianDelayS} s`;
                     };
                     const formatCleanCell = (run: typeof base, level: 'degraded' | 'tripped') => {
                       const cl = run?.levels[level].clean;

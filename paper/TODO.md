@@ -17,7 +17,7 @@ Tick items with the date; add new ones at the bottom of their section. Mirror im
 - [ ] Fill in authors/affiliations in `main.tex`.
 - [ ] Compile all 10 figures and `main.tex` in Overleaf; fix layout issues; tell the agent about compile errors.
 - [x] 2026-11-27 Re-run full pytest suite: `backend/tests/` (`373 passed, 1 skipped`) and `video_pipeline/tests/` (`52 passed` after `conftest.py` path fix); single-source test totals (`439 pytest` / `81 Vitest across 11 suites` / `265 golden vectors`) synced in `frontend/src/lib/content/facts.manual.ts`.
-- [ ] Run pending slow/Linux verifications on Kali after Review 2 doc updates: full `pytest`, Playwright E2E, `docker compose build`, `eval/robustness_sweep.py`, `eval/benchmark_speed.py --source <avenue_testing>`, and self-recorded `Own clips (day/night)`.
+- [~] **2026-11-27** Slow/Linux verifications on Kali: Vitest (`11/11` files, `82` tests passed), `eval/robustness_sweep.py` (`v1` & `v2` on Avenue `testing_videos`), `eval/benchmark_speed.py --source` (Avenue `testing_videos`: `242.7/59.9` FPS `v2`), and `docker compose build` (`3/3` images built cleanly after `libgl1` fix) are DONE; still pending: self-recorded `Own clips (day/night)` tomorrow + two-laptop LAN demo check.
 
 ## Technical debt found in audit
 - [x] 2026-11-27 Tier 2 freeze rule missed loops of real footage (C14): fixed with un-smoothed `INTER_NEAREST` ring-buffer + prefix-sum motion check, anchored blur baselines, $8{\times}8$ `partial_cover`, edge/layout `moved`, and static freeze guard (`v2` frozen at `023c5c4`).
@@ -40,7 +40,7 @@ Tick items with the date; add new ones at the bottom of their section. Mirror im
 
 ## Frontend follow-ups (2026-10-12)
 - [ ] Decide what to do with the dev DB ledger (`audit_ledger` has 32 chain starts; verify says tamper at entry 1): clear the table, or make tests use a temp DB.
-- [ ] Try `docker compose build frontend` once; the new Dockerfile/compose were never built.
+- [x] **2026-11-27** Try `docker compose build` on Kali: all 3 services (`video-pipeline`, `backend`, `frontend`) built cleanly (`Built 3/3`) after replacing `libgl1-mesa-glx` with `libgl1` in `video_pipeline/Dockerfile`.
 - [ ] Confirm the footer credit ("Built by Gokul Annamalai and team") and add the repo URL via `NEXT_PUBLIC_REPO_URL`.
 - [ ] `/research` page: add the before/after trust-score table from `paper/results.md` (numbers not in the spec).
 - [ ] Optional: a real satellite source, or remove the Satellites layer toggle.

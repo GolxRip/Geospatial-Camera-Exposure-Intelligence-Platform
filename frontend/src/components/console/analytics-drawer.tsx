@@ -262,16 +262,23 @@ export function AnalyticsDrawer({ id, analytics, actions }: AnalyticsDrawerProps
                 { key: 'unscored', name: 'Unscored' },
               ];
               return (
-                <CountRows
-                  label="Devices by trust tier"
-                  rows={tiers.map((t) => ({
-                    key: t.key,
-                    name: t.name,
-                    value: a.fleet[t.key],
-                    shape: <TierShape tier={t.key === 'unscored' ? null : t.key} />,
-                    hero: t.key === 'low',
-                  }))}
-                />
+                <div className="flex flex-col gap-4">
+                  <CountRows
+                    label="Devices by trust tier"
+                    rows={tiers.map((t) => ({
+                      key: t.key,
+                      name: t.name,
+                      value: a.fleet[t.key],
+                      shape: <TierShape tier={t.key === 'unscored' ? null : t.key} />,
+                      hero: t.key === 'low',
+                    }))}
+                  />
+                  <p className="max-w-2xl text-xs text-bone-2">
+                    Counts reflect the active /console device inventory (simulated synthetic_demo
+                    fixtures with /24 IP masking when backed by data/public.db; see Research for
+                    real Censys aggregates).
+                  </p>
+                </div>
               );
             }}
           </AnalyticsStates>
@@ -304,30 +311,36 @@ export function AnalyticsDrawer({ id, analytics, actions }: AnalyticsDrawerProps
         <TabsContent value="integrity" className="mt-3 min-h-0 flex-1 overflow-y-auto">
           <AnalyticsStates analytics={analytics}>
             {(a) => (
-              <CountRows
-                label="Devices by gate status"
-                rows={[
-                  {
-                    key: 'nominal',
-                    name: 'Nominal',
-                    value: a.integrity.nominal,
-                    note: 'Signal integrity above the upper threshold: the gate leaves the score alone.',
-                  },
-                  {
-                    key: 'tapered',
-                    name: 'Tapered',
-                    value: a.integrity.tapered,
-                    note: 'Between the thresholds: the score is scaled down.',
-                  },
-                  {
-                    key: 'hard',
-                    name: 'Hard gated',
-                    value: a.integrity.hardGated,
-                    hero: true,
-                    note: 'Below the lower threshold: the score is capped.',
-                  },
-                ]}
-              />
+              <div className="flex flex-col gap-4">
+                <CountRows
+                  label="Devices by gate status"
+                  rows={[
+                    {
+                      key: 'nominal',
+                      name: 'Nominal',
+                      value: a.integrity.nominal,
+                      note: 'Signal integrity above the upper threshold: the gate leaves the score alone.',
+                    },
+                    {
+                      key: 'tapered',
+                      name: 'Tapered',
+                      value: a.integrity.tapered,
+                      note: 'Between the thresholds: the score is scaled down.',
+                    },
+                    {
+                      key: 'hard',
+                      name: 'Hard gated',
+                      value: a.integrity.hardGated,
+                      hero: true,
+                      note: 'Below the lower threshold: the score is capped.',
+                    },
+                  ]}
+                />
+                <p className="max-w-2xl text-xs text-bone-2">
+                  Derived from the loaded /console device inventory (simulated fixtures in
+                  data/public.db). Real video Tier 2 benchmarks are published on Research.
+                </p>
+              </div>
             )}
           </AnalyticsStates>
         </TabsContent>

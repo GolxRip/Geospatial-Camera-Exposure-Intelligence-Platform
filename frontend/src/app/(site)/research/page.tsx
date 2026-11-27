@@ -287,61 +287,167 @@ export default function ResearchPage() {
                 </Badge>
               </div>
               {realResults.available ? (
-                <div className="flex flex-col gap-8">
-                  {realResults.runs.map((run) => (
-                    <div
-                      key={run.id}
-                      className="flex flex-col gap-4 border-t border-line pt-4 first:border-t-0 first:pt-0"
-                    >
-                      <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
-                        <div>
-                          <dt className="text-bone-2">Dataset</dt>
-                          <dd className="font-medium text-bone">{run.dataset}</dd>
+                <div className="flex flex-col gap-10">
+                  {realResults.comparisons.map((comp) => {
+                    const base = comp.baseline;
+                    const v2 = comp.v2;
+                    const primary = v2 ?? base;
+                    const allAttacks = primary?.attackOrder ?? base?.attackOrder ?? [];
+                    const formatAttackCell = (
+                      run: typeof base,
+                      level: 'degraded' | 'tripped',
+                      atk: string,
+                    ) => {
+                      const row = run?.levels[level].attacks[atk];
+                      if (!row) return 'Pending run';
+                      return `${row.hits}/${row.total} (${row.ratePct.toFixed(1)}%) [${row.ciLowPct.toFixed(1)}, ${row.ciHighPct.toFixed(1)}]%`;
+                    };
+                    const formatDelayCell = (
+                      run: typeof base,
+                      level: 'degraded' | 'tripped',
+                      atk: string,
+                    ) => {
+                      const row = run?.levels[level].attacks[atk];
+                      return row ? `${row.medianDelayS} s` : 'Pending';
+                    };
+                    const formatCleanCell = (run: typeof base, level: 'degraded' | 'tripped') => {
+                      const cl = run?.levels[level].clean;
+                      if (!cl) return 'Pending run';
+                      return `${cl.faPerHour.toFixed(1)}/h [95% CI ${cl.ciLow.toFixed(1)}, ${cl.ciHigh.toFixed(1)}] (${cl.falseAlarms} FA over ${cl.hours.toFixed(3)} h; ${cl.videos} evaluated, ${cl.dropNote})`;
+                    };
+
+                    return (
+                      <div
+                        key={comp.splitKey}
+                        className="flex flex-col gap-5 border-t border-line pt-6 first:border-t-0 first:pt-0"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <h4 className="text-lg font-semibold tracking-tight text-bone">
+                            {comp.splitTitle}
+                          </h4>
+                          <Badge tone={comp.roleKindLabel === 'held-out' ? 'signal' : 'neutral'}>
+                            {comp.roleKindLabel}
+                          </Badge>
                         </div>
-                        <div>
-                          <dt className="text-bone-2">Date</dt>
-                          <dd className="num font-medium text-bone">{run.date}</dd>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="rounded-control border border-line bg-ink-0 p-4 text-xs">
+                            <p className="font-medium text-bone">
+                              Baseline (v1): {base ? base.roleLabel : 'Not saved yet'}
+                            </p>
+                            {base ? (
+                              <div className="mt-2 flex flex-col gap-1 text-bone-2">
+                                <p>
+                                  Date: <span className="num text-bone">{base.date}</span>
+                                </p>
+                                <p>
+                                  Clips:{' '}
+                                  <span className="num text-bone">
+                                    {base.evaluatedVideos ?? '?'} evaluated
+                                  </span>{' '}
+                                  ({base.dropNote}), clean window{' '}
+                                  <span className="num text-bone">
+                                    {base.levels.tripped.clean?.hours.toFixed(3) ?? '?'} h
+                                  </span>
+                                </p>
+                                <p className="break-all font-mono">
+                                  {base.command ?? 'eval/tier2_real_footage.py'}
+                                </p>
+                              </div>
+                            ) : (
+                              <p className="mt-2 text-bone-2">
+                                Run v1 baseline into eval/results/ to populate.
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="rounded-control border border-line bg-ink-0 p-4 text-xs">
+                            <p className="font-medium text-bone">
+                              Frozen detector (v2): {v2 ? v2.roleLabel : comp.roleKindLabel}
+                            </p>
+                            {v2 ? (
+                              <div className="mt-2 flex flex-col gap-1 text-bone-2">
+                                <p>
+                                  Date: <span className="num text-bone">{v2.date}</span>
+                                </p>
+                                <p>
+                                  Clips:{' '}
+                                  <span className="num text-bone">
+                                    {v2.evaluatedVideos ?? '?'} evaluated
+                                  </span>{' '}
+                                  ({v2.dropNote}), clean window{' '}
+                                  <span className="num text-bone">
+                                    {v2.levels.tripped.clean?.hours.toFixed(3) ?? '?'} h
+                                  </span>
+                                </p>
+                                <p className="break-all font-mono">
+                                  {v2.command ?? 'eval/tier2_real_footage.py'}
+                                </p>
+                              </div>
+                            ) : (
+                              <p className="mt-2 text-bone-2">
+                                Pending push from Kali for this split ({comp.roleKindLabel}).
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <dt className="text-bone-2">Command</dt>
-                          <dd className="font-mono text-xs text-bone">
-                            {run.command ?? 'See eval/README.md'}
-                          </dd>
-                        </div>
-                      </dl>
-                      {run.csvTables.map((csv) =>
-                        csv.filename === 'per_run.csv' || csv.rows.length > 25 ? (
-                          <details
-                            key={csv.filename}
-                            className="rounded-control border border-line bg-ink-0 p-3"
-                          >
-                            <summary className="cursor-pointer text-sm text-bone-2 hover:text-bone">
-                              {`Per-video breakdown: ${csv.filename} (${csv.rows.length} rows)`}
-                            </summary>
-                            <div className="mt-4">
-                              <DataTable
-                                caption={`${csv.filename} (${run.dataset}, ${run.date})`}
-                                head={csv.headers}
-                                rows={csv.rows}
-                              />
-                            </div>
-                          </details>
-                        ) : (
+
+                        {(['tripped', 'degraded'] as const).map((lvl) => (
                           <DataTable
-                            key={csv.filename}
-                            caption={`${csv.filename} (${run.dataset}, ${run.date})`}
-                            head={csv.headers}
-                            rows={csv.rows}
+                            key={lvl}
+                            caption={`${comp.splitTitle}: side-by-side comparison at alarm level ${lvl} (95% Wilson CIs for detection; exact 95% Poisson CI for clean FA/h)`}
+                            head={[
+                              'Attack / Metric',
+                              'Baseline v1 (rate, 95% CI)',
+                              'v1 delay',
+                              'v2 (rate, 95% CI)',
+                              'v2 delay',
+                            ]}
+                            rows={[
+                              ...allAttacks.map((atk) => [
+                                atk,
+                                formatAttackCell(base, lvl, atk),
+                                formatDelayCell(base, lvl, atk),
+                                formatAttackCell(v2, lvl, atk),
+                                formatDelayCell(v2, lvl, atk),
+                              ]),
+                              [
+                                'Clean false alarms / hour',
+                                formatCleanCell(base, lvl),
+                                'n/a',
+                                formatCleanCell(v2, lvl),
+                                'n/a',
+                              ],
+                            ]}
                           />
-                        ),
-                      )}
-                      {run.summaryLines.length > 0 ? (
-                        <pre className="overflow-x-auto rounded-control border border-line bg-ink-0 p-3 font-mono text-xs text-bone-2">
-                          {run.summaryLines.join('\n')}
-                        </pre>
-                      ) : null}
-                    </div>
-                  ))}
+                        ))}
+
+                        {[base, v2]
+                          .filter((r): r is NonNullable<typeof r> => r !== null)
+                          .map((run) => {
+                            const perCsv = run.csvTables.find((t) => t.filename === 'per_run.csv');
+                            if (!perCsv) return null;
+                            return (
+                              <details
+                                key={`${run.id}-per-run`}
+                                className="rounded-control border border-line bg-ink-0 p-3"
+                              >
+                                <summary className="cursor-pointer text-sm text-bone-2 hover:text-bone">
+                                  {`Per-video breakdown (${run.version}): ${perCsv.filename} (${perCsv.rows.length} rows)`}
+                                </summary>
+                                <div className="mt-4">
+                                  <DataTable
+                                    caption={`${perCsv.filename} (${run.dataset}, ${run.date})`}
+                                    head={perCsv.headers}
+                                    rows={perCsv.rows}
+                                  />
+                                </div>
+                              </details>
+                            );
+                          })}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <EmptyState title="No real Tier 2 runs saved yet">
@@ -413,6 +519,41 @@ export default function ResearchPage() {
               the claim ledger in the repository.
             </P>
             <LimitsList />
+            <div className="mt-4 flex flex-col gap-3 rounded-panel border border-line bg-ink-1 p-6">
+              <h3 className="text-xl font-semibold tracking-tight">
+                Why synthetic and simulated data are used instead of live camera feeds
+              </h3>
+              <ul className="flex flex-col gap-2 text-sm text-bone-2">
+                <li>
+                  <strong className="font-medium text-bone">
+                    No unauthorized live video streams:
+                  </strong>{' '}
+                  Pulling RTSP or HTTP video from internet-discovered cameras without authorization
+                  violates India&apos;s Information Technology Act, 2000 (sections 43 and 66) and
+                  DPDP Act, 2023 minimization principles. Tier 2 therefore evaluates on real public
+                  benchmark clips (CUHK Avenue) with reproducible tamper transforms applied at known
+                  onset frames so false alarms and delay have verifiable ground truth.
+                </li>
+                <li>
+                  <strong className="font-medium text-bone">
+                    No live target list in the interactive console:
+                  </strong>{' '}
+                  Censys exposure data is kept strictly as anonymized country-level aggregates
+                  (104,218 India hosts in data/censys, zero IP addresses). The /console database uses
+                  /24-masked simulated device fixtures (geo_source = synthetic_demo) so the UI can
+                  demonstrate scoring and Merkle auditing without publishing vulnerable live hosts.
+                </li>
+                <li>
+                  <strong className="font-medium text-bone">
+                    Controlled counterfactual gate verification:
+                  </strong>{' '}
+                  Open historical banner-drift datasets with verified device-compromise ground truth
+                  do not exist. The 120-scenario synthetic corpus isolates fusion arithmetic
+                  (IG-DCTF vs baseline scorers) under controlled conditions and stays separated
+                  under Synthetic corpus chips.
+                </li>
+              </ul>
+            </div>
           </Section>
 
           <Section id="ablation" title="Ablation and fusion control" extra={<SyntheticChip />}>

@@ -27,6 +27,7 @@ export interface MapDevice {
   label: string;
   ownerType?: string;
   score?: number | null;
+  geoSource?: string;
 }
 
 export interface AlertRow {
@@ -103,6 +104,7 @@ export interface DeviceDetail {
   score: number | null;
   /** 'static posture' or 'on demand': how the score was computed. */
   basis: 'static posture' | 'on demand';
+  geoSource?: string;
   channelA: { tCve: number; factors: Factor[] };
   channelB: {
     drift: number | null;

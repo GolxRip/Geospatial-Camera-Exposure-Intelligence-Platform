@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 760" width="1240" height="760" font-family="DejaVu Sans, Arial, Helvetica, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#111111" />
+    </marker>
+    <marker id="arrowAccent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#1F4E79" />
+    </marker>
+  </defs>
+
+  <rect width="1240" height="760" fill="#FFFFFF" />
+
+  <!-- Title -->
+  <text x="40" y="42" font-size="22" font-weight="700" fill="#111111">COBRA-WATCH Platform Architecture (Code-Accurate Routes &amp; Services)</text>
+  <text x="40" y="66" font-size="14" fill="#4A4A4A">Strictly passive OSINT scoring + offline/public Tier 2 video verification. Active TCP heartbeat module permanently removed.</text>
+
+  <!-- Column 1: Data Sources & Governance -->
+  <rect x="30" y="95" width="260" height="630" rx="6" fill="#F7F7F7" stroke="#BDBDBD" stroke-width="1.5" />
+  <text x="46" y="122" font-size="16" font-weight="700" fill="#111111">1. Data Sources &amp; Boundary</text>
+
+  <rect x="46" y="142" width="228" height="96" rx="4" fill="#FFFFFF" stroke="#1F4E79" stroke-width="2" />
+  <text x="58" y="164" font-size="14" font-weight="700" fill="#1F4E79">Censys Aggregates (Real)</text>
+  <text x="58" y="184" font-size="12" fill="#111111">scripts/censys_snapshot.py</text>
+  <text x="58" y="202" font-size="12" fill="#4A4A4A">data/censys/2026-11-26/snapshot.json</text>
+  <text x="58" y="220" font-size="12" fill="#4A4A4A">104,218 hosts | 0 raw IPs stored</text>
+
+  <rect x="46" y="256" width="228" height="108" rx="4" fill="#FFFFFF" stroke="#1F4E79" stroke-width="2" />
+  <text x="58" y="278" font-size="14" font-weight="700" fill="#1F4E79">Public &amp; Owned Video (Real)</text>
+  <text x="58" y="298" font-size="12" fill="#111111">video_pipeline/main.py</text>
+  <text x="58" y="316" font-size="12" fill="#4A4A4A">CUHK Avenue + Own day/night clips</text>
+  <text x="58" y="334" font-size="12" fill="#4A4A4A">eval/tier2_real_footage.py</text>
+  <text x="58" y="352" font-size="12" fill="#4A4A4A">-> eval/results/*/summary.csv</text>
+
+  <rect x="46" y="382" width="228" height="90" rx="4" fill="#FFFFFF" stroke="#111111" stroke-width="1.5" />
+  <text x="58" y="404" font-size="14" font-weight="700" fill="#111111">Public Catalogs (Passive)</text>
+  <text x="58" y="424" font-size="12" fill="#4A4A4A">NVD CVEs, CISA KEV, FIRST EPSS</text>
+  <text x="58" y="442" font-size="12" fill="#4A4A4A">WHOIS/ASN ownership hints</text>
+  <text x="58" y="460" font-size="12" fill="#4A4A4A">Zero device packet probes</text>
+
+  <rect x="46" y="490" width="228" height="100" rx="4" fill="#FFFFFF" stroke="#6E6E6E" stroke-width="1.5" stroke-dasharray="6 4" />
+  <text x="58" y="512" font-size="14" font-weight="700" fill="#111111">Console Demo DB (Simulated)</text>
+  <text x="58" y="532" font-size="12" fill="#111111">scripts/build_public_db.py</text>
+  <text x="58" y="550" font-size="12" fill="#4A4A4A">data/public.db (9,320 rows)</text>
+  <text x="58" y="568" font-size="12" fill="#4A4A4A">geo_source = synthetic_demo</text>
+  <text x="58" y="584" font-size="12" fill="#4A4A4A">/24 masked via mask_ip_for_public</text>
+
+  <rect x="46" y="608" width="228" height="96" rx="4" fill="#FFFFFF" stroke="#6E6E6E" stroke-width="1.5" stroke-dasharray="6 4" />
+  <text x="58" y="630" font-size="14" font-weight="700" fill="#111111">Synthetic Checks (Quarantined)</text>
+  <text x="58" y="650" font-size="12" fill="#4A4A4A">eval/labeled_events.json (n=120)</text>
+  <text x="58" y="668" font-size="12" fill="#4A4A4A">paper/data/results.json</text>
+  <text x="58" y="686" font-size="12" fill="#4A4A4A">Scripts: run_eval, ablation, sweep</text>
+
+  <!-- Column 2: FastAPI Backend (backend/main.py) -->
+  <rect x="330" y="95" width="560" height="630" rx="6" fill="#F7F7F7" stroke="#111111" stroke-width="1.5" />
+  <text x="346" y="122" font-size="16" font-weight="700" fill="#111111">2. FastAPI Backend (backend/main.py)</text>
+
+  <!-- Routers Box -->
+  <rect x="348" y="142" width="246" height="442" rx="4" fill="#FFFFFF" stroke="#111111" stroke-width="1.5" />
+  <text x="360" y="164" font-size="14" font-weight="700" fill="#1F4E79">REST &amp; WS Routers (/api/*)</text>
+  <text x="360" y="190" font-size="12" fill="#111111">alerts.py: POST /detection-event</text>
+  <text x="372" y="206" font-size="11" fill="#4A4A4A">GET /alerts, /devices/{id}/trust-score</text>
+  <text x="360" y="228" font-size="12" fill="#111111">devices.py, stats.py, heatmap.py</text>
+  <text x="372" y="244" font-size="11" fill="#4A4A4A">/devices (/24 masked), /stats, /heatmap</text>
+  <text x="360" y="266" font-size="12" fill="#111111">integrity_router.py</text>
+  <text x="372" y="282" font-size="11" fill="#4A4A4A">/integrity/stats, /integrity/{id}</text>
+  <text x="360" y="304" font-size="12" fill="#111111">audit_router.py</text>
+  <text x="372" y="320" font-size="11" fill="#4A4A4A">/audit/ledger, /verify, /chain-proof, /anchor</text>
+  <text x="360" y="342" font-size="12" fill="#111111">censys_router.py</text>
+  <text x="372" y="358" font-size="11" fill="#4A4A4A">/censys/snapshots, /devices/provenance</text>
+  <text x="360" y="380" font-size="12" fill="#111111">analytics_router.py &amp; decay_router.py</text>
+  <text x="372" y="396" font-size="11" fill="#4A4A4A">/analytics/*, /decay-curve</text>
+  <text x="360" y="418" font-size="12" fill="#111111">config_router.py &amp; nl_query_router.py</text>
+  <text x="360" y="440" font-size="12" fill="#111111">news.py &amp; brief.py</text>
+  <text x="360" y="462" font-size="12" fill="#4A4A4A">scenarios_router &amp; attack_simulator (demo)</text>
+  <text x="360" y="484" font-size="12" fill="#111111">WS /api/ws/alerts (ConnectionManager)</text>
+  <text x="360" y="514" font-size="11" font-weight="700" fill="#1F4E79">REMOVED: /api/heartbeat/* (404)</text>
+  <text x="360" y="532" font-size="11" fill="#4A4A4A">OpenAPI synced -> frontend schema.d.ts</text>
+  <text x="360" y="550" font-size="11" fill="#4A4A4A">GET /health -> service liveness only</text>
+
+  <!-- Services Box -->
+  <rect x="614" y="142" width="258" height="442" rx="4" fill="#FFFFFF" stroke="#1F4E79" stroke-width="2" />
+  <text x="626" y="164" font-size="14" font-weight="700" fill="#1F4E79">Domain Services (backend/services/)</text>
+  <text x="626" y="190" font-size="12" font-weight="700" fill="#111111">trust_score_service.py</text>
+  <text x="638" y="206" font-size="11" fill="#4A4A4A">WA, Advanced, Bayesian, IG-DCTF, decay</text>
+  <text x="626" y="230" font-size="12" font-weight="700" fill="#111111">signal_integrity_service.py</text>
+  <text x="638" y="246" font-size="11" fill="#4A4A4A">Tier 1 Drift + Tier 2 L(t) + Gate G(s)</text>
+  <text x="626" y="270" font-size="12" fill="#111111">vulnerability_service.py</text>
+  <text x="638" y="286" font-size="11" fill="#4A4A4A">CVE/CVSS/KEV/EPSS severity matching</text>
+  <text x="626" y="310" font-size="12" fill="#111111">corroboration &amp; collusion_graph</text>
+  <text x="638" y="326" font-size="11" fill="#4A4A4A">Spatial verification + ring cycles (+GNN)</text>
+  <text x="626" y="350" font-size="12" fill="#111111">ownership &amp; classifier &amp; auth_detection</text>
+  <text x="626" y="374" font-size="12" fill="#111111">cold_start_service.py</text>
+  <text x="638" y="390" font-size="11" fill="#4A4A4A">Conservative priors for sparse telemetry</text>
+  <text x="626" y="414" font-size="12" font-weight="700" fill="#111111">audit_ledger.py</text>
+  <text x="638" y="430" font-size="11" fill="#4A4A4A">SHA-256 Merkle chain + verification proof</text>
+  <text x="626" y="454" font-size="12" fill="#111111">notification_service.py</text>
+  <text x="626" y="478" font-size="12" fill="#111111">claude_service, news_service, shodan</text>
+  <text x="638" y="494" font-size="11" fill="#4A4A4A">Gated cleanly when external keys absent</text>
+
+  <!-- Database Layer inside Column 2 bottom -->
+  <rect x="348" y="604" width="524" height="100" rx="4" fill="#FFFFFF" stroke="#111111" stroke-width="1.5" />
+  <text x="360" y="628" font-size="14" font-weight="700" fill="#111111">SQLite Persistence (backend/database.py)</text>
+  <text x="360" y="650" font-size="12" fill="#4A4A4A">Tables: devices (geo_source, banner_fingerprint, drift, signal_integrity_score), alerts (demo flag),</text>
+  <text x="360" y="668" font-size="12" fill="#4A4A4A">audit_ledger (hash-chained entries), corroborations, news_articles, risk_briefs.</text>
+  <text x="360" y="688" font-size="12" fill="#1F4E79">Default public runtime uses sanitized data/public.db (masks host octets to /24).</text>
+
+  <!-- Column 3: Next.js Frontend -->
+  <rect x="930" y="95" width="280" height="630" rx="6" fill="#F7F7F7" stroke="#1F4E79" stroke-width="1.5" />
+  <text x="946" y="122" font-size="16" font-weight="700" fill="#111111">3. Next.js 16 Frontend</text>
+
+  <rect x="948" y="142" width="244" height="132" rx="4" fill="#FFFFFF" stroke="#1F4E79" stroke-width="2" />
+  <text x="960" y="164" font-size="14" font-weight="700" fill="#1F4E79">/ &amp; /research (Evidence UI)</text>
+  <text x="960" y="184" font-size="12" fill="#111111">real-tier2.ts reads eval/results/</text>
+  <text x="960" y="202" font-size="12" fill="#4A4A4A">Side-by-side v1 vs v2, Wilson &amp; Poisson CIs</text>
+  <text x="960" y="220" font-size="12" fill="#4A4A4A">Dev vs held-out badges, dropped counts</text>
+  <text x="960" y="238" font-size="12" fill="#4A4A4A">Synthetic corpus quarantined under chip</text>
+  <text x="960" y="256" font-size="12" fill="#4A4A4A">Why synthetic fixtures used section</text>
+
+  <rect x="948" y="292" width="244" height="162" rx="4" fill="#FFFFFF" stroke="#111111" stroke-width="1.5" />
+  <text x="960" y="314" font-size="14" font-weight="700" fill="#111111">/console &amp; /console/devices/[id]</text>
+  <text x="960" y="334" font-size="12" fill="#111111">SimulatedBanner (uses /devices/provenance)</text>
+  <text x="960" y="352" font-size="12" fill="#4A4A4A">MapLibre + India/South Asia GeoJSON</text>
+  <text x="960" y="370" font-size="12" fill="#4A4A4A">Alert Stream (live WS + Demo tags)</text>
+  <text x="960" y="388" font-size="12" fill="#4A4A4A">Inspector &amp; DeviceForensics</text>
+  <text x="960" y="406" font-size="12" fill="#4A4A4A">(Simulated fixture badges + HoodGauge)</text>
+  <text x="960" y="424" font-size="12" fill="#4A4A4A">AnalyticsDrawer (5 tabs + Merkle check)</text>
+
+  <rect x="948" y="472" width="244" height="106" rx="4" fill="#FFFFFF" stroke="#111111" stroke-width="1.5" />
+  <text x="960" y="494" font-size="14" font-weight="700" fill="#111111">/lab &amp; /ethics</text>
+  <text x="960" y="514" font-size="12" fill="#4A4A4A">/lab: live G(s) curve (lib/scoring/gate.ts,</text>
+  <text x="960" y="532" font-size="12" fill="#4A4A4A">verified on 748 Python gate vectors)</text>
+  <text x="960" y="550" font-size="12" fill="#4A4A4A">/ethics: passive boundary, IT Act, DPDP,</text>
+  <text x="960" y="566" font-size="12" fill="#4A4A4A">simulated-data justification</text>
+
+  <rect x="948" y="596" width="244" height="108" rx="4" fill="#FFFFFF" stroke="#6E6E6E" stroke-width="1.5" stroke-dasharray="6 4" />
+  <text x="960" y="618" font-size="14" font-weight="700" fill="#111111">/console-preview (Offline Fallback)</text>
+  <text x="960" y="638" font-size="12" fill="#4A4A4A">DemoBanner + RFC 5737 fixtures</text>
+  <text x="960" y="656" font-size="12" fill="#4A4A4A">Zero backend required during</text>
+  <text x="960" y="674" font-size="12" fill="#4A4A4A">network/API failures in live demo</text>
+
+  <!-- Connecting Arrows -->
+  <line x1="274" y1="190" x2="344" y2="350" stroke="#1F4E79" stroke-width="1.8" marker-end="url(#arrowAccent)" />
+  <line x1="274" y1="298" x2="344" y2="192" stroke="#1F4E79" stroke-width="1.8" marker-end="url(#arrowAccent)" />
+  <path d="M 274 338 L 310 338 L 310 80 L 948 190" fill="none" stroke="#1F4E79" stroke-width="1.8" marker-end="url(#arrowAccent)" />
+  <line x1="274" y1="427" x2="344" y2="275" stroke="#111111" stroke-width="1.5" marker-end="url(#arrow)" />
+  <line x1="274" y1="540" x2="344" y2="650" stroke="#6E6E6E" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arrow)" />
+  <line x1="594" y1="320" x2="610" y2="320" stroke="#111111" stroke-width="1.8" marker-end="url(#arrow)" />
+  <line x1="594" y1="584" x2="594" y2="600" stroke="#111111" stroke-width="1.5" marker-end="url(#arrow)" />
+  <line x1="872" y1="630" x2="750" y2="588" stroke="#111111" stroke-width="1.5" marker-end="url(#arrow)" />
+  <line x1="890" y1="360" x2="944" y2="360" stroke="#1F4E79" stroke-width="1.8" marker-end="url(#arrowAccent)" />
+</svg>

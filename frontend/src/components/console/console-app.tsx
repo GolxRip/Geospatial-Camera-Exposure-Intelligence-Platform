@@ -1,10 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { useProvenance } from '@/lib/api/console-hooks';
 import { useConsoleData } from '@/lib/data/use-console-data';
 import { env } from '@/lib/env';
 import { ConsoleShell } from './console-shell';
+import { SimulatedBanner } from './simulated-banner';
 
 const CITY_VIEWPORT: Record<string, { center: [number, number]; zoom: number }> = {
   'All India': { center: [78.9629, 20.5937], zoom: 4.1 },
@@ -23,21 +23,7 @@ export function ConsoleApp() {
   const [selected, setSelected] = React.useState<string | null>(null);
   const [city, setCity] = React.useState('All India');
   const { data, actions } = useConsoleData(selected, city);
-  const provenanceQ = useProvenance(city);
   const viewport = CITY_VIEWPORT[city] ?? CITY_VIEWPORT['All India']!;
-
-  const prov = provenanceQ.data;
-  const banner =
-    prov && prov.synthetic_devices > 0 ? (
-      <div
-        role="status"
-        className="border-b border-dashed border-bone-2/60 bg-ink-1 px-4 py-1.5 text-center text-xs text-bone"
-      >
-        Simulated records active: {prov.synthetic_devices} of {prov.total_devices} displayed
-        devices in {prov.city} carry seeded fixture attributes (positions estimated via
-        OpenStreetMap city bounds).
-      </div>
-    ) : undefined;
 
   return (
     <ConsoleShell
@@ -50,7 +36,7 @@ export function ConsoleApp() {
       mapStyleUrl={env.mapStyleUrl}
       mapCenter={viewport.center}
       mapZoom={viewport.zoom}
-      banner={banner}
+      banner={<SimulatedBanner city={city} />}
     />
   );
 }

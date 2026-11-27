@@ -37,6 +37,7 @@ function toMapDevice(d: Device): MapDevice {
     label: d.manufacturer ? `${d.manufacturer} ${d.id.slice(0, 6)}` : d.id.slice(0, 12),
     ownerType: d.owner_type ?? undefined,
     score: d.trust_score ?? null,
+    geoSource: d.geo_source ?? undefined,
   };
 }
 
@@ -67,6 +68,7 @@ function toDeviceDetail(
   ts: TrustScore,
   decayData: { decay_series: { hour: number; score: number }[] } | undefined,
   auditData: { entries: { sequence_id?: number; hash?: string; payload?: Record<string, unknown> }[]; count: number } | undefined,
+  geoSource?: string,
 ): DeviceDetail {
   // Channel A factors
   const factorDetails = (ts as unknown as { factor_details?: { label: string; delta: number; is_kev?: boolean }[] }).factor_details;
@@ -143,6 +145,7 @@ function toDeviceDetail(
     gateTripped: ts.integrity_gate_tripped,
     score: ts.trust_score ?? null,
     basis: 'on demand',
+    geoSource,
     channelA: {
       tCve: ts.cyber_trust_score ?? ts.trust_score_advanced ?? 0,
       factors,
@@ -290,7 +293,8 @@ export function useConsoleData(
     if (trustScoreQ.isLoading) return { status: 'loading' };
     if (trustScoreQ.isError) return { status: 'error', message: 'Could not load device detail' };
     if (trustScoreQ.data) {
-      return { status: 'ready', data: toDeviceDetail(trustScoreQ.data, decayQ.data, auditTrailQ.data) };
+      const geoSource = deviceMap.get(trustScoreQ.data.camera_id)?.geoSource;
+      return { status: 'ready', data: toDeviceDetail(trustScoreQ.data, decayQ.data, auditTrailQ.data, geoSource) };
     }
     return { status: 'offline' };
   })();

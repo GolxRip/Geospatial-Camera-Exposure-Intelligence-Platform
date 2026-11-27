@@ -92,7 +92,14 @@ def load_frame_dir(path: Path, width: int, max_seconds: float, fps: float) -> Cl
     return Clip(name, [_resize(f, width) for f in frames], fps) if frames else None
 
 
-def discover(root: Path, width: int, max_seconds: float, dir_fps: float, min_seconds: float) -> list[Clip]:
+def discover(
+    root: Path,
+    width: int,
+    max_seconds: float,
+    dir_fps: float,
+    min_seconds: float,
+    skipped_out: list[str] | None = None,
+) -> list[Clip]:
     clips = []
     candidates = [root, *sorted(root.rglob("*"))]
     for p in candidates:
@@ -110,6 +117,8 @@ def discover(root: Path, width: int, max_seconds: float, dir_fps: float, min_sec
             clips.append(c)
             print(f"  loaded {c.name}: {len(c.frames)} frames, {c.seconds:.1f}s @ {c.fps:.0f}fps")
         else:
+            if skipped_out is not None:
+                skipped_out.append(c.name)
             print(f"  skipped {c.name}: {c.seconds:.1f}s < --min-seconds {min_seconds:.1f}")
     return clips
 
@@ -270,7 +279,8 @@ def main():
         sys.exit(f"Unknown attack(s): {', '.join(unknown)}. Choices: {', '.join(ATTACKS)}")
 
     print(f"Loading footage from {args.data} ...")
-    clips = discover(args.data, args.width, args.max_seconds, args.dir_fps, args.min_seconds)
+    skipped_clips: list[str] = []
+    clips = discover(args.data, args.width, args.max_seconds, args.dir_fps, args.min_seconds, skipped_out=skipped_clips)
     if not clips:
         sys.exit(f"No usable videos found (each needs at least {args.min_seconds:g} seconds).")
 
@@ -317,6 +327,7 @@ def main():
         "",
         f"- Dataset: {dataset_label}",
         f"- Date: {run_utc}",
+        f"- Clips: {len(clips)} evaluated, {len(skipped_clips)} dropped (< {args.min_seconds:g}s)",
         f"- Command: `{cmd_str}`",
         "",
     ]

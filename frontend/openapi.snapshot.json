@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "COBRA-WATCH API",
-    "description": "Geospatial Camera Exposure Intelligence Platform — OSINT surveillance mapping",
+    "description": "Geospatial Camera Exposure Intelligence Platform \u2014 OSINT surveillance mapping",
     "version": "2.0.0"
   },
   "paths": {
@@ -235,7 +235,7 @@
     "/api/detection-event": {
       "post": {
         "summary": "Receive Detection Event",
-        "description": "Real detection event ingestion — Major Project Enhanced Pipeline (Module G: IG-DCTF).\n\nFlow (IG-DCTF Primary)\n----------------------\n0. Security: idempotency key, rate limit, timestamp freshness\n1. Load device from DB (404 if not found)\n2. [Module G Tier-1] Banner-fingerprint drift: record_device_drift_and_integrity()\n   computes Drift(d,t) from stored raw_data vs previous scan fingerprint,\n   updates devices table (banner_fingerprint, last_drift_score, signal_integrity_score,\n   integrity_gate_tripped). Returns signal_integrity for pipeline.\n3. [Module F] Re-ID cosine similarity corroboration\n4. [Module G PRIMARY] IG-DCTF: compute_ig_dctf_trust_score() fuses\n   Channel A (CVE trust) × Channel B (signal integrity) via multiplicative gate G(s).\n5. [Module C] compute_advanced_trust_score() runs in parallel (comparison / secondary).\n6. [Module B] Probabilistic scoring: compute_probabilistic_trust_score()\n7. [Module A] Time-decay: apply_trust_decay() using device.fetched_at\n8. Persist alert to DB with all scores (including signal_integrity, drift_score)\n9. Record to Merkle audit ledger with full multi-model result\n10. Tiered dispatch (Rasal 2025)\n11. Broadcast over WebSocket\n12. Return full enriched AlertResponse",
+        "description": "Real detection event ingestion \u2014 Major Project Enhanced Pipeline (Module G: IG-DCTF).\n\nFlow (IG-DCTF Primary)\n----------------------\n0. Security: idempotency key, rate limit, timestamp freshness\n1. Load device from DB (404 if not found)\n2. [Module G Tier-1] Banner-fingerprint drift: record_device_drift_and_integrity()\n   computes Drift(d,t) from stored raw_data vs previous scan fingerprint,\n   updates devices table (banner_fingerprint, last_drift_score, signal_integrity_score,\n   integrity_gate_tripped). Returns signal_integrity for pipeline.\n3. [Module F] Re-ID cosine similarity corroboration\n4. [Module G PRIMARY] IG-DCTF: compute_ig_dctf_trust_score() fuses\n   Channel A (CVE trust) \u00d7 Channel B (signal integrity) via multiplicative gate G(s).\n5. [Module C] compute_advanced_trust_score() runs in parallel (comparison / secondary).\n6. [Module B] Probabilistic scoring: compute_probabilistic_trust_score()\n7. [Module A] Time-decay: apply_trust_decay() using device.fetched_at\n8. Persist alert to DB with all scores (including signal_integrity, drift_score)\n9. Record to Merkle audit ledger with full multi-model result\n10. Tiered dispatch (Rasal 2025)\n11. Broadcast over WebSocket\n12. Return full enriched AlertResponse",
         "operationId": "receive_detection_event_api_detection_event_post",
         "parameters": [
           {
@@ -357,7 +357,7 @@
     "/api/alerts/{alert_id}/verdict": {
       "post": {
         "summary": "Record Operator Verdict",
-        "description": "Operator Ground-Truth Labelling Endpoint (Luna et al. 2018, ByteTrack 2022).\nAllows security analysts to submit a ground-truth verdict ('verified' or 'false_alarm').\n\nRequires X-API-Key authentication — unprotected verdict labelling would allow\nadversaries to poison the live precision/recall metrics (GET /api/eval/live).",
+        "description": "Operator Ground-Truth Labelling Endpoint (Luna et al. 2018, ByteTrack 2022).\nAllows security analysts to submit a ground-truth verdict ('verified' or 'false_alarm').\n\nRequires X-API-Key authentication \u2014 unprotected verdict labelling would allow\nadversaries to poison the live precision/recall metrics (GET /api/eval/live).",
         "operationId": "record_operator_verdict_api_alerts__alert_id__verdict_post",
         "parameters": [
           {
@@ -656,7 +656,7 @@
     "/api/audit/anchor": {
       "get": {
         "summary": "Get Audit Anchor",
-        "description": "External Anchoring Endpoint — head hash for cross-operator tamper detection.\n\nReturns the current audit chain head hash with a timestamp. Publishing this\nvalue to any external channel (GitHub Gist, public Slack, pastebin, etc.)\ncreates a cross-operator witness: an adversary who rewrites the SQLite DB\ncannot retroactively change the published hash without detection.\n\nSecurity model:\n  - Without external anchoring: tamper-evident against external parties, but\n    NOT against the system operator who controls the DB.\n  - With external anchoring: tamper-evident against ALL parties including\n    the operator, because the pre-rewrite hash is publicly on record.\n\nRecommended anchoring workflow (no blockchain needed):\n  1. Call GET /api/audit/anchor to get the current head_hash.\n  2. POST it to a public GitHub Gist or append to a public log.\n  3. Any future integrity challenge can compare against the published record.\n\nThis upgrades the ledger from \"operator-witnessed\" to \"externally-anchored\"\ntamper detection, as recommended by Zhang et al. (IoT Botnet Forensics, 2020).",
+        "description": "External Anchoring Endpoint \u2014 head hash for cross-operator tamper detection.\n\nReturns the current audit chain head hash with a timestamp. Publishing this\nvalue to any external channel (GitHub Gist, public Slack, pastebin, etc.)\ncreates a cross-operator witness: an adversary who rewrites the SQLite DB\ncannot retroactively change the published hash without detection.\n\nSecurity model:\n  - Without external anchoring: tamper-evident against external parties, but\n    NOT against the system operator who controls the DB.\n  - With external anchoring: tamper-evident against ALL parties including\n    the operator, because the pre-rewrite hash is publicly on record.\n\nRecommended anchoring workflow (no blockchain needed):\n  1. Call GET /api/audit/anchor to get the current head_hash.\n  2. POST it to a public GitHub Gist or append to a public log.\n  3. Any future integrity challenge can compare against the published record.\n\nThis upgrades the ledger from \"operator-witnessed\" to \"externally-anchored\"\ntamper detection, as recommended by Zhang et al. (IoT Botnet Forensics, 2020).",
         "operationId": "get_audit_anchor_api_audit_anchor_get",
         "responses": {
           "200": {
@@ -673,7 +673,7 @@
     "/api/audit/velocity": {
       "get": {
         "summary": "Get Corroboration Velocity",
-        "description": "Corroboration Velocity Alerts — suspicious camera pair detection.\n\nReturns all camera pairs that have corroborated each other more than\nVELOCITY_THRESHOLD times in the rolling VELOCITY_WINDOW_MINUTES window.\n\nThis implements the Red Team v2 residual risk mitigation documented in\nred_team_findings.md (Attack 1: Spoofed Corroboration):\n  - If an attacker seeds fake camera_adjacency rows and spams detection events\n    from those cameras, the pair counter spikes above VELOCITY_THRESHOLD.\n  - Operators can review flagged pairs and inspect their adjacency records.\n\nAn empty list means no suspicious velocity patterns are currently active.",
+        "description": "Corroboration Velocity Alerts \u2014 suspicious camera pair detection.\n\nReturns all camera pairs that have corroborated each other more than\nVELOCITY_THRESHOLD times in the rolling VELOCITY_WINDOW_MINUTES window.\n\nThis implements the Red Team v2 residual risk mitigation documented in\nred_team_findings.md (Attack 1: Spoofed Corroboration):\n  - If an attacker seeds fake camera_adjacency rows and spams detection events\n    from those cameras, the pair counter spikes above VELOCITY_THRESHOLD.\n  - Operators can review flagged pairs and inspect their adjacency records.\n\nAn empty list means no suspicious velocity patterns are currently active.",
         "operationId": "get_corroboration_velocity_api_audit_velocity_get",
         "responses": {
           "200": {
@@ -690,7 +690,7 @@
     "/api/audit/integrity-trips": {
       "get": {
         "summary": "Get Integrity Gate Trips",
-        "description": "Dedicated INTEGRITY_GATE_TRIP ledger entries (§4.6) — every time a\ncamera's IG-DCTF signal integrity gate tripped, independently queryable\nfrom the normal TRUST_DECISION entries (which only carry the trip as a\nfactor string). Newest first.",
+        "description": "Dedicated INTEGRITY_GATE_TRIP ledger entries (\u00a74.6) \u2014 every time a\ncamera's IG-DCTF signal integrity gate tripped, independently queryable\nfrom the normal TRUST_DECISION entries (which only carry the trip as a\nfactor string). Newest first.",
         "operationId": "get_integrity_gate_trips_api_audit_integrity_trips_get",
         "parameters": [
           {
@@ -733,7 +733,7 @@
     "/api/audit/collusion": {
       "get": {
         "summary": "Get Collusion Clusters",
-        "description": "Graph-Based Collusion/Sybil Detection (§5.3) — distributed corroboration\nrings the pairwise velocity tracker (GET /api/audit/velocity) cannot see.\n\nBuilds a graph over the corroboration network (edges = camera pairs\ncorroborating above a low per-edge threshold in the rolling window) and\nflags connected components of 4+ cameras whose edge count guarantees a\ncycle — the fingerprint of fabricated/collusive adjacency rather than\nindependent corroboration.\n\nAn empty list means no distributed collusion pattern is currently active.",
+        "description": "Graph-Based Collusion/Sybil Detection (\u00a75.3) \u2014 distributed corroboration\nrings the pairwise velocity tracker (GET /api/audit/velocity) cannot see.\n\nBuilds a graph over the corroboration network (edges = camera pairs\ncorroborating above a low per-edge threshold in the rolling window) and\nflags connected components of 4+ cameras whose edge count guarantees a\ncycle \u2014 the fingerprint of fabricated/collusive adjacency rather than\nindependent corroboration.\n\nAn empty list means no distributed collusion pattern is currently active.",
         "operationId": "get_collusion_clusters_api_audit_collusion_get",
         "responses": {
           "200": {
@@ -750,7 +750,7 @@
     "/api/audit/collusion/gnn": {
       "get": {
         "summary": "Get Collusion Gnn Scores",
-        "description": "§5.3 upgrade — the same corroboration graph, scored by a trained GNN\n(backend/services/gnn_collusion_model.py) instead of the pure cycle-count\nheuristic above. Returns a continuous P(colluding) per active camera.\n\nRequires training first: `python scripts/train_gnn_collusion_model.py`\n(see GNN_TRAINING_GUIDE.md). Returns HTTP 503 with setup instructions if\nno trained weights exist yet — this endpoint never trains a model itself.",
+        "description": "\u00a75.3 upgrade \u2014 the same corroboration graph, scored by a trained GNN\n(backend/services/gnn_collusion_model.py) instead of the pure cycle-count\nheuristic above. Returns a continuous P(colluding) per active camera.\n\nRequires training first: `python scripts/train_gnn_collusion_model.py`\n(see GNN_TRAINING_GUIDE.md). Returns HTTP 503 with setup instructions if\nno trained weights exist yet \u2014 this endpoint never trains a model itself.",
         "operationId": "get_collusion_gnn_scores_api_audit_collusion_gnn_get",
         "responses": {
           "200": {
@@ -825,10 +825,10 @@
             "required": false,
             "schema": {
               "type": "number",
-              "maximum": 720,
-              "minimum": 1,
+              "maximum": 720.0,
+              "minimum": 1.0,
               "description": "Trust score half-life in hours (default: 48h from Griffioen 2020)",
-              "default": 48,
+              "default": 48.0,
               "title": "Half Life Hours"
             },
             "description": "Trust score half-life in hours (default: 48h from Griffioen 2020)"
@@ -881,9 +881,9 @@
             "required": false,
             "schema": {
               "type": "number",
-              "maximum": 720,
-              "minimum": 1,
-              "default": 48,
+              "maximum": 720.0,
+              "minimum": 1.0,
+              "default": 48.0,
               "title": "Half Life Hours"
             }
           },
@@ -893,10 +893,10 @@
             "required": false,
             "schema": {
               "type": "number",
-              "maximum": 720,
-              "minimum": 1,
+              "maximum": 720.0,
+              "minimum": 1.0,
               "description": "Time horizon in hours",
-              "default": 168,
+              "default": 168.0,
               "title": "Max Hours"
             },
             "description": "Time horizon in hours"
@@ -924,102 +924,10 @@
         }
       }
     },
-    "/api/devices/{camera_id}/heartbeat": {
-      "get": {
-        "summary": "Get Camera Heartbeat",
-        "description": "On-demand heartbeat check for a single camera.\n\nReturns:\n- ping result: {reachable, latency_ms, port_used, checked_at}\n- trust_factor: {deduction, factor, status}\n- trust_impact: description of how heartbeat affects trust score\n\nAcademic note: this endpoint instantiates the YOLO Review (2025) finding\nthat camera failure/damage makes surveillance systems \"non-functional\" —\nCOBRA-WATCH converts that failure into a scored trust penalty instead.",
-        "operationId": "get_camera_heartbeat_api_devices__camera_id__heartbeat_get",
-        "parameters": [
-          {
-            "name": "camera_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Camera Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/heartbeat/status": {
-      "get": {
-        "summary": "Get Bulk Heartbeat Status",
-        "description": "Bulk heartbeat status for up to `limit` cameras in a city.\nPings all cameras concurrently with asyncio.gather for speed.\n\nReturns a list of heartbeat results with trust factor for each,\nplus a summary of online/offline/degraded counts.",
-        "operationId": "get_bulk_heartbeat_status_api_heartbeat_status_get",
-        "parameters": [
-          {
-            "name": "city",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "City name to check",
-              "title": "City"
-            },
-            "description": "City name to check"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 50,
-              "minimum": 1,
-              "description": "Max cameras to ping (max 50)",
-              "default": 20,
-              "title": "Limit"
-            },
-            "description": "Max cameras to ping (max 50)"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/analytics/trust-distribution": {
       "get": {
         "summary": "Get Trust Distribution",
-        "description": "Trust score distribution across recent alerts.\n\nReturns bucket counts for trust tiers (for histogram visualization):\n- critical_low  (0–20): highest risk\n- low           (21–49): low trust\n- medium        (50–79): medium trust\n- high          (80–100): high trust (verified genuine)\n\nAlso returns the distribution of action_tiers and average trust scores.",
+        "description": "Trust score distribution across recent alerts AND fleet static-posture tiers.\nReal and demo alerts are counted separately (`real_total_alerts`, `demo_total_alerts`)\nso simulated traffic is never confused with real traffic.",
         "operationId": "get_trust_distribution_api_analytics_trust_distribution_get",
         "parameters": [
           {
@@ -1080,7 +988,7 @@
     "/api/analytics/alert-timeline": {
       "get": {
         "summary": "Get Alert Timeline",
-        "description": "Hourly alert frequency timeline for the last N hours.\n\nReturns a list of {hour, count, high_trust, medium_trust, low_trust} buckets\nfor the AnalyticsPanel \"Threats\" tab time-series chart.",
+        "description": "Hourly alert frequency timeline for the last N hours.\n\nReturns `{hour, count, real_count, demo_count, high_trust, medium_trust, low_trust}`\nbuckets using the actual `alerts.is_demo` flag.",
         "operationId": "get_alert_timeline_api_analytics_alert_timeline_get",
         "parameters": [
           {
@@ -1139,7 +1047,7 @@
     "/api/analytics/score-comparison": {
       "get": {
         "summary": "Get Score Comparison",
-        "description": "Per-alert comparison of WA, Probabilistic, and Decayed trust scores.\nReturns the last `limit` alerts with all three score columns side-by-side.\nEnables the academic dual-model analysis described in the Major Project report.",
+        "description": "Per-alert comparison of WA, Probabilistic, and Decayed trust scores.",
         "operationId": "get_score_comparison_api_analytics_score_comparison_get",
         "parameters": [
           {
@@ -1196,7 +1104,7 @@
     "/api/analytics/summary": {
       "get": {
         "summary": "Get Analytics Summary",
-        "description": "High-level system overview for the AnalyticsPanel dashboard banner.\nReturns total devices, total alerts (24h), tier distribution, and integrity status.",
+        "description": "High-level system overview for the AnalyticsPanel dashboard banner.\nReturns total devices, total alerts (24h, split real vs demo), tier distribution,\nand integrity status.",
         "operationId": "get_analytics_summary_api_analytics_summary_get",
         "parameters": [
           {
@@ -1241,14 +1149,44 @@
     "/api/integrity/stats": {
       "get": {
         "summary": "Get Integrity Fleet Stats",
-        "description": "Fleet-Level IG-DCTF Signal Integrity Dashboard Summary.\n\nReturns:\n- Total devices monitored\n- Integrity gate trip counts (hard_gated, tapered, nominal)\n- Drift score distribution (mean, max, pct > 0.15 anomaly threshold)\n- Top-5 most anomalous devices by drift score\n- City-level breakdown",
+        "description": "Fleet-Level IG-DCTF Signal Integrity Dashboard Summary.\n\nReturns:\n- Total devices monitored\n- Integrity gate trip counts (hard_gated, tapered, nominal)\n- Baseline fingerprint coverage (`has_baseline_count`, `without_baseline_count`)\n- Drift score distribution (mean, max, pct > 0.15 anomaly threshold)\n- Top-5 most anomalous devices by drift score\n- City-level breakdown",
         "operationId": "get_integrity_fleet_stats_api_integrity_stats_get",
+        "parameters": [
+          {
+            "name": "city",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional city filter",
+              "title": "City"
+            },
+            "description": "Optional city filter"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -1296,7 +1234,7 @@
     "/api/simulate/replay-attack": {
       "post": {
         "summary": "Simulate Replay Attack",
-        "description": "Send the identical `idempotency_key` twice for the same camera.\nExpected defense: second attempt → HTTP 409 (see alerts.py Step 0).",
+        "description": "Send the identical `idempotency_key` twice for the same camera.\nExpected defense: second attempt \u2192 HTTP 409 (see alerts.py Step 0).",
         "operationId": "simulate_replay_attack_api_simulate_replay_attack_post",
         "responses": {
           "200": {
@@ -1330,7 +1268,7 @@
     "/api/simulate/rate-flood": {
       "post": {
         "summary": "Simulate Rate Flood",
-        "description": "Fire MAX_EVENTS_PER_MINUTE + 3 detection events at the same camera back to back.\nExpected defense: requests beyond the per-minute cap → HTTP 429.",
+        "description": "Fire MAX_EVENTS_PER_MINUTE + 3 detection events at the same camera back to back.\nExpected defense: requests beyond the per-minute cap \u2192 HTTP 429.",
         "operationId": "simulate_rate_flood_api_simulate_rate_flood_post",
         "responses": {
           "200": {
@@ -1347,7 +1285,7 @@
     "/api/simulate/collusion-ring": {
       "post": {
         "summary": "Simulate Collusion Ring",
-        "description": "Sets up 4 cameras in a corroboration RING (A-B-C-D-A) and drives real\ndetection events around the ring twice — enough for every edge to cross\nGRAPH_EDGE_MIN_COUNT while each individual pairwise edge stays under the\nsingle-pair velocity threshold (5/60min) — exactly the distributed-collusion\nblind spot §5.3 was built to catch. Then runs the real graph detector.",
+        "description": "Sets up 4 cameras in a corroboration RING (A-B-C-D-A) and drives real\ndetection events around the ring twice \u2014 enough for every edge to cross\nGRAPH_EDGE_MIN_COUNT while each individual pairwise edge stays under the\nsingle-pair velocity threshold (5/60min) \u2014 exactly the distributed-collusion\nblind spot \u00a75.3 was built to catch. Then runs the real graph detector.",
         "operationId": "simulate_collusion_ring_api_simulate_collusion_ring_post",
         "responses": {
           "200": {
@@ -1381,7 +1319,7 @@
     "/api/nl-query": {
       "post": {
         "summary": "Parse Natural Language Query",
-        "description": "Returns the sanitized structured filter, or a null-filter fallback with\n`search_text` set to the raw query if Groq is unavailable/unparseable —\nthe frontend then just falls back to a plain text search, never a hard error.",
+        "description": "Returns the sanitized structured filter, or a null-filter fallback with\n`search_text` set to the raw query if Groq is unavailable/unparseable \u2014\nthe frontend then just falls back to a plain text search, never a hard error.",
         "operationId": "parse_natural_language_query_api_nl_query_post",
         "requestBody": {
           "content": {
@@ -1461,6 +1399,85 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/censys/snapshots": {
+      "get": {
+        "summary": "List Censys Snapshots",
+        "description": "Load real saved Censys aggregate snapshots from `data/censys/*/snapshot.json`.\nNever fabricates data: returns an empty list with `available: false` when\nno snapshot has been saved yet.",
+        "operationId": "list_censys_snapshots_api_censys_snapshots_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/devices/provenance": {
+      "get": {
+        "summary": "Get Device Provenance",
+        "description": "Honest device dataset composition breakdown by `geo_source` and city.\nUsed by the UI to tell operators plainly what fraction of points come from\nCensys metadata, OpenStreetMap nodes, live scanner results, or demo fill.",
+        "operationId": "get_device_provenance_api_devices_provenance_get",
+        "parameters": [
+          {
+            "name": "city",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "City"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/results": {
+      "get": {
+        "summary": "Get Paper Results",
+        "description": "Serve `paper/data/results.json` read-only (FRONTEND_SPEC.md section 16 B8).",
+        "operationId": "get_paper_results_api_results_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -1761,10 +1778,10 @@
           },
           "confidence": {
             "type": "number",
-            "maximum": 1,
-            "minimum": 0,
+            "maximum": 1.0,
+            "minimum": 0.0,
             "title": "Confidence",
-            "default": 0
+            "default": 0.0
           },
           "detected_at": {
             "anyOf": [
@@ -1821,8 +1838,8 @@
             "anyOf": [
               {
                 "type": "number",
-                "maximum": 1,
-                "minimum": 0
+                "maximum": 1.0,
+                "minimum": 0.0
               },
               {
                 "type": "null"
@@ -1843,7 +1860,7 @@
           "event_type"
         ],
         "title": "DetectionEvent",
-        "description": "Fixed contract — Phase 3 (video AI pipeline) POSTs this exact shape.\nExtended for BTP Module F with optional feature_embedding field."
+        "description": "Fixed contract \u2014 Phase 3 (video AI pipeline) POSTs this exact shape.\nExtended for BTP Module F with optional feature_embedding field."
       },
       "HTTPValidationError": {
         "properties": {

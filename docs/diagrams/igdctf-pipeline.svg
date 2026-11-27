@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 680" width="1240" height="680" font-family="DejaVu Sans, Arial, Helvetica, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#111111" />
+    </marker>
+    <marker id="arrBlue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#1F4E79" />
+    </marker>
+  </defs>
+
+  <rect width="1240" height="680" fill="#FFFFFF" />
+
+  <!-- Header -->
+  <text x="36" y="42" font-size="22" font-weight="700" fill="#111111">IG-DCTF Dual-Channel Scoring &amp; Tier 2 Liveness Pipeline</text>
+  <text x="36" y="66" font-size="14" fill="#4A4A4A">Exact computation flow across alerts.py, trust_score_service.py, signal_integrity_service.py, and liveness_detector.py</text>
+
+  <!-- Input Stage -->
+  <rect x="30" y="210" width="190" height="190" rx="6" fill="#F7F7F7" stroke="#111111" stroke-width="1.5" />
+  <text x="44" y="236" font-size="15" font-weight="700" fill="#111111">Input Event</text>
+  <text x="44" y="262" font-size="12" fill="#111111">POST /api/detection-event</text>
+  <text x="44" y="284" font-size="11" fill="#4A4A4A">- camera_id, event_type</text>
+  <text x="44" y="302" font-size="11" fill="#4A4A4A">- confidence, metadata</text>
+  <text x="44" y="320" font-size="11" fill="#1F4E79">- visual_liveness (optional)</text>
+  <text x="44" y="344" font-size="11" fill="#4A4A4A">+ Stored DB Device Profile</text>
+  <text x="44" y="362" font-size="11" fill="#4A4A4A">(banner, ports, firmware,</text>
+  <text x="44" y="380" font-size="11" fill="#4A4A4A">auth, owner, CVEs)</text>
+
+  <!-- Channel A Box (Top) -->
+  <rect x="260" y="96" width="380" height="164" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="1.5" />
+  <text x="276" y="122" font-size="15" font-weight="700" fill="#111111">Channel A: Vulnerability Posture (T_cve)</text>
+  <text x="276" y="144" font-size="12" fill="#4A4A4A">vulnerability_service + ownership_service + cold_start_service</text>
+  <text x="276" y="168" font-size="12" fill="#111111">1. NVD / CISA KEV / EPSS severity deductions</text>
+  <text x="276" y="188" font-size="12" fill="#111111">2. Auth required + Firmware age (&gt; 2 yrs) + Owner tier</text>
+  <text x="276" y="208" font-size="12" fill="#111111">3. Spatial corroboration &amp; collusion ring check</text>
+  <text x="276" y="238" font-size="13" font-weight="700" fill="#111111">Output: T_cve in [0, 100]</text>
+
+  <!-- Channel B Tier 1 Box (Middle) -->
+  <rect x="260" y="280" width="380" height="114" rx="6" fill="#FFFFFF" stroke="#1F4E79" stroke-width="1.8" />
+  <text x="276" y="304" font-size="15" font-weight="700" fill="#1F4E79">Channel B, Tier 1: Passive Banner Drift</text>
+  <text x="276" y="324" font-size="12" fill="#4A4A4A">signal_integrity_service.compute_banner_drift()</text>
+  <text x="276" y="346" font-size="12" fill="#111111">Weighted change over 6 fields: Firmware 0.25, HTTP Server 0.20,</text>
+  <text x="276" y="364" font-size="12" fill="#111111">Ports Jaccard 0.20, Resolution 0.20, Product 0.10, Codec 0.05</text>
+  <text x="276" y="384" font-size="12" font-weight="700" fill="#1F4E79">Flagged if Drift &gt; 0.15 -> (1 - Drift)</text>
+
+  <!-- Channel B Tier 2 Box (Bottom) -->
+  <rect x="260" y="414" width="380" height="236" rx="6" fill="#F7FAFC" stroke="#1F4E79" stroke-width="2" />
+  <text x="276" y="440" font-size="15" font-weight="700" fill="#1F4E79">Channel B, Tier 2: FrameLivenessTracker v2</text>
+  <text x="276" y="460" font-size="12" fill="#4A4A4A">video_pipeline/liveness_detector.py (frozen commit 023c5c4)</text>
+  <text x="276" y="484" font-size="12" fill="#111111">- Freeze: 8x8 pHash (d &lt;= 1) AND strided pixel MAD &lt;= 0.25 (25 frames)</text>
+  <text x="276" y="504" font-size="12" fill="#111111">- Replay Loop: INTER_NEAREST 16x16 lag &gt;= 25 + prefix cycle motion</text>
+  <text x="276" y="524" font-size="12" fill="#111111">- Quality Drift &amp; Cover: anchored Laplacian + contrast floor (not dark-from-0)</text>
+  <text x="276" y="544" font-size="12" fill="#111111">- Partial Cover: 8x8 dead-block grid (&gt;= 12 of 64 flat/shifted blocks)</text>
+  <text x="276" y="564" font-size="12" fill="#111111">- Displaced (moved): coherent lock + 32x32 Sobel edge &amp; layout corr</text>
+  <text x="276" y="584" font-size="12" fill="#111111">- Spec Mismatch: live dimensions vs. declared stream resolution</text>
+  <text x="276" y="610" font-size="12" font-weight="700" fill="#1F4E79">L(t) = 1 - max(1.0*Tamper, 0.60*QualityDrift, 0.50*SpecMismatch)</text>
+  <text x="276" y="632" font-size="11" fill="#4A4A4A">Defaults L(t) = 1.0 when no authorized stream is attached</text>
+
+  <!-- Gate & Fusion Stage -->
+  <rect x="690" y="190" width="270" height="270" rx="6" fill="#FFFFFF" stroke="#111111" stroke-width="2" />
+  <text x="706" y="218" font-size="16" font-weight="700" fill="#111111">Multiplicative Gate G(s)</text>
+  <text x="706" y="242" font-size="13" font-weight="700" fill="#1F4E79">s = (1 - Drift) * L(t)</text>
+  <line x1="706" y1="256" x2="944" y2="256" stroke="#BDBDBD" stroke-width="1" />
+  <text x="706" y="280" font-size="13" fill="#111111">Nominal (s &gt;= 0.85):</text>
+  <text x="720" y="298" font-size="12" fill="#4A4A4A">G(s) = 1.0 (no penalty)</text>
+  <text x="706" y="324" font-size="13" fill="#111111">Tapered (0.50 &lt;= s &lt; 0.85):</text>
+  <text x="720" y="342" font-size="12" fill="#4A4A4A">G(s) = 0.30 + 0.70*(s - 0.50)/0.35</text>
+  <text x="706" y="368" font-size="13" font-weight="700" fill="#1F4E79">Hard Gated (s &lt;= 0.50):</text>
+  <text x="720" y="386" font-size="12" fill="#1F4E79">G(s) = 0.30 and Hard Cap &lt;= 30</text>
+  <line x1="706" y1="402" x2="944" y2="402" stroke="#BDBDBD" stroke-width="1" />
+  <text x="706" y="426" font-size="14" font-weight="700" fill="#111111">T_final = min(Cap, T_cve * G(s))</text>
+  <text x="706" y="446" font-size="11" fill="#4A4A4A">compute_ig_dctf_trust_score()</text>
+
+  <!-- Outputs Stage -->
+  <rect x="1008" y="150" width="202" height="350" rx="6" fill="#F7F7F7" stroke="#1F4E79" stroke-width="1.8" />
+  <text x="1022" y="178" font-size="15" font-weight="700" fill="#111111">Verdict &amp; Audit</text>
+
+  <rect x="1022" y="196" width="174" height="82" rx="4" fill="#FFFFFF" stroke="#111111" stroke-width="1.2" />
+  <text x="1032" y="218" font-size="13" font-weight="700" fill="#111111">Action Tier</text>
+  <text x="1032" y="236" font-size="12" fill="#4A4A4A">high_trust (&gt;= 80)</text>
+  <text x="1032" y="252" font-size="12" fill="#4A4A4A">medium_trust (50..79)</text>
+  <text x="1032" y="268" font-size="12" font-weight="700" fill="#1F4E79">low_trust (&lt; 50)</text>
+
+  <rect x="1022" y="294" width="174" height="90" rx="4" fill="#FFFFFF" stroke="#111111" stroke-width="1.2" />
+  <text x="1032" y="316" font-size="13" font-weight="700" fill="#111111">audit_ledger.py</text>
+  <text x="1032" y="334" font-size="11" fill="#4A4A4A">SHA-256 hash-chained</text>
+  <text x="1032" y="350" font-size="11" fill="#4A4A4A">record saved in SQLite</text>
+  <text x="1032" y="366" font-size="11" fill="#4A4A4A">Verified via /audit/verify</text>
+
+  <rect x="1022" y="400" width="174" height="82" rx="4" fill="#FFFFFF" stroke="#1F4E79" stroke-width="1.5" />
+  <text x="1032" y="422" font-size="13" font-weight="700" fill="#1F4E79">Live Broadcast</text>
+  <text x="1032" y="440" font-size="11" fill="#4A4A4A">WS /api/ws/alerts</text>
+  <text x="1032" y="456" font-size="11" fill="#4A4A4A">-> Console AlertStream</text>
+  <text x="1032" y="472" font-size="11" fill="#4A4A4A">+ /console/devices/[id]</text>
+
+  <!-- Arrows -->
+  <path d="M 220 265 L 240 265 L 240 178 L 256 178" fill="none" stroke="#111111" stroke-width="1.8" marker-end="url(#arr)" />
+  <line x1="220" y1="320" x2="256" y2="336" stroke="#1F4E79" stroke-width="1.8" marker-end="url(#arrBlue)" />
+  <path d="M 220 355 L 240 355 L 240 532 L 256 532" fill="none" stroke="#1F4E79" stroke-width="1.8" marker-end="url(#arrBlue)" />
+
+  <path d="M 640 178 L 664 178 L 664 275 L 686 275" fill="none" stroke="#111111" stroke-width="1.8" marker-end="url(#arr)" />
+  <line x1="640" y1="336" x2="686" y2="336" stroke="#1F4E79" stroke-width="1.8" marker-end="url(#arrBlue)" />
+  <path d="M 640 532 L 664 532 L 664 385 L 686 385" fill="none" stroke="#1F4E79" stroke-width="1.8" marker-end="url(#arrBlue)" />
+
+  <line x1="960" y1="325" x2="1004" y2="325" stroke="#111111" stroke-width="2.0" marker-end="url(#arr)" />
+</svg>

@@ -2,63 +2,112 @@
 
 COBRA-WATCH separates **real-footage evaluation** (`eval/results/`) from the **pre-existing synthetic benchmark** (`eval/labeled_events.json`). They are never mixed.
 
-## 1. Real-Footage Tier 2 Evaluation (`eval/tier2_real_footage.py`)
+## 1. Frozen Detector Versions (Do Not Modify Weights/Thresholds)
 
-`eval/tier2_real_footage.py` takes real surveillance videos (`.mp4`, `.avi`, `.mov`, `.mkv`, `.m4v`) or extracted frame sequences (`.jpg`, `.png`, `.bmp`, e.g., CDnet's `<sequence>/input/`), runs a clean baseline pass, injects known tampering at 40% into the clip (`freeze`, `loop`, `blur`, `slow_blur`, `cover`, `partial_cover`, `moved`, `downscale`), and measures:
-- **Detection rate** (comparing tampered alarms against the clip's own clean run at the same frames so false-alarm-prone detectors cannot cheat)
-- **Median detection delay** in seconds at both gate thresholds: `degraded` (`< 0.85`) and `tripped` (`<= 0.50`)
-- **Clean false alarms per hour** (after a warm-up window)
+- **`liveness_detector_v1:FrameLivenessTracker`** (`video_pipeline/liveness_detector_v1.py`): original un-tuned baseline implementation (commit `3d87b37`).
+- **`liveness_detector:FrameLivenessTracker`** (`video_pipeline/liveness_detector.py`): **frozen v2** detector tuned strictly on CUHK Avenue `training_videos` (`14` clips), frozen at commit `023c5c4457c986efd906b024631b3a59c6f593dd`. Held-out sets must be evaluated cleanly once without any further edits.
 
-Each run writes **`summary.csv`**, **`per_run.csv`**, and **`summary.md`** (recording Dataset, UTC Date, and exact Command) into `--out` under `eval/results/`.
+Each run of `eval/tier2_real_footage.py` writes **`summary.csv`**, **`per_run.csv`**, and **`summary.md`** (recording Dataset, UTC Date, evaluated/dropped clip counts, and exact Command) into `--out` under `eval/results/`.
 
-> **Rule:** Run `tier2_real_footage.py` **only** on real public datasets (CUHK Avenue, CDnet, own recordings) — never on synthetic noise clips as a research result.
-
-### Reproduction Commands
-
-```bash
-# 1. CUHK Avenue training clips (set --min-seconds 12 if shorter Avenue clips are skipped)
-python3 eval/tier2_real_footage.py \
-  --data ~/datasets/avenue/training_videos \
-  --dataset "CUHK Avenue (training)" \
-  --width 320 \
-  --max-seconds 90 \
-  --out eval/results/avenue_train
-
-# 2. CUHK Avenue testing clips (natural jitter / camera shake false-alarm test)
-python3 eval/tier2_real_footage.py \
-  --data ~/datasets/avenue/testing_videos \
-  --dataset "CUHK Avenue (testing)" \
-  --width 320 \
-  --max-seconds 90 \
-  --out eval/results/avenue_test
-
-# 3. CDnet frame sequences (static/weather/night scenes)
-python3 eval/tier2_real_footage.py \
-  --data ~/datasets/cdnet \
-  --dataset "CDnet-2014" \
-  --dir-fps 25 \
-  --width 320 \
-  --out eval/results/cdnet_baseline
-```
-
-### Supported Flags
-
-| Flag | Default | Purpose |
-|---|---|---|
-| `--data` | *(required)* | Root directory of `.avi`/`.mp4` videos or `.jpg`/`.png` frame folders |
-| `--out` | `eval/results/tier2` | Output directory for `summary.csv`, `per_run.csv`, and `summary.md` |
-| `--dataset` | `--data` folder name | Human-readable dataset label written into `summary.md` |
-| `--detector` | `liveness_detector:FrameLivenessTracker` | `module:Class` under `video_pipeline/` |
-| `--attacks` | all 8 attacks | Comma-separated subset (`freeze,loop,blur,slow_blur,cover,partial_cover,moved,downscale`) |
-| `--width` | `640` | Downscale width for evaluation throughput |
-| `--max-seconds` | `180` | Cap per clip in seconds |
-| `--min-seconds` | `20.0` | Minimum clip duration required |
-| `--dir-fps` | `25` | Assumed FPS when reading image-sequence directories |
-| `--min-alarm-seconds` | `1.0` | Minimum sustained alarm duration to filter single-frame flicker |
+> **Rule:** Run `tier2_real_footage.py` **only** on real public datasets (CUHK Avenue, CDnet) or researcher-owned clips (`~/datasets/own/...`) — never on synthetic noise clips as a research result.
 
 ---
 
-## 2. Legacy Synthetic Benchmark (Formula Sanity Check Only)
+## 2. Held-Out CUHK Avenue Evaluation (`testing_videos`)
+
+`avenue_test_baseline` (`v1`) is already saved. Run the frozen `v2` detector **once** on held-out `testing_videos`:
+
+```bash
+python3 eval/tier2_real_footage.py \
+  --data ~/datasets/avenue/"Avenue Dataset"/testing_videos \
+  --dataset "CUHK Avenue (testing, held-out v2)" \
+  --detector liveness_detector:FrameLivenessTracker \
+  --width 320 \
+  --min-seconds 12 \
+  --max-seconds 90 \
+  --out eval/results/avenue_test_tuned
+```
+
+---
+
+## 3. Held-Out Self-Recorded Clips: `Own clips (day)` and `Own clips (night)`
+
+Place 60 s real clips containing **no faces and no private spaces** into `~/datasets/own/day` and `~/datasets/own/night`. Evaluate **both** `v1` and `v2`:
+
+### Own clips (day) — v1 (baseline) & v2 (frozen)
+```bash
+python3 eval/tier2_real_footage.py \
+  --data ~/datasets/own/day \
+  --dataset "Own clips (day)" \
+  --detector liveness_detector_v1:FrameLivenessTracker \
+  --width 320 \
+  --min-seconds 12 \
+  --max-seconds 90 \
+  --out eval/results/own_day_v1
+
+python3 eval/tier2_real_footage.py \
+  --data ~/datasets/own/day \
+  --dataset "Own clips (day)" \
+  --detector liveness_detector:FrameLivenessTracker \
+  --width 320 \
+  --min-seconds 12 \
+  --max-seconds 90 \
+  --out eval/results/own_day_v2
+```
+
+### Own clips (night) — v1 (baseline) & v2 (frozen)
+```bash
+python3 eval/tier2_real_footage.py \
+  --data ~/datasets/own/night \
+  --dataset "Own clips (night)" \
+  --detector liveness_detector_v1:FrameLivenessTracker \
+  --width 320 \
+  --min-seconds 12 \
+  --max-seconds 90 \
+  --out eval/results/own_night_v1
+
+python3 eval/tier2_real_footage.py \
+  --data ~/datasets/own/night \
+  --dataset "Own clips (night)" \
+  --detector liveness_detector:FrameLivenessTracker \
+  --width 320 \
+  --min-seconds 12 \
+  --max-seconds 90 \
+  --out eval/results/own_night_v2
+```
+
+---
+
+## 4. Comparison Tables, Figures, and Throughput Benchmark
+
+```bash
+# Unified before/after comparison table (95% Wilson CIs + exact 95% Poisson FA/hour CIs)
+python3 eval/compare_runs.py \
+  --before eval/results/avenue_test_baseline \
+  --after eval/results/avenue_test_tuned \
+  --before-label "Avenue Test (v1)" \
+  --after-label "Avenue Test (v2 held-out)" \
+  --out-dir docs/comparisons/avenue_test
+
+# Slide/report vector figures into docs/figures/ + CAPTIONS.md
+python3 eval/make_figures.py \
+  --before eval/results/avenue_test_baseline \
+  --after eval/results/avenue_test_tuned \
+  --before-label "Baseline (v1)" \
+  --after-label "Frozen v2 (held-out)" \
+  --out-dir docs/figures
+
+# CPU throughput benchmark at 320 px and 640 px (writes outside eval/results/)
+python3 eval/benchmark_speed.py \
+  --detector liveness_detector_v1:FrameLivenessTracker,liveness_detector:FrameLivenessTracker \
+  --widths 320,640 \
+  --frames 300 \
+  --out-md docs/SPEED_BENCHMARK.md
+```
+
+---
+
+## 5. Legacy Synthetic Benchmark (Formula Sanity Check Only)
 
 The scripts below run on the **hand-authored synthetic scenarios** (`130` total, `120` directly scoreable in `eval/labeled_events.json`). They verify formula behavior and are **not real-world evidence**:
 

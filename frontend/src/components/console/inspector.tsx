@@ -13,6 +13,7 @@ import { OfflineState } from '@/components/ui/offline-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TierTag } from '@/components/ui/tier-tag';
 import { manualFacts } from '@/lib/content/facts.manual';
+import { geoProvenance } from '@/lib/api/normalize';
 import { deviceRoute } from '@/lib/constants/routes';
 import type { ConsoleActions, DeviceDetail, LoadState } from '@/lib/data/types';
 import { f2 } from '@/lib/format';
@@ -274,6 +275,18 @@ function InspectorBody({
       )}
     >
       <Block id="header" title="Header" level={level}>
+        {(() => {
+          const prov = geoProvenance(d.geoSource);
+          return (
+            <div className="flex flex-wrap items-center gap-2">
+              {d.geoSource ? (
+                <Badge tone={prov.seeded ? 'outline' : 'neutral'} title={prov.note}>
+                  {prov.seeded ? 'Simulated fixture' : prov.label}
+                </Badge>
+              ) : null}
+            </div>
+          );
+        })()}
         <div className="flex items-center gap-4">
           <HoodGauge
             size={wide ? 96 : 72}
@@ -319,6 +332,9 @@ function InspectorBody({
                 </>
               ),
             },
+            ...(d.geoSource
+              ? [{ term: 'Provenance', value: <span className="text-bone-2">{geoProvenance(d.geoSource).note}</span> }]
+              : []),
           ]}
         />
         {!wide ? (

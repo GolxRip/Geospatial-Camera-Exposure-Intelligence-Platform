@@ -12,12 +12,23 @@
 | **B: Signal Integrity (`s`)** | Tier 1 passive banner drift + Tier 2 visual frame liveness (`FrameLivenessTracker`) | **Tier 2** evaluated on public/real video into `eval/results/`; Tier 1 real history is future scope |
 | **Multiplicative Gate (`G(s)`)** | Piece-wise multiplier (`theta_low = 0.50`, `theta_high = 0.85`, floor `0.30`, hard cap `30`) so spoofed feeds cannot score high trust | Unit-tested in `backend/tests/test_signal_integrity_gate.py` |
 
-> **Milestone & Current Data Status (Nov 26, 2026)**  
+> **Milestone & Current Data Status (Nov 27, 2026)**  
 > Primary target: **BE Major Project Review 2 (Saturday, December 19, 2026)**. `paper/` is maintained as a secondary manuscript.
-> - **Real Tier 2 video results (`eval/results/`):** Awaiting public-video evaluation runs (`eval/tier2_real_footage.py`). No real-footage numbers are published here yet.
-> - **Censys aggregates (`data/censys/`):** Aggregate-only snapshot pipeline verified in `--dry-run` mode (`scripts/censys_snapshot.py`) against the Censys Platform API v3 endpoint; awaiting live `CENSYS_API_TOKEN` / web Report Builder aggregate capture.
-> - **Console & Demo Database (`data/public.db`):** Sanitized copy contains **9,320 simulated device fixtures** (`geo_source = 'synthetic_demo'`) with `/24` IP masking (`EXPOSE_FULL_IP=false`) and **2** audit entries. No synthetic numbers are reported as real findings.
-> - **Pre-existing synthetic benchmark (`paper/data/results.json`):** Contains outputs from the 120 hand-authored synthetic scenarios only (formula sanity check, not real-world evidence). See [`paper/CLAIMS.md`](paper/CLAIMS.md).
+> - **Real Censys India Camera Aggregates ([`data/censys/2026-11-26/snapshot.json`](data/censys/2026-11-26/snapshot.json)):** **104,218** real Indian camera hosts (`host.location.country: "India" AND host.services.hardware.type: "CAMERA"`) across 6 aggregate dimensions (ports: RTSP 554 = 81,285; top cities; protocols; vendors; products; ASNs) with **zero raw IP addresses**.
+> - **Real Tier 2 Video Evaluation ([`eval/results/`](eval/results/)):** Real public CUHK Avenue surveillance clips evaluated with [`eval/tier2_real_footage.py`](eval/tier2_real_footage.py) (untuned baseline snapshots for `training_videos` and `testing_videos` committed; tuned detector verified on `training_videos` with `14/14` detection across all 8 attacks and `0.0/hr` clean false alarms, with held-out `testing_videos` next).
+> - **Console & Demo Database (`data/public.db` — Simulated):** Contains **9,320 simulated device fixtures** (`geo_source = 'synthetic_demo'`) with `/24` IP masking (`EXPOSE_FULL_IP=false`) and **2** audit entries. Explicitly labeled `Simulated fixture` / `Simulated data active` across `/console`, map legend, inspector, and `/console/devices/[id]`.
+> - **Pre-existing Synthetic Benchmarks (`paper/data/results.json`, CI fixtures):** Hand-authored **120-scenario** formula sanity check and synthetic unit-test arrays, strictly separated under `<SyntheticChip />` (`Synthetic corpus, n = 120`).
+
+---
+
+## Data Governance: Real vs. Simulated Data (and Why Synthetic Data Is Used)
+
+| Component | Source | Classification | Why Not Live Third-Party Data? |
+|---|---|---|---|
+| **Censys Exposure Snapshot** (`data/censys/2026-11-26/`) | Censys Platform (`104,218` India camera hosts) | **Real OSINT Aggregates** | Storing or republishing raw third-party vulnerable camera IPs creates a dual-use attacker target list and violates Censys redistribution / responsible-disclosure boundaries. |
+| **Tier 2 Video Evaluation** (`eval/results/`) | Real public **CUHK Avenue** CCTV clips + programmatic tamper onset | **Real Footage + Controlled Tamper Injection** | Intercepting live external RTSP camera streams violates India's **IT Act, 2000 (§43, §66)** and **DPDP Act, 2023**; public datasets also lack ground-truth RTSP freeze/loop timestamps unless injected reproducibly at `t0`. |
+| **Console Fleet & Inspector** (`data/public.db`, `/console`) | Seeded DB fixtures (`geo_source = 'synthetic_demo'`, `/24` masked) | **Simulated (Labeled in UI)** | Demonstrates end-to-end trust scoring, triage filtering, map clustering, and Merkle auditing safely without exposing live vulnerable infrastructure on a web UI. |
+| **Formula Comparison & CI Tests** (`eval/labeled_events.json`, `test_liveness_detector.py`) | Hand-authored scenarios (`n=120`) + synthetic numpy test frames | **Synthetic (Formula & CI Check)** | No public multi-month dataset links real camera banner drift history to physical compromise labels; deterministic synthetic arrays verify gate axioms (`Proposition 1–5`) and ~1-minute automated tests. |
 
 ---
 

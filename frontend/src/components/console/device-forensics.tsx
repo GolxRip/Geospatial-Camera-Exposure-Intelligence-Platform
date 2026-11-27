@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { ArrowLeft } from '@phosphor-icons/react/dist/ssr';
+import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { HoodGauge } from '@/components/ui/hood-gauge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TierTag } from '@/components/ui/tier-tag';
+import { geoProvenance } from '@/lib/api/normalize';
 import { ROUTES } from '@/lib/constants/routes';
 import type { ConsoleActions, DeviceDetail, LoadState } from '@/lib/data/types';
 import { Inspector } from './inspector';
@@ -41,7 +43,14 @@ export function DeviceForensics({
               decorative
             />
             <div className="flex min-w-0 flex-col gap-1">
-              <h1 className="text-2xl font-semibold tracking-tight">Device forensics</h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl font-semibold tracking-tight">Device forensics</h1>
+                {d?.geoSource && geoProvenance(d.geoSource).seeded ? (
+                  <Badge tone="outline" title={geoProvenance(d.geoSource).note}>
+                    Simulated fixture
+                  </Badge>
+                ) : null}
+              </div>
               {detail.status === 'loading' ? <Skeleton className="h-5 w-64" /> : null}
               {d ? (
                 <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-bone-2">

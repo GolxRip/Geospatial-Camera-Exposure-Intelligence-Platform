@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TierShape } from '@/components/ui/tier-tag';
 import type { LoadState, MapDevice } from '@/lib/data/types';
 
-function Legend() {
+function Legend({ hasSimulated }: { hasSimulated: boolean }) {
   return (
     <div className="pointer-events-auto absolute left-3 top-3 z-overlay max-w-[calc(100%-4.5rem)] rounded-panel border border-line bg-ink-1 px-3 py-2">
       <p className="sr-only">Legend</p>
@@ -34,6 +34,7 @@ function Legend() {
           <TierShape tier={null} size={14} />
           Unscored
         </li>
+        {hasSimulated ? <li className="text-bone-2">Simulated fixtures (/24 masked)</li> : null}
       </ul>
     </div>
   );
@@ -91,7 +92,7 @@ export function MapPane({
           emptyState={emptyState}
           className="absolute inset-0"
         />
-        <Legend />
+        <Legend hasSimulated={list.some((d) => d.geoSource === 'synthetic_demo' || d.geoSource === 'osm_verified')} />
       </div>
     </section>
   );

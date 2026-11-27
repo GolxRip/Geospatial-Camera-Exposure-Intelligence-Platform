@@ -126,10 +126,26 @@ export default function EthicsPage() {
         <Section id="passive" title="Strict passive boundary">
           <P>
             COBRA-WATCH runs passively: scoring uses stored scanner metadata and public vulnerability
-            catalogs only. An earlier prototype active heartbeat module that opened TCP connections
-            to discovered device addresses was permanently removed from the codebase so the platform
-            sends zero outbound packets to third-party cameras.
+            catalogs only. An earlier prototype heartbeat module that opened TCP connections to
+            discovered device addresses has been permanently removed from the codebase, so the
+            platform sends zero outbound packets to third-party cameras.
           </P>
+        </Section>
+
+        <Section id="simulated-data" title="Why simulated and synthetic data are used">
+          <P>
+            Wherever real third-party host records or live streams would create legal, privacy, or
+            dual-use risk, COBRA-WATCH substitutes explicitly labeled simulated data rather than
+            exposing live cameras.
+          </P>
+          <List
+            items={[
+              'Censys discovery is kept strictly as aggregate counts (ports, cities, protocols, vendors, ASNs across 104,218 India hosts) with zero raw host IPs stored or displayed.',
+              'The /console fleet map and inspector serve /24-masked synthetic_demo fixtures (clearly tagged as Simulated) so scoring, filtering, and auditing can be demonstrated without publishing a target list of vulnerable live cameras.',
+              'Tier 2 frame-liveness testing uses authorized public surveillance footage (CUHK Avenue) with programmatic tamper onset timestamps instead of intercepting live third-party RTSP streams.',
+              'The 120-scenario synthetic benchmark and unit-test arrays are labeled separately from real data and exist only for reproducible arithmetic and regression checks.',
+            ]}
+          />
         </Section>
       </div>
     </main>

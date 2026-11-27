@@ -45,6 +45,7 @@ export const DEMO_DEVICES: MapDevice[] = (() => {
       label: `Camera ${String(i + 1).padStart(3, '0')}`,
       ownerType: OWNERS[i % OWNERS.length],
       score: tripped ? Math.min(30, score) : score,
+      geoSource: 'synthetic_demo',
     });
   }
   return out;
@@ -89,6 +90,7 @@ export function demoDetail(id: string): DeviceDetail | null {
     gateTripped: d.gateTripped,
     score: d.score ?? null,
     basis: 'static posture',
+    geoSource: 'synthetic_demo',
     channelA: {
       tCve,
       factors: [

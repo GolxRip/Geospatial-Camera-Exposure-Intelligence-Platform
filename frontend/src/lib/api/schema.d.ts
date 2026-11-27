@@ -569,59 +569,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/devices/{camera_id}/heartbeat": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Camera Heartbeat
-         * @description On-demand heartbeat check for a single camera.
-         *
-         *     Returns:
-         *     - ping result: {reachable, latency_ms, port_used, checked_at}
-         *     - trust_factor: {deduction, factor, status}
-         *     - trust_impact: description of how heartbeat affects trust score
-         *
-         *     Academic note: this endpoint instantiates the YOLO Review (2025) finding
-         *     that camera failure/damage makes surveillance systems "non-functional" —
-         *     COBRA-WATCH converts that failure into a scored trust penalty instead.
-         */
-        get: operations["get_camera_heartbeat_api_devices__camera_id__heartbeat_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/heartbeat/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Bulk Heartbeat Status
-         * @description Bulk heartbeat status for up to `limit` cameras in a city.
-         *     Pings all cameras concurrently with asyncio.gather for speed.
-         *
-         *     Returns a list of heartbeat results with trust factor for each,
-         *     plus a summary of online/offline/degraded counts.
-         */
-        get: operations["get_bulk_heartbeat_status_api_heartbeat_status_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/analytics/trust-distribution": {
         parameters: {
             query?: never;
@@ -631,15 +578,9 @@ export interface paths {
         };
         /**
          * Get Trust Distribution
-         * @description Trust score distribution across recent alerts.
-         *
-         *     Returns bucket counts for trust tiers (for histogram visualization):
-         *     - critical_low  (0–20): highest risk
-         *     - low           (21–49): low trust
-         *     - medium        (50–79): medium trust
-         *     - high          (80–100): high trust (verified genuine)
-         *
-         *     Also returns the distribution of action_tiers and average trust scores.
+         * @description Trust score distribution across recent alerts AND fleet static-posture tiers.
+         *     Real and demo alerts are counted separately (`real_total_alerts`, `demo_total_alerts`)
+         *     so simulated traffic is never confused with real traffic.
          */
         get: operations["get_trust_distribution_api_analytics_trust_distribution_get"];
         put?: never;
@@ -661,8 +602,8 @@ export interface paths {
          * Get Alert Timeline
          * @description Hourly alert frequency timeline for the last N hours.
          *
-         *     Returns a list of {hour, count, high_trust, medium_trust, low_trust} buckets
-         *     for the AnalyticsPanel "Threats" tab time-series chart.
+         *     Returns `{hour, count, real_count, demo_count, high_trust, medium_trust, low_trust}`
+         *     buckets using the actual `alerts.is_demo` flag.
          */
         get: operations["get_alert_timeline_api_analytics_alert_timeline_get"];
         put?: never;
@@ -683,8 +624,6 @@ export interface paths {
         /**
          * Get Score Comparison
          * @description Per-alert comparison of WA, Probabilistic, and Decayed trust scores.
-         *     Returns the last `limit` alerts with all three score columns side-by-side.
-         *     Enables the academic dual-model analysis described in the Major Project report.
          */
         get: operations["get_score_comparison_api_analytics_score_comparison_get"];
         put?: never;
@@ -705,7 +644,8 @@ export interface paths {
         /**
          * Get Analytics Summary
          * @description High-level system overview for the AnalyticsPanel dashboard banner.
-         *     Returns total devices, total alerts (24h), tier distribution, and integrity status.
+         *     Returns total devices, total alerts (24h, split real vs demo), tier distribution,
+         *     and integrity status.
          */
         get: operations["get_analytics_summary_api_analytics_summary_get"];
         put?: never;
@@ -730,6 +670,7 @@ export interface paths {
          *     Returns:
          *     - Total devices monitored
          *     - Integrity gate trip counts (hard_gated, tapered, nominal)
+         *     - Baseline fingerprint coverage (`has_baseline_count`, `without_baseline_count`)
          *     - Drift score distribution (mean, max, pct > 0.15 anomaly threshold)
          *     - Top-5 most anomalous devices by drift score
          *     - City-level breakdown
@@ -929,6 +870,70 @@ export interface paths {
         put?: never;
         /** Run Scenario */
         post: operations["run_scenario_api_scenarios_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/censys/snapshots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Censys Snapshots
+         * @description Load real saved Censys aggregate snapshots from `data/censys/*\/snapshot.json`.
+         *     Never fabricates data: returns an empty list with `available: false` when
+         *     no snapshot has been saved yet.
+         */
+        get: operations["list_censys_snapshots_api_censys_snapshots_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/devices/provenance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Device Provenance
+         * @description Honest device dataset composition breakdown by `geo_source` and city.
+         *     Used by the UI to tell operators plainly what fraction of points come from
+         *     Censys metadata, OpenStreetMap nodes, live scanner results, or demo fill.
+         */
+        get: operations["get_device_provenance_api_devices_provenance_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Paper Results
+         * @description Serve `paper/data/results.json` read-only (FRONTEND_SPEC.md section 16 B8).
+         */
+        get: operations["get_paper_results_api_results_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1838,71 +1843,6 @@ export interface operations {
             };
         };
     };
-    get_camera_heartbeat_api_devices__camera_id__heartbeat_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                camera_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_bulk_heartbeat_status_api_heartbeat_status_get: {
-        parameters: {
-            query: {
-                /** @description City name to check */
-                city: string;
-                /** @description Max cameras to ping (max 50) */
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_trust_distribution_api_analytics_trust_distribution_get: {
         parameters: {
             query?: {
@@ -2035,7 +1975,10 @@ export interface operations {
     };
     get_integrity_fleet_stats_api_integrity_stats_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Optional city filter */
+                city?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2049,6 +1992,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -2266,6 +2218,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_censys_snapshots_api_censys_snapshots_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_device_provenance_api_devices_provenance_get: {
+        parameters: {
+            query?: {
+                city?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_paper_results_api_results_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

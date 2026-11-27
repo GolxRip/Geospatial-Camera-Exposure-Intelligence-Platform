@@ -75,16 +75,29 @@ export function Results() {
           </div>
           {realResults.available ? (
             <ul className="flex flex-col gap-4">
-              {realResults.runs.map((run) => (
-                <li key={run.id} className="border-t border-line pt-3 first:border-t-0 first:pt-0">
-                  <p className="text-sm font-medium text-bone">
-                    {run.dataset} ({run.date})
-                  </p>
-                  <p className="mt-1 font-mono text-xs text-bone-2">
-                    {run.command ?? 'eval/tier2_real_footage.py'}
-                  </p>
-                </li>
-              ))}
+              {realResults.runs.map((run) => {
+                const cl = run.levels.tripped.clean;
+                return (
+                  <li key={run.id} className="border-t border-line pt-3 first:border-t-0 first:pt-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-bone">
+                        {run.dataset} ({run.date})
+                      </p>
+                      <Badge tone={run.roleLabel.startsWith('held-out') ? 'signal' : 'neutral'}>
+                        {run.roleLabel}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-bone-2">
+                      {cl
+                        ? `${cl.videos} evaluated (${cl.dropNote}) | Clean FA: ${cl.faPerHour.toFixed(1)}/h [95% CI ${cl.ciLow.toFixed(1)}, ${cl.ciHigh.toFixed(1)}] (${cl.falseAlarms} over ${cl.hours.toFixed(3)} clean h)`
+                        : run.dropNote}
+                    </p>
+                    <p className="mt-1 font-mono text-xs text-bone-2">
+                      {run.command ?? 'eval/tier2_real_footage.py'}
+                    </p>
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <p className="text-sm text-bone-2">

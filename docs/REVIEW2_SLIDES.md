@@ -66,8 +66,8 @@
   - *Honest Failures Exposed (`v2` not re-tuned):* `partial_cover_small` (~9% area) **`0/16`** (`v1` & `v2`: falls below `12/64` dead-block rule); `loop_30s` **`10/16`** (`v2` vs `1/16` `v1`: `_loop_maxlen = 450` frames = `18 s` @ 25 fps); `slow_blur_120s` **`13/16` tripped** (`11.8 s`, though **`16/16` degraded** `6.0 s` vs `v1` `0/16`).
 
 ### Slide 8 — Runtime Throughput & Synthetic Formula Sanity Check
-- **CPU Throughput ([`docs/SPEED_BENCHMARK.md`](SPEED_BENCHMARK.md)):** Intel `i5-12450H` (Kali Linux, Python `3.13.9`, OpenCV `5.0.0`, `300` measured frames + `30` warmup on real decoded Avenue `testing_videos` `[1 clip, 330 unique]`):
-  - **`v2` (`023c5c4`):** **`242.7` FPS @ 320 px** (`4.12 ms/frame`), **`59.9` FPS @ 640 px** (`16.69 ms/frame`) vs `v1` (`1776.7` / `67.7` FPS).
+- **CPU Throughput ([`docs/SPEED_BENCHMARK.md`](SPEED_BENCHMARK.md)):** One CPU (`Intel i5-12450H`, `6` logical cores, Kali Linux VM, Python `3.13.9`, OpenCV `5.0.0`), `300` measured frames + `30` warmup from one real decoded Avenue `testing_videos` clip (`330` unique frames):
+  - **Frozen `v2` (`023c5c4`):** **`242.7` FPS @ 320 px** (`4.12 ms/frame`), **`59.9` FPS @ 640 px** (`16.69 ms/frame`).
 - **In-Process Gate Overhead ([`paper/results.md`](../paper/results.md)):** `4.69 us/call` full IG-DCTF vs `2.60 us/call` Channel A only (pure Python, excludes I/O).
 - **Synthetic Formula Sanity Check (`n = 120`, strictly labelled `Synthetic`):**
   - Verifies non-compensatory fusion arithmetic across team-authored scenarios (`IG-DCTF` F1 `0.9756` vs `Bayesian` `0.8319`, `CVE-only` `0.8113`, `WA` `0.7525`; `17` vs `0` Channel-B differences; multiplicative `FN = 3` vs additive `FN = 10`).

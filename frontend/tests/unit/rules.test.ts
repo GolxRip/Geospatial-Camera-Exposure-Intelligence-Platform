@@ -18,7 +18,8 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-const files = walk(SRC).map((p) => ({ path: relative(SRC, p), text: readFileSync(p, 'utf8') }));
+// POSIX separators so the path comparisons below also hold on Windows.
+const files = walk(SRC).map((p) => ({ path: relative(SRC, p).replace(/\\/g, '/'), text: readFileSync(p, 'utf8') }));
 
 const PALETTE = new Set([
   '#0a0c0b',

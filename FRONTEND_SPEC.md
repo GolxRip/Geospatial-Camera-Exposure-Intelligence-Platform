@@ -1,6 +1,12 @@
 # COBRA-WATCH Frontend Specification
 
-**Status:** spec, not built yet. Written 2026-10-13.
+**Status:** spec written 2026-10-13; the app is built (phases 1 to 3 and the console). Implementation notes, 2026-11-28:
+- The landing page renders the WebGL hood (`components/sections/hero-stage.tsx`, static `HoodGauge` until WebGL is ready) and the
+  feed field (`FeedLayer` in `app/(site)/page.tsx`). Unused section components and `components/motion/*` were removed.
+- Components get data only through `src/lib/data/` (see its README); masking is `src/lib/privacy/mask-ip.ts` only.
+- The basemap is built locally (`BASEMAP.md`); WebSocket/SSE formats are in `docs/API_STREAMS.md`.
+- Section 3.2 numbers come from `facts.generated.ts`; WA F1 is 0.752 (corrected from 0.753 on 2026-11-28).
+- Browser rendering of the re-wired hero has not been checked since these changes.
 **Replaces:** the Vite/React dashboard (removed from the working tree 2026-10-12) and the Next.js integration of `cobra-watch-web.zip` (never committed, no longer on disk).
 **New app location:** `frontend/` (Next.js), served separately from the FastAPI backend on `:8000`.
 **Derived from:** the DIDA frontend spec, whose structure and technology choices produced a result you liked. This document keeps the engineering discipline and replaces the identity, the story, the colour, the map, and everything that is specific to camera trust.
@@ -138,7 +144,7 @@ The thresholds are served live by `GET /api/config/thresholds`. The UI never har
 
 | Key | Claim | Value |
 |---|---|---|
-| `res.model.wa` | Weighted average: accuracy / recall / F1 / FP | 0.792 / 0.603 / 0.753 / 0 |
+| `res.model.wa` | Weighted average: accuracy / recall / F1 / FP | 0.792 / 0.603 / 0.752 / 0 |
 | `res.model.advanced` | CVE-only (best vulnerability baseline) | 0.833 / 0.683 / 0.811 / 0 |
 | `res.model.bayesian` | Bayesian log-odds | 0.842 / 0.746 / 0.832 / 3 |
 | `res.model.igdctf` | IG-DCTF | 0.975 / 0.952 / 0.976 / 0 (95% Wilson accuracy interval 0.929 to 0.991) |
@@ -363,7 +369,7 @@ Header chip: `Computed in your browser, same formula as the backend (parity-test
 
 Layout family: **one giant comparison + a supporting row**.
 
-- Main: four horizontal bars (no background tracks) for F1 on the synthetic corpus: weighted average 0.753, CVE-only 0.811, Bayesian 0.832, IG-DCTF 0.976, each with its 95% Wilson accuracy whisker in a detail view and confusion counts on hover and focus. Bars grow on enter; `AnimatedCounter` counts once from 0 in Geist Mono. Persistent chip: `Synthetic corpus, n = 120`.
+- Main: four horizontal bars (no background tracks) for F1 on the synthetic corpus: weighted average 0.752, CVE-only 0.811, Bayesian 0.832, IG-DCTF 0.976, each with its 95% Wilson accuracy whisker in a detail view and confusion counts on hover and focus. Bars grow on enter; `AnimatedCounter` counts once from 0 in Geist Mono. Persistent chip: `Synthetic corpus, n = 120`.
 - Supporting row (4 stats, not cards): `17 vs 0` discordant scenarios (McNemar p = 1.5e-5); `3 vs 10` misses, multiplicative vs additive fusion; `4.7 us` per event; `431` tests passed.
 - **Where it helps, and where it does not:** a two-row small multiple of the stratified accuracies (3.2): with Channel B (n = 30) the CVE-only model reaches 0.433 and IG-DCTF 1.000; without Channel B (n = 90) they are equal at 0.967.
 - The limits block (3.3) follows as plain text with claim ids. It is part of the section, not a footer link.

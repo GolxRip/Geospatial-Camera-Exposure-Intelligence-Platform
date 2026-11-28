@@ -20,6 +20,16 @@ once clean, once per attack.
     python eval/tier2_real_footage.py --data ~/datasets/cdnet --out eval/results/tier2
     python eval/tier2_real_footage.py --data clips/ --attacks freeze,loop,blur --max-seconds 120
 
+Clean-only mode (false alarms per hour on long footage, e.g. MEVA): frames are streamed, never buffered,
+and no tamper runs are made. `--max-seconds 0` means no per-clip limit.
+
+    python eval/tier2_real_footage.py --clean-only --data ~/datasets/meva --max-seconds 0 \\
+        --save-scores eval/scores/meva_v2 --out eval/results/meva_clean_v2
+
+`--save-scores DIR` writes each clip's clean per-frame liveness scores to DIR/<clip>.npz (input for
+eval/calibrate_thresholds.py). `--extra-level NAME=THRESHOLD` adds an alarm level (liveness <= THRESHOLD)
+next to the two fixed ones, e.g. a calibrated threshold; it never changes the detector.
+
 Nothing here is tuned to the data. Thresholds come from the detector as shipped, so the
 first run is an honest baseline. Tune on one set of videos and report on a different one.
 """
@@ -212,6 +222,108 @@ ATTACKS = {
 
 
 # ---------------------------------------------------------------------------
+# Streaming (clean-only mode): one frame in memory at a time
+# ---------------------------------------------------------------------------
+
+def iter_sources(root: Path) -> list[tuple[Path, str]]:
+    """Same candidates as discover(), without loading anything: (path, "video" | "frames")."""
+    found = []
+    for p in [root, *sorted(root.rglob("*"))]:
+        if any(part.lower() in SKIP_FRAME_DIRS for part in p.relative_to(root).parts):
+            continue
+        if p.is_file() and p.suffix.lower() in VIDEO_EXT:
+            found.append((p, "video"))
+        elif p.is_dir() and not (p / "input").is_dir() and any(q.is_file() and q.suffix.lower() in IMAGE_EXT for q in p.iterdir()):
+            found.append((p, "frames"))
+    return found
+
+
+def stream_clip(path: Path, kind: str, width: int, max_seconds: float, dir_fps: float):
+    """Return (name, fps, expected_frames or None, frame iterator). `max_seconds <= 0` means no limit."""
+    if kind == "video":
+        cap = cv2.VideoCapture(str(path))
+        fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
+        if not (1 <= fps <= 120):
+            fps = 25.0
+        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)  # container estimate; can be off by a few frames
+        limit = int(max_seconds * fps) if max_seconds > 0 else None
+        expected = min(total, limit) if (total and limit) else (total or limit)
+
+        def frames():
+            n = 0
+            try:
+                while limit is None or n < limit:
+                    ok, frame = cap.read()
+                    if not ok:
+                        break
+                    n += 1
+                    yield _resize(frame, width)
+            finally:
+                cap.release()
+
+        return path.stem, fps, expected or None, frames()
+
+    files = sorted(q for q in path.iterdir() if q.suffix.lower() in IMAGE_EXT)
+    if max_seconds > 0:
+        files = files[: int(max_seconds * dir_fps)]
+
+    def frames():
+        for q in files:
+            f = cv2.imread(str(q))
+            if f is not None:
+                yield _resize(f, width)
+
+    name = path.parent.name if path.name == "input" else path.name
+    return name, dir_fps, len(files), frames()
+
+
+def run_clean_stream(detector_cls, frames, fps: float, expected: int | None, levels, min_len: int,
+                     keep_scores: bool):
+    """Clean run without buffering frames. Same warm-up and episode rules as the buffered path in main()."""
+    tracker = detector_cls(camera_id="eval")
+    warm = min(int(10 * fps), int(0.35 * expected)) if expected else int(10 * fps)
+    state = {name: {"run": 0, "episodes": 0, "below": 0} for name, _, _ in levels}
+    scores: list[float] = []
+    n = 0
+    for i, f in enumerate(frames):
+        s = float(tracker.process_frame(f, i, i / fps)["liveness_score"])
+        if keep_scores:
+            scores.append(s)
+        if i >= warm:
+            for name, thr, incl in levels:
+                below = s <= thr if incl else s < thr
+                st = state[name]
+                st["run"] = st["run"] + 1 if below else 0
+                if st["run"] == min_len:
+                    st["episodes"] += 1
+                if below:
+                    st["below"] += 1
+        n = i + 1
+    return n, warm, state, (np.asarray(scores, dtype=np.float32) if keep_scores else None)
+
+
+def save_scores(out_dir: Path, name: str, scores: np.ndarray, fps: float, warm: int) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(out_dir / f"{name}.npz", scores=scores, fps=np.float32(fps), warm=np.int32(warm))
+
+
+def parse_levels(extra: list[str]) -> list[tuple[str, float, bool]]:
+    """The two paper levels, plus any --extra-level NAME=THRESHOLD (alarm when liveness <= THRESHOLD)."""
+    levels = [("degraded", DEGRADED, False), ("tripped", TRIPPED, True)]
+    for spec in extra:
+        name, _, value = spec.partition("=")
+        name = name.strip()
+        try:
+            thr = float(value)
+        except ValueError:
+            sys.exit(f"--extra-level expects NAME=THRESHOLD, got {spec!r}")
+        if not name or name in {n for n, _, _ in levels} or not (0.0 < thr < 1.0):
+            sys.exit(f"--extra-level {spec!r}: needs a new name and a threshold strictly between 0 and 1")
+        levels.append((name, thr, True))
+    return levels
+
+
+# ---------------------------------------------------------------------------
 # Running the detector
 # ---------------------------------------------------------------------------
 
@@ -265,6 +377,12 @@ def main():
     ap.add_argument("--max-seconds", type=float, default=180)
     ap.add_argument("--min-seconds", type=float, default=20.0, help="minimum clip duration in seconds to include (default 20)")
     ap.add_argument("--dir-fps", type=float, default=25, help="fps to assume for frame folders")
+    ap.add_argument("--clean-only", action="store_true",
+                    help="stream clean footage only (no tamper runs, no frame buffering): false alarms per hour")
+    ap.add_argument("--save-scores", type=Path, default=None,
+                    help="write each clip's clean per-frame liveness scores to DIR/<clip>.npz")
+    ap.add_argument("--extra-level", action="append", default=[], metavar="NAME=THRESHOLD",
+                    help="also report alarms at liveness <= THRESHOLD (repeatable); the detector is unchanged")
     ap.add_argument("--min-alarm-seconds", type=float, default=1.0,
                     help="an alarm must persist this long to count (filters single-frame flicker)")
     args = ap.parse_args()
@@ -273,6 +391,10 @@ def main():
         sys.exit(f"Input path does not exist: {args.data}")
 
     detector_cls = load_detector(args.detector)
+    levels = parse_levels(args.extra_level)
+    if args.clean_only:
+        main_clean_only(args, detector_cls, levels)
+        return
     attacks = [a.strip() for a in args.attacks.split(",") if a.strip()]
     unknown = [a for a in attacks if a not in ATTACKS]
     if unknown:
@@ -295,8 +417,10 @@ def main():
         min_len = max(1, int(args.min_alarm_seconds * c.fps))
         clean = run(detector_cls, c.frames, c.fps)
         warm = min(int(10 * c.fps), int(0.35 * len(c.frames)))  # let baseline settle without exceeding clip length
+        if args.save_scores:
+            save_scores(args.save_scores, c.name, clean.astype(np.float32), c.fps, warm)
         clean_secs = max(0.1, round((len(c.frames) - warm) / c.fps, 1))
-        for level, thr, incl in (("degraded", DEGRADED, False), ("tripped", TRIPPED, True)):
+        for level, thr, incl in levels:
             below = (clean[warm:] <= thr) if incl else (clean[warm:] < thr)
             rows.append(dict(video=c.name, run="clean", level=level, seconds=clean_secs,
                              false_alarms=episodes(below, min_len),
@@ -306,7 +430,7 @@ def main():
         for a in attacks:
             tampered, t0 = ATTACKS[a](list(c.frames), c.fps)
             scores = run(detector_cls, tampered, c.fps)
-            for level, thr, incl in (("degraded", DEGRADED, False), ("tripped", TRIPPED, True)):
+            for level, thr, incl in levels:
                 d = first_alarm(scores, clean, t0, thr, incl, min_len)
                 rows.append(dict(video=c.name, run=a, level=level, detected=d is not None,
                                  delay_s=None if d is None else round(d / c.fps, 2),
@@ -331,7 +455,7 @@ def main():
         f"- Command: `{cmd_str}`",
         "",
     ]
-    for level in ("degraded", "tripped"):
+    for level, _, _ in levels:
         lines += [f"## Alarm level: {level}", "", "| Run | Detected | Median delay (s) |", "|---|---|---|"]
         cl = [r for r in rows if r["run"] == "clean" and r["level"] == level]
         hours = sum(r["seconds"] for r in cl) / 3600
@@ -373,6 +497,91 @@ def main():
         w.writeheader()
         w.writerows(summary_rows)
 
+    summary = args.out / "summary.md"
+    summary.write_text("\n".join(lines), encoding="utf-8")
+    print("\n" + "\n".join(lines))
+    print(f"Wrote {summary_csv}, {per_run}, and {summary}")
+
+
+def main_clean_only(args, detector_cls, levels) -> None:
+    """Stream every clip once, clean, and report false alarms per hour (same rules as the buffered path)."""
+    sources = iter_sources(args.data)
+    if not sources:
+        sys.exit(f"No videos or frame folders found under {args.data}.")
+    dataset_label = args.dataset or args.data.resolve().name
+    run_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    cmd_str = "python3 eval/tier2_real_footage.py " + " ".join(shlex.quote(a) for a in sys.argv[1:])
+    args.out.mkdir(parents=True, exist_ok=True)
+
+    rows, skipped, used_names, evaluated = [], [], set(), 0
+    for path, kind in sources:
+        name, fps, expected, frames = stream_clip(path, kind, args.width, args.max_seconds, args.dir_fps)
+        base, k = name, 2
+        while name in used_names:  # same file name in different folders
+            name, k = f"{base}_{k}", k + 1
+        used_names.add(name)
+        if expected and expected / fps < args.min_seconds:
+            skipped.append(name)
+            print(f"  skipped {name}: about {expected / fps:.1f}s < --min-seconds {args.min_seconds:g}")
+            continue
+        min_len = max(1, int(args.min_alarm_seconds * fps))
+        n, warm, state, scores = run_clean_stream(detector_cls, frames, fps, expected, levels, min_len,
+                                                  keep_scores=args.save_scores is not None)
+        if n / fps < args.min_seconds:
+            skipped.append(name)
+            print(f"  skipped {name}: {n / fps:.1f}s < --min-seconds {args.min_seconds:g}")
+            continue
+        if scores is not None:
+            save_scores(args.save_scores, name, scores, fps, warm)
+        evaluated += 1
+        counted = max(0, n - warm)
+        secs = max(0.1, round(counted / fps, 1))
+        for level, _, _ in levels:
+            st = state[level]
+            rows.append(dict(video=name, run="clean", level=level, seconds=secs, false_alarms=st["episodes"],
+                             frac_time_alarmed=round(st["below"] / counted, 4) if counted else 0.0))
+        print(f"  {name}: {n} frames ({n / fps / 60:.1f} min) done")
+
+    if not rows:
+        sys.exit(f"No usable clips (each needs at least {args.min_seconds:g} seconds).")
+
+    keys = ["video", "run", "level", "seconds", "false_alarms", "frac_time_alarmed",
+            "detected", "delay_s", "min_score_after"]
+    per_run = args.out / "per_run.csv"
+    with per_run.open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=keys)
+        w.writeheader()
+        w.writerows(rows)
+
+    lines = [
+        f"# Tier 2 clean-footage false alarms: {evaluated} videos, detector {args.detector}",
+        "",
+        f"- Dataset: {dataset_label}",
+        f"- Date: {run_utc}",
+        f"- Clips: {evaluated} evaluated, {len(skipped)} dropped (< {args.min_seconds:g}s)",
+        "- Mode: clean only (no tamper runs; frames streamed)",
+        f"- Command: `{cmd_str}`",
+        "",
+    ]
+    summary_rows = []
+    for level, thr, _ in levels:
+        cl = [r for r in rows if r["level"] == level]
+        hours = sum(r["seconds"] for r in cl) / 3600
+        fa = sum(r["false_alarms"] for r in cl)
+        fa_rate = (fa / hours) if hours > 0 else 0.0
+        summary_rows.append({"level": level, "run": "clean", "detected": "", "total": len(cl), "median_delay_s": "",
+                             "clean_false_alarms": fa, "clean_hours": f"{hours:.2f}",
+                             "clean_fa_per_hour": f"{fa_rate:.1f}"})
+        lines += [f"## Alarm level: {level} (liveness threshold {thr:g})", "",
+                  f"Clean footage: {fa} false alarms over {hours:.2f} h ({fa_rate:.1f} per hour), "
+                  f"{sum(1 for r in cl if r['false_alarms'])}/{len(cl)} videos with at least one.", ""]
+
+    summary_csv = args.out / "summary.csv"
+    skeys = ["level", "run", "detected", "total", "median_delay_s", "clean_false_alarms", "clean_hours", "clean_fa_per_hour"]
+    with summary_csv.open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=skeys)
+        w.writeheader()
+        w.writerows(summary_rows)
     summary = args.out / "summary.md"
     summary.write_text("\n".join(lines), encoding="utf-8")
     print("\n" + "\n".join(lines))

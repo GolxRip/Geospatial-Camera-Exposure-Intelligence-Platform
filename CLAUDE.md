@@ -28,16 +28,23 @@ Read this first. It tells an agent how to work in this repository without redoin
 - Zero outbound probing: active heartbeat modules (`heartbeat_service.py`, `heartbeat_router.py`, `test_heartbeat_service.py`) have been **deleted completely**. No code in `backend/` sends probes or opens TCP/socket connections to discovered device IPs.
 - Never fetch live video or probe third-party cameras. Video analysis operates solely on public datasets or researcher-owned clips.
 - Never save third-party raw IPs in logs, results, or public database exports.
+- The one exception to "no outbound connections" is `testbed/banner_log.py`: it contacts only researcher-owned cameras on private
+  addresses listed in the git-ignored `testbed/devices.json`, and refuses anything else. Never widen that allow-list check.
 
 ## Where things are
 | Path | Purpose |
 |---|---|
-| `eval/tier2_real_footage.py`, `eval/results/` | Real-footage Tier 2 evaluation harness, CSV + `summary.md` outputs (real data only) |
+| `eval/tier2_real_footage.py`, `eval/results/` | Real-footage Tier 2 evaluation harness, CSV + `summary.md` outputs (real data only); `--clean-only` streams long clean footage, `--save-scores` writes per-frame scores to the git-ignored `eval/scores/` |
+| `eval/robustness_sweep.py` | Unseen attack variants; `--variants adaptive` is the adaptive-attacker suite (report misses, never tune v2 on it) |
+| `eval/calibrate_thresholds.py` | Split-conformal threshold calibration on saved clean scores; output goes to `eval/calibration/`, not `eval/results/` |
+| `testing_rp.md` | Research-paper test plan, truly public datasets, sample sizes |
+| `testbed/` | Owned-camera testbed scripts (MediaMTX relay, FFmpeg injection, allow-listed banner logging) |
 | `data/censys/YYYY-MM-DD/snapshot.json` | Saved Censys Platform API v3 aggregate snapshots (metadata & counts only, no IPs) |
 | `scripts/censys_snapshot.py` | Aggregate snapshot runner + `--from-paste` web UI converter (`CENSYS_API_TOKEN` Bearer auth) |
 | `scripts/censys_ingest.py` | **Disabled by hard guard** (enforces Censys aggregates-only commitment) |
-| `scripts/build_public_db.py` | Produces sanitized `data/public.db` (strips `SIM_*`, masks IPs to `/24`, verifies audit ledger) |
-| `backend/` | FastAPI service (`backend/main.py`): passive scoring, audit ledger, scenarios, real/synthetic transparency routes |
+| `scripts/build_demo_fixture.py` | Builds the simulated demo `data/public.db` from scratch (9,320 `synthetic_demo` devices, fixed seed, private `10.x` addresses), then runs `build_public_db` on it |
+| `scripts/build_public_db.py` | Produces sanitized `data/public.db` from a working DB (strips `SIM_*`, masks IPs to `/24` in columns and `raw_data`, verifies audit ledger) |
+| `backend/` | FastAPI service (`backend/main.py`): passive scoring, audit ledger, scenarios, real/synthetic transparency routes; WebSocket/SSE formats in `docs/API_STREAMS.md` |
 | `video_pipeline/` | YOLOv8 + ByteTrack + `FrameLivenessTracker` (Tier 2 visual liveness) |
 | `frontend/` | Next.js 16 web app (`/`, `/research`, `/lab`, `/ethics`, `/console`, `/console/devices/[id]`) |
 | `paper/` | Secondary manuscript (`main.tex`), **synthetic** benchmark outputs (`results.md`, `data/results.json`), `LOG.md`, `CLAIMS.md`, `TODO.md` |

@@ -1,0 +1,9 @@
+scenario,device,start_utc,end_utc,ground_truth,notes
+genuine,cam1,,,genuine,
+benign_firmware_update,cam1,,,genuine,record firmware version before and after
+decoy_same_banner,decoy1,,,fabricated,decoy configured to copy cam1 banner
+decoy_different_banner,decoy1,,,fabricated,
+rtsp_loop,cam1,,,fabricated,inject.py loop --seconds 10
+freeze,cam1,,,fabricated,inject.py freeze
+covered_lens,cam1,,,fabricated,
+turned_camera,cam1,,,fabricated,

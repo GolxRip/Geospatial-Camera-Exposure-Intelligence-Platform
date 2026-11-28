@@ -1,28 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { maskIp } from "@/lib/api/mask-ip";
 import { flattenDevices, prettifyFactor, tierLabel } from "@/lib/api/normalize";
 import { AlertMessageSchema, GateTrippedMessageSchema, ThresholdsSchema, TrustScoreSchema, STATIC_THRESHOLDS } from "@/lib/api/schemas";
 import { backoffDelay, parseWsFrame } from "@/lib/api/socket";
 import { pushRing } from "@/lib/state/console-store";
 
 const fx = (name: string) => JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8")) as unknown;
-
-describe("maskIp (ground rule 8)", () => {
-  it("masks IPv4 to the /24 by default", () => {
-    expect(maskIp("203.0.113.42")).toBe("203.0.113.•");
-  });
-  it("masks IPv6 to the first three groups", () => {
-    expect(maskIp("2001:db8:85a3:0:0:8a2e:370:7334")).toBe("2001:db8:85a3:•");
-  });
-  it("reveals only when asked", () => {
-    expect(maskIp("203.0.113.42", true)).toBe("203.0.113.42");
-  });
-  it("never echoes unparseable input", () => {
-    expect(maskIp("not-an-ip")).toBe("masked");
-    expect(maskIp(null)).toBe("unknown");
-  });
-});
 
 describe("GeoJSON flattening (recorded from GET /api/devices)", () => {
   it("flattens every feature and keeps the enrichment fields", () => {

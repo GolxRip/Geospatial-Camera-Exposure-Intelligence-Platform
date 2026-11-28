@@ -22,11 +22,17 @@ services:
     env_file:
       - .env
     volumes:
-      # Mount the data directory so the SQLite DB persists across container restarts
+      # Mount the data directory so the SQLite DB persists across container restarts.
+      # data/censys/ (the saved Censys aggregate snapshots) comes in with it.
       - ./data:/app/data
+      # The image contains only backend/; mount the synthetic-benchmark results served by /api/results
+      - ./paper/data:/app/paper_data:ro
     environment:
-      # For the prebuilt anonymized evaluation fixture, use DATABASE_PATH=/app/data/public.db
-      - DATABASE_PATH=/app/data/surveillancewatch.db
+      # Default: the sanitized, /24-masked demo fixture (build it with scripts/build_demo_fixture.py, see README).
+      # Override with COBRA_DATABASE_PATH=/app/data/surveillancewatch.db to use a private working database.
+      - DATABASE_PATH=${COBRA_DATABASE_PATH:-/app/data/public.db}
+      - CENSYS_DIR=/app/data/censys
+      - RESULTS_JSON_PATH=/app/paper_data/results.json
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -42,6 +48,10 @@ services:
         NEXT_PUBLIC_COBRA_API_URL: ${NEXT_PUBLIC_COBRA_API_URL:-http://localhost:8000}
     ports:
       - "3000:3000"
+    volumes:
+      # /research reads the real Tier 2 run folders at request time (src/lib/content/real-tier2.ts looks in
+      # <cwd>/eval/results). The image is built from frontend/ only, so mount them read-only.
+      - ./eval/results:/app/eval/results:ro
     depends_on:
       backend:
         condition: service_healthy

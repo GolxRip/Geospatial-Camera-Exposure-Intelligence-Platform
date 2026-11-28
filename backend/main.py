@@ -120,6 +120,9 @@ app = FastAPI(
     description="Geospatial Camera Exposure Intelligence Platform — OSINT surveillance mapping",
     version="2.0.0",
     lifespan=lifespan,
+    # Stable, readable operationIds (the route function names, all unique) for the generated frontend client
+    # instead of FastAPI's default "<name>_<path>_<method>" (FRONTEND_SPEC B3).
+    generate_unique_id_function=lambda route: route.name,
 )
 
 app.add_middleware(
@@ -134,26 +137,26 @@ app.add_middleware(
 # Routers
 # ---------------------------------------------------------------------------
 
-app.include_router(devices.router, prefix="/api")
-app.include_router(news.router, prefix="/api")
-app.include_router(brief.router, prefix="/api")
-app.include_router(heatmap.router, prefix="/api")
-app.include_router(stats.router, prefix="/api")
-app.include_router(alerts_router.router, prefix="/api")
+app.include_router(devices.router, prefix="/api", tags=["devices"])
+app.include_router(news.router, prefix="/api", tags=["news"])
+app.include_router(brief.router, prefix="/api", tags=["brief"])
+app.include_router(heatmap.router, prefix="/api", tags=["analytics"])
+app.include_router(stats.router, prefix="/api", tags=["analytics"])
+app.include_router(alerts_router.router, prefix="/api", tags=["alerts"])
 # BTP new routers (Modules A, E, G)
-app.include_router(audit_router.router, prefix="/api")
-app.include_router(decay_router.router, prefix="/api")
-app.include_router(analytics_router.router, prefix="/api")
+app.include_router(audit_router.router, prefix="/api", tags=["audit"])
+app.include_router(decay_router.router, prefix="/api", tags=["trust"])
+app.include_router(analytics_router.router, prefix="/api", tags=["analytics"])
 # Module G: IG-DCTF integrity gate REST endpoints
-app.include_router(integrity_router.router, prefix="/api")
+app.include_router(integrity_router.router, prefix="/api", tags=["integrity"])
 # Module H: live attack-mode simulator + natural-language map query
-app.include_router(attack_simulator_router.router, prefix="/api")
-app.include_router(nl_query_router.router, prefix="/api")
+app.include_router(attack_simulator_router.router, prefix="/api", tags=["demo"])
+app.include_router(nl_query_router.router, prefix="/api", tags=["query"])
 # Public read-only config (thresholds) and the clearly-labelled demo scenario runner
-app.include_router(config_router.router, prefix="/api")
-app.include_router(scenarios_router.router, prefix="/api")
+app.include_router(config_router.router, prefix="/api", tags=["config"])
+app.include_router(scenarios_router.router, prefix="/api", tags=["demo"])
 # Censys aggregate snapshots, dataset provenance, and paper results.json
-app.include_router(censys_router.router, prefix="/api")
+app.include_router(censys_router.router, prefix="/api", tags=["provenance"])
 
 
 # ---------------------------------------------------------------------------

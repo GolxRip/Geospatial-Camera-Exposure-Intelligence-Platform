@@ -55,15 +55,16 @@ export const manualFacts = {
       backend_passed: 373,
       video_pipeline_passed: 52,
       eval_passed: 14,
-      frontend_suites: 11,
-      frontend_tests: 82,
+      frontend_suites: 10,
+      frontend_tests: 76,
       frontend_unit_suites: 7,
-      frontend_unit_tests: 43,
+      frontend_unit_tests: 46,
       golden_vectors: 265,
       date: '2026-11-27',
+      frontend_date: '2026-11-28',
     },
     source:
-      'Single source of truth for automated test counts: pytest --collect-only -q backend/tests/ video_pipeline/tests/ eval/ (440 collected; 439 passed, 1 skipped on run), frontend/vitest.config.mts (11 suites / 82 tests passing on Kali = 7 unit suites / 43 tests + 4 contract suites / 39 tests), frontend/tests/fixtures/gate_golden.json (265 vectors), paper/CLAIMS.md C16',
+      'Single source of truth for automated test counts: pytest --collect-only -q backend/tests/ video_pipeline/tests/ eval/ (440 collected; 439 passed, 1 skipped on run), frontend/vitest.config.mts (10 suites / 76 tests passing on Windows on 2026-11-28 = 7 unit suites / 46 tests + 3 contract suites / 30 tests, after removing duplicate tests; was 11 / 82 on Kali on 2026-11-27), frontend/tests/fixtures/gate_golden.json (265 vectors), paper/CLAIMS.md C16',
   },
 } as const satisfies Record<string, ManualFact<unknown>>;
 

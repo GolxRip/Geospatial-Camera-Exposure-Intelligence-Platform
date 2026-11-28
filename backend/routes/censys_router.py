@@ -17,13 +17,14 @@ from typing import Any
 import aiosqlite
 from fastapi import APIRouter, HTTPException, Query
 
-from config import DATABASE_PATH
+from config import CENSYS_DIR as _CENSYS_DIR, DATABASE_PATH, RESULTS_JSON_PATH as _RESULTS_JSON_PATH
 
 router = APIRouter()
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-CENSYS_DIR = BASE_DIR / "data" / "censys"
-RESULTS_JSON_PATH = BASE_DIR / "paper" / "data" / "results.json"
+# Configurable in config.py (env CENSYS_DIR / RESULTS_JSON_PATH) so the Docker image, which contains only
+# backend/, can find the mounted research artifacts.
+CENSYS_DIR = Path(_CENSYS_DIR)
+RESULTS_JSON_PATH = Path(_RESULTS_JSON_PATH)
 
 ALL_INDIA_ALIASES = {"All India", "All", "all", ""}
 

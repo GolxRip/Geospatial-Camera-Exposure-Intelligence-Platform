@@ -80,7 +80,7 @@
   - Privacy-first IP masking (`a.b.c.0` `/24` when `EXPOSE_FULL_IP=false`), explicit `demo: true` isolation, and zero orphan alerts in `data/public.db` (`9,320` masked simulated devices).
 - **Single-Source Test Counts (`frontend/src/lib/content/facts.manual.ts`, `eval.tests`):**
   - **Backend + Pipeline + Eval (`pytest`):** **`439 passed, 1 skipped, 0 warnings`** (`440` collected: `374` backend, `52` video pipeline, `14` eval; `1` skip = untrained-GNN 503 test when trained `.pt` weights exist). Asyncio loop/SQLite lock races resolved (`timeout=30.0`, sync/async ledger split).
-  - **Frontend (`Vitest` / `eslint` / `tsc`):** **`11` Vitest suites / `82` tests** passing on Kali (`7` unit suites / `43` tests under `tests/unit/` + `4` API/SSE/contrast/facts suites / `39` tests, covering `265` Python-vs-TypeScript golden gate vectors), clean ESLint & TypeScript compilation.
+  - **Frontend (`Vitest` / `eslint` / `tsc`):** **`10` Vitest suites / `76` tests** passing on 2026-11-28 after duplicate tests were removed (`7` unit suites / `46` tests under `tests/unit/` + `3` API/SSE/contrast suites / `30` tests, covering `265` Python-vs-TypeScript golden gate vectors), clean ESLint & TypeScript compilation.
 
 ### Slide 10 — Live Demo Plan (~4 Minutes)
 *(Follow [`docs/DEMO_SCRIPT.md`](DEMO_SCRIPT.md) step-by-step)*

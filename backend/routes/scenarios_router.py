@@ -29,8 +29,30 @@ EVENT_INTERVAL_S = 2.0
 _task: asyncio.Task | None = None
 
 
+# The scenarios a client may run. Listed by GET /api/scenarios so the UI never hard-codes them (FRONTEND_SPEC B5).
+SCENARIOS = {
+    "default": {
+        "name": "default",
+        "description": (
+            "Twelve synthetic detection events at random stored cameras, two seconds apart, through the real "
+            "scoring pipeline. Every resulting alert is flagged demo: true."
+        ),
+        "events": SCENARIO_EVENTS,
+        "interval_seconds": EVENT_INTERVAL_S,
+        "event_types": EVENT_TYPES,
+        "demo": True,
+    },
+}
+
+
 class ScenarioRequest(BaseModel):
     scenario: str = "default"
+
+
+@router.get("/scenarios")
+async def list_scenarios():
+    """Demo scenarios that POST /api/scenarios/run accepts (all synthetic and labelled demo)."""
+    return {"scenarios": list(SCENARIOS.values()), "running": _task is not None and not _task.done()}
 
 
 async def _run(camera_ids: list[str]) -> None:
@@ -52,8 +74,8 @@ async def _run(camera_ids: list[str]) -> None:
 @router.post("/scenarios/run")
 async def run_scenario(req: ScenarioRequest):
     global _task
-    if req.scenario != "default":
-        raise HTTPException(status_code=404, detail=f"Unknown scenario '{req.scenario}'. Available: ['default'].")
+    if req.scenario not in SCENARIOS:
+        raise HTTPException(status_code=404, detail=f"Unknown scenario '{req.scenario}'. Available: {sorted(SCENARIOS)}.")
     if _task is not None and not _task.done():
         raise HTTPException(status_code=409, detail="A scenario is already running.")
 

@@ -1,0 +1,15 @@
+# MediaMTX relay for the owned-camera testbed (testbed/README.md). Start with: mediamtx testbed/mediamtx.yml
+# Each owned camera is pulled once and re-published at rtsp://<this-laptop>:8554/<name>. The video pipeline reads the relay,
+# so loops and freezes can be injected by republishing a path (testbed/inject.py) without touching the camera.
+# Replace the sources with the rtsp_url values from your own devices.json. Never put a third-party camera here.
+
+rtspAddress: :8554
+
+paths:
+  cam1:
+    source: rtsp://USER:PASSWORD@192.168.50.11:554/stream1
+    sourceOnDemand: no
+  # Attack paths are published by FFmpeg (inject.py) rather than pulled from a camera.
+  cam1_attack:
+    source: publisher
+  all_others:

@@ -11,8 +11,22 @@ Variants evaluated (in addition to clean baseline):
   - cover_semi_transparent         : hazy semi-transparent overlay (alpha = 0.65)
   - partial_cover_small            : small (~9% frame area) stationary corner/side occlusion
 
+Adaptive-attacker suite (opt-in with `--variants adaptive`; aimed at the frozen v2 detector's own rules, so
+expect misses; report them as evasion curves, never tune v2 on them):
+  - partial_cover_{2,5,12,20}pct   : occlusion of exactly 2/5/12/20% of the frame (the 8x8, 12-block rule)
+  - loop_45s, loop_60s             : loops longer than v2's 18 s / 450-frame loop horizon
+  - loop_crossfade_10s             : 10 s loop whose seam is cross-faded over 1 s (no hard cut)
+  - loop_noisy_10s                 : 10 s loop with fresh sensor-like noise (sigma 3) on every frame
+  - slow_blur_300s, slow_blur_600s : defocus ramps slower than the default 60 s
+  - freeze_jitter                  : frozen frame with +/-1 px shake and noise (sigma 2), aimed at the freeze guard
+
+Tamper starts at 40% of each clip and a loop replays the footage just before onset, so a loop of L seconds
+needs clips of at least L / 0.4 seconds (45 s -> 113 s, 60 s -> 150 s); shorter clips silently get a
+shorter loop. Use `--max-seconds 180` (or more) for loop_45s and loop_60s and state the clip lengths.
+
 Usage:
   python eval/robustness_sweep.py --data /path/to/videos --width 320 --min-seconds 12 --max-seconds 90 --out eval/results/robustness_sweep
+  python eval/robustness_sweep.py --data /path/to/videos --variants adaptive --width 320 --max-seconds 180 --out eval/results/adaptive_sweep
 """
 
 from __future__ import annotations
@@ -117,6 +131,88 @@ def attack_partial_cover_small(frames: list[np.ndarray], fps: float):
     return out, t0
 
 
+# ---------------------------------------------------------------------------
+# Adaptive-attacker variants (opt-in; see the module docstring)
+# ---------------------------------------------------------------------------
+
+def _attack_partial_cover_fraction(fraction: float):
+    """Dark elliptical occlusion covering exactly `fraction` of the frame (same aspect as the frame)."""
+    k = (fraction / np.pi) ** 0.5  # semi-axes k*w and k*h -> area = pi * k^2 * w * h = fraction * w * h
+
+    def _fn(frames: list[np.ndarray], fps: float):
+        t0 = _onset(len(frames))
+        out = frames[:t0]
+        for f in frames[t0:]:
+            g = f.copy()
+            h, w = g.shape[:2]
+            cv2.ellipse(g, (int(w * 0.30), int(h * 0.35)), (max(2, int(w * k)), max(2, int(h * k))),
+                        0, 0, 360, (25, 25, 25), -1)
+            out.append(g)
+        return out, t0
+
+    return _fn
+
+
+def _attack_loop_crossfade(loop_seconds: float, fade_seconds: float = 1.0):
+    """Loop whose last `fade_seconds` blend into its first frames, so the replay has no visible cut."""
+    def _fn(frames: list[np.ndarray], fps: float):
+        t0 = _onset(len(frames))
+        seg = list(frames[max(0, t0 - int(loop_seconds * fps)): t0])
+        if len(seg) < 2:
+            return attack_loop(frames, fps, loop_seconds=loop_seconds)
+        fade = max(1, min(int(fade_seconds * fps), len(seg) // 2))
+        for j in range(fade):
+            a = (j + 1) / (fade + 1)
+            i = len(seg) - fade + j
+            seg[i] = cv2.addWeighted(seg[i], 1 - a, seg[j], a, 0)
+        tail = [seg[i % len(seg)] for i in range(len(frames) - t0)]
+        return frames[:t0] + tail, t0
+
+    return _fn
+
+
+def _attack_loop_noisy(loop_seconds: float, sigma: float = 3.0):
+    """Loop with fresh Gaussian noise on every replayed frame, so no two replayed frames are identical."""
+    def _fn(frames: list[np.ndarray], fps: float):
+        looped, t0 = attack_loop(frames, fps, loop_seconds=loop_seconds)
+        rng = np.random.default_rng(11)
+        out = looped[:t0]
+        for f in looped[t0:]:
+            out.append(np.clip(f.astype(np.float32) + rng.normal(0.0, sigma, f.shape), 0, 255).astype(np.uint8))
+        return out, t0
+
+    return _fn
+
+
+def attack_freeze_jitter(frames: list[np.ndarray], fps: float):
+    """A frozen frame re-sent with +/-1 px shifts and noise (sigma 2), as a relay might to hide a freeze."""
+    t0 = _onset(len(frames))
+    base = frames[t0]
+    h, w = base.shape[:2]
+    rng = np.random.default_rng(13)
+    out = frames[:t0]
+    for _ in range(len(frames) - t0):
+        dx, dy = (int(v) for v in rng.integers(-1, 2, size=2))
+        g = cv2.warpAffine(base, np.float32([[1, 0, dx], [0, 1, dy]]), (w, h), borderMode=cv2.BORDER_REFLECT)
+        out.append(np.clip(g.astype(np.float32) + rng.normal(0.0, 2.0, g.shape), 0, 255).astype(np.uint8))
+    return out, t0
+
+
+ADAPTIVE_VARIANTS = {
+    "partial_cover_2pct": _attack_partial_cover_fraction(0.02),
+    "partial_cover_5pct": _attack_partial_cover_fraction(0.05),
+    "partial_cover_12pct": _attack_partial_cover_fraction(0.12),
+    "partial_cover_20pct": _attack_partial_cover_fraction(0.20),
+    "loop_45s": _attack_loop_seconds(45.0),
+    "loop_60s": _attack_loop_seconds(60.0),
+    "loop_crossfade_10s": _attack_loop_crossfade(10.0),
+    "loop_noisy_10s": _attack_loop_noisy(10.0),
+    "slow_blur_300s": _attack_slow_blur_seconds(300.0),
+    "slow_blur_600s": _attack_slow_blur_seconds(600.0),
+    "freeze_jitter": attack_freeze_jitter,
+}
+
+
 VARIANTS = {
     "loop_2s": _attack_loop_seconds(2.0),
     "loop_10s": _attack_loop_seconds(10.0),
@@ -130,6 +226,8 @@ VARIANTS = {
     "partial_cover_small": attack_partial_cover_small,
 }
 
+ALL_VARIANTS = {**VARIANTS, **ADAPTIVE_VARIANTS}
+
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -137,7 +235,8 @@ def main() -> None:
     ap.add_argument("--out", type=Path, default=ROOT / "eval" / "results" / "robustness_sweep")
     ap.add_argument("--dataset", type=str, default=None, help="dataset label recorded in summary.md (defaults to --data folder name)")
     ap.add_argument("--detector", default="liveness_detector:FrameLivenessTracker")
-    ap.add_argument("--variants", default=",".join(VARIANTS), help="comma-separated variant names to run")
+    ap.add_argument("--variants", default=",".join(VARIANTS),
+                    help="comma-separated variant names, or 'adaptive' / 'all' (default: the original unseen set)")
     ap.add_argument("--width", type=int, default=640, help="downscale frames to this width for speed")
     ap.add_argument("--max-seconds", type=float, default=180)
     ap.add_argument("--min-seconds", type=float, default=20.0, help="minimum clip duration in seconds to include (default 20)")
@@ -154,10 +253,15 @@ def main() -> None:
         sys.exit(f"Input path does not exist: {args.data}")
 
     detector_cls = load_detector(args.detector)
-    variants = [v.strip() for v in args.variants.split(",") if v.strip()]
-    unknown = [v for v in variants if v not in VARIANTS]
+    if args.variants.strip() == "adaptive":
+        variants = list(ADAPTIVE_VARIANTS)
+    elif args.variants.strip() == "all":
+        variants = list(ALL_VARIANTS)
+    else:
+        variants = [v.strip() for v in args.variants.split(",") if v.strip()]
+    unknown = [v for v in variants if v not in ALL_VARIANTS]
     if unknown:
-        sys.exit(f"Unknown variant(s): {', '.join(unknown)}. Choices: {', '.join(VARIANTS)}")
+        sys.exit(f"Unknown variant(s): {', '.join(unknown)}. Choices: {', '.join(ALL_VARIANTS)}, adaptive, all")
 
     print(f"Loading footage from {args.data} ...")
     skipped_clips: list[str] = []
@@ -192,7 +296,7 @@ def main() -> None:
         print(f"{c.name}: clean done")
 
         for v in variants:
-            tampered, t0 = VARIANTS[v](list(c.frames), c.fps)
+            tampered, t0 = ALL_VARIANTS[v](list(c.frames), c.fps)
             scores = run(detector_cls, tampered, c.fps)
             for level, thr, incl in (("degraded", DEGRADED, False), ("tripped", TRIPPED, True)):
                 d = first_alarm(scores, clean, t0, thr, incl, min_len)

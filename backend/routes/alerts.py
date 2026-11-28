@@ -708,11 +708,22 @@ async def record_operator_verdict(
     }
 
 
+_EVAL_LIVE_POSITIVE_CLASS = "high_trust_verified"
+_EVAL_LIVE_NOTE = (
+    "Positive = an alert scored high_trust that an operator verified. The paper uses the opposite convention "
+    "(positive = fabricated), so these numbers are not comparable with paper/results.md."
+)
+
+
 @router.get("/eval/live")
 async def get_live_evaluation_metrics():
     """
     Rolling Live Precision/Recall & Tier Efficacy Evaluation (Luna 2018).
     Computes performance metrics across all operator-labelled alerts in the system.
+
+    Convention: the POSITIVE class here is "the system trusted the alert (high_trust) and an operator verified it".
+    That is the opposite of the paper and paper/results.md, where the positive class is `fabricated`. The response
+    says so in `positive_class` / `convention_note`; never compare these numbers with the paper's.
     """
     async with aiosqlite.connect(DATABASE_PATH, timeout=30.0) as db:
         db.row_factory = aiosqlite.Row
@@ -730,6 +741,8 @@ async def get_live_evaluation_metrics():
             "recall": None,
             "f1_score": None,
             "accuracy": None,
+            "positive_class": _EVAL_LIVE_POSITIVE_CLASS,
+            "convention_note": _EVAL_LIVE_NOTE,
         }
 
     tp = sum(1 for r in rows if r["operator_verdict"] == "verified" and r["action_tier"] == "high_trust")
@@ -750,6 +763,8 @@ async def get_live_evaluation_metrics():
         "f1_score": f1,
         "accuracy": accuracy,
         "high_trust_filter_efficiency": round((tp + tn) / total_labelled, 4),
+        "positive_class": _EVAL_LIVE_POSITIVE_CLASS,
+        "convention_note": _EVAL_LIVE_NOTE,
     }
 
 

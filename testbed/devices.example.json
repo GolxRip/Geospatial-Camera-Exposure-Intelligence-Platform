@@ -1,0 +1,19 @@
+{
+  "_comment": "Copy to devices.json (git-ignored). ONLY devices the team owns, on the lab LAN. Private addresses only.",
+  "devices": [
+    {
+      "name": "cam1",
+      "ip": "192.168.50.11",
+      "http_port": 80,
+      "rtsp_port": 554,
+      "rtsp_url": "rtsp://USER:PASSWORD@192.168.50.11:554/stream1"
+    },
+    {
+      "name": "decoy1",
+      "ip": "192.168.50.21",
+      "http_port": 80,
+      "rtsp_port": 554,
+      "rtsp_url": "rtsp://192.168.50.21:554/live"
+    }
+  ]
+}

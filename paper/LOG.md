@@ -337,3 +337,73 @@ Updated [video_pipeline/liveness_detector.py](video_pipeline/liveness_detector.p
   - **Clutter removal & filename cleanup (`2026-11-28` night):**
     - Removed untracked legacy clutter (`COBRA_WATCH_Latest_Project.zip`, `COBRA_WATCH_Project_Complete.zip`, `frontend/dist/`, `desktop.ini`, `0`-byte unused `backend/database.sqlite` & `backend/data/surveillancewatch.db`, `"archive/COBRA-WATCH_LS_Table_v2 (1).docx"`).
     - Shortened report artifacts (`COBRA_WATCH_Review2_Draft.pdf` -> `draft_report.pdf`, `overleaf_single_file.tex` -> `single_file.tex`, `cobra_watch_rait_report_overleaf.zip` -> `overleaf.zip`) and verbose legacy `archive/` filenames (`roadmap.md`, `old_paper.pdf`, `bible.md`, `slides_dossier.md`, `old_slides.html`, `old_slides_guide.pdf`, `slides_master_guide.md`, `techstack_roadmap.md`, `slides_simple.md`, `study_guide.md`, `simple_tables.md`, `future_scope.md`, `guide_summary.md`, `iitb_defense.md`, `defense_dossier.md`, `paper_draft.md`, `project_summary.md`, `research_novelty.md`), leaving core code, `eval/`, `paper/`, `docs/`, and frozen `video_pipeline/liveness_detector.py` paths intact.
+
+## 2026-11-28, `testing_rp.md`: paper testing plan restricted to truly public data
+**Did:** Wrote `testing_rp.md` (repo root): what real-data testing the research paper still lacks, and datasets downloadable with no application, agreement form or verified email. Excluded: UHCTD (form), VIRAT (protection agreement), Censys research access (application), Rapid7 Sonar (commercial), Shodan academic (verified email). Included after checking source pages: MEVA (AWS `--no-sign-request`, 324.2 h, CC BY 4.0), UCF-Crime normal videos, ShanghaiTech, UCSD, VIFFD (CC BY 4.0), CDnet 2014, VISION (click-through). Tests A-H with sample-size targets (Wilson n/(n+3.84); Garwood 3.69/H for zero false alarms).
+**Found:** `main.tex` lines 428 and 450 quote 281.9 FPS (synthetic-pattern benchmark) while CLAIMS C12 and the report use 242.7 FPS (real Avenue frames).
+**Not verified:** CDnet site unreachable; UCSD URL and VIFFD open download unconfirmed; UCF-Crime, ShanghaiTech and UCSD licences not stated; no code changed, nothing run.
+
+## 2026-11-28, code work for the paper tests, Docker/demo fixes, dead-code cleanup, stale docs
+**Why:** the audit of this repo (same day) listed 12 code items plus cleanup needed before the paper tests in `testing_rp.md` can
+run and before Review 2. Done one by one; no detector code, threshold or weight changed (`video_pipeline/liveness_detector.py`
+untouched), so nothing here is "tuned after seeing data".
+
+**Did (code):**
+1. Docker: `docker-compose.yml` backend defaults to `DATABASE_PATH=/app/data/public.db` (override `COBRA_DATABASE_PATH`), mounts
+   `paper/data` read-only and sets `CENSYS_DIR` / `RESULTS_JSON_PATH`; frontend mounts `eval/results` read-only for `/research`.
+   `backend/config.py` gained `CENSYS_DIR` and `RESULTS_JSON_PATH`; `backend/routes/censys_router.py` uses them (its old
+   `BASE_DIR`-relative paths resolved to `/` inside the container).
+2. Demo fixture: new `scripts/build_demo_fixture.py` builds the simulated `data/public.db` from scratch (seed 20261128, 9,320
+   `synthetic_demo` devices in 8 city clusters, private `10.x` addresses, `raw_data.simulated = true`), then runs `build_public_db`.
+3. `scripts/build_public_db.py`: `raw_data` JSON is now sanitised too (`ip`/`ip_str` masked to /24, `hostnames` dropped); the
+   docstring claimed this before but the code did not do it. Removed "Master Plan" references from the docstring.
+4. Landing page: new `frontend/src/components/sections/hero-stage.tsx` puts the WebGL hood (`HoodCanvas`) back in the hero over a
+   static `HoodGauge`; `app/(site)/page.tsx` renders `FeedLayer` again.
+5. Basemap: copied the built `india.pmtiles` (263,175,029 bytes, maxzoom 11, git-ignored) into `frontend/public/tiles/`;
+   `basemap.json` says available; `frontend/BASEMAP.md` rewritten.
+6. Test B: `eval/tier2_real_footage.py --clean-only` (streaming, no tamper runs, no buffering), `--save-scores DIR` (per-clip
+   `.npz`), `--extra-level NAME=T`. Default behaviour and output format unchanged.
+7. Test D: `eval/robustness_sweep.py --variants adaptive|all` adds 11 adaptive variants (partial cover 2/5/12/20%, loops 45/60 s,
+   cross-faded and noisy 10 s loops, slow blur 300/600 s, jittered freeze). Default variant set unchanged.
+8. Test E: new `eval/calibrate_thresholds.py` (split conformal on saved clean scores; split by clip-name hash; output to
+   `eval/calibration/`).
+9. Tests F/G: new `testbed/` (README, `mediamtx.yml`, `inject.py` dry-run by default, `banner_log.py` allow-listed to private
+   owned devices, `devices.example.json`, `scenarios.csv`). `.gitignore`: `testbed/devices.json`, `testbed/recordings/`,
+   `testbed/logs/`, `eval/scores/`.
+10. Paper: `main.tex` speed sentence and conclusion now quote the real-frame v2 benchmark (242.7 FPS / 4.12 ms at 320 px, 59.9 FPS
+    / 16.69 ms at 640 px) instead of 281.9/606.8 FPS from the synthetic-pattern run. WA F1 in Table `tab:main` changed 0.753 -> 0.752
+    (stored value 0.75248; 0.753 came from rounding 0.7525 again). `lint_tex.py`: braces/envs OK. Not compiled.
+11. API: `LICENSE` (MIT) added. `backend/main.py` sets operation ids to function names and tags every router (12 tags).
+    `GET /api/scenarios` lists the runnable scenarios (`backend/routes/scenarios_router.py`). `/api/eval/live` now returns
+    `positive_class = "high_trust_verified"` and a `convention_note` (that endpoint's positive class differs from the paper's
+    `fabricated`). `frontend/openapi.snapshot.json` and `src/lib/api/schema.d.ts` regenerated (43 paths).
+12. New `docs/API_STREAMS.md`: WebSocket `ALERT` / `INTEGRITY_GATE_TRIPPED` and SSE `text/chunk/done/error` formats, from the code.
+
+**Did (cleanup and duplicates):** deleted unused frontend files (`components/sections/{nav,blind-spot,run-it,footer,walk-gate,
+seen-from-above,ethics-section,gate-explorer-section}.tsx`, `components/layout/region.tsx`, `components/dev/hood-lab.tsx`,
+`components/console/zone-brief.tsx`, `components/map/map-view.tsx`, `components/motion/*`, the duplicate `src/lib/api/mask-ip.ts`
+and `src/lib/three/hood-geometry.json`, `frontend/.prettierrc` (kept `.prettierrc.json`)); deleted `scripts/create_project_zip.py`
+(hard-coded another user's path); `frontend/scripts/sync-brand.mjs` now writes the geometry copy the app actually reads
+(`src/lib/brand/hood-geometry.json`). Tests: removed `tests/gate.test.ts` and `tests/hood.test.ts` (not in the Vitest include list),
+merged the 3 unique tests of `tests/facts.test.ts` into `tests/unit/facts.test.ts`, dropped the `maskIp` block of `tests/api.test.ts`
+(covered by the privacy module's tests), fixed `tests/unit/rules.test.ts` for Windows path separators. Frontend totals are now
+10 suites / 76 tests (were 11 / 82): updated in `facts.manual.ts` (+ `frontend_date`), `results.tsx`, `report/chap4.tex`,
+`report/chap5.tex`, `report/single_file.tex`, `docs/REVIEW2_SLIDES.md`, `README.md`.
+
+**Did (stale docs):** `README.md` (fixture quick start, Docker section, new tools, testbed, LICENSE), `eval/README.md` (new
+section 5 with Test B/D/E commands), `CLAUDE.md` (where-things-are rows; testbed exception to the no-connections rule),
+`ETHICS_AND_SCOPE_POLICY.md` s2.1 item 5 (owned lab devices only), `FRONTEND_SPEC.md` (status note; WA F1 0.752 in s3.2/7.6),
+`docs/DEMO_SCRIPT.md` (fixture steps, Docker note, removed another user's absolute paths), `docs/REVIEW2_SCOPE.md`,
+`frontend/src/lib/data/README.md`, `testing_rp.md` (implemented items marked), `eval/eval_report.md` (superseded banner),
+`paper/TODO.md`, `paper/CLAIMS.md` (C2, C12, C15, C16).
+
+**Verified (Windows, Python 3.13, Node):** `tsc --noEmit` and `eslint` clean; Vitest 10/10 files, 76/76 tests; 21 targeted backend
+tests passed; FastAPI TestClient: `/api/scenarios` lists `default`, unknown scenario gives 404, `/api/censys/snapshots` available
+(104,218), `/api/results` 200, `/api/eval/live` has `positive_class`, operation id `get_devices` tagged `devices`. Smoke runs on a
+few synthetic frames only: `build_demo_fixture.py` (200 and 50 devices), `--clean-only --save-scores`, `--variants adaptive`,
+`calibrate_thresholds.py`, `testbed/inject.py` dry run, `banner_log.py --check`. These smoke runs are not results.
+
+**Not verified:** full pytest suite (440) after the backend edits; `npm run build`; Playwright e2e; `docker compose up` with the new
+mounts; browser rendering of the re-wired WebGL hero and feed field; the report PDF and Overleaf zip (report `.tex` changed, no LaTeX
+here); `main.tex` compile. No permanent tests yet for `/api/scenarios`, the config paths or the new `/api/eval/live` fields. None of
+Tests B, D, E, F or G has been run on real data.

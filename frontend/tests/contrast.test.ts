@@ -19,7 +19,7 @@ describe("colour tokens (spec 5.1)", () => {
   });
 
   it("matches the brand colours in assets/logo geometry", async () => {
-    const geo = (await import("@/lib/three/hood-geometry.json")).default;
+    const geo = (await import("@/lib/brand/hood-geometry.json")).default;
     expect(geo.colors.void.toLowerCase()).toBe(tokens["ink-0"]);
     expect(geo.colors.bone.toLowerCase()).toBe(tokens.bone);
     expect(geo.colors.signal.toLowerCase()).toBe(tokens.signal);

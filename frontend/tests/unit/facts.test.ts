@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { FACT_KEYS, fact, fmt3 } from '@/lib/content/facts';
 import { SOURCE_SHA256, facts } from '@/lib/content/facts.generated';
 import { manualFacts } from '@/lib/content/facts.manual';
 
@@ -23,10 +24,9 @@ describe('generated facts', () => {
   });
 
   // These are the numbers FRONTEND_SPEC.md section 3.2 quotes. If results.json moves, the spec table is stale.
-  // Known discrepancy: the spec and README print the weighted-average F1 as 0.753, but results.json holds
-  // 0.75248, which is 0.752 at three decimals (0.753 is a double rounding of results.md's 0.7525). The site
-  // renders from the facts, so it shows 0.752; this test pins the true value.
-  it('match the spec truth sheet (section 3.2), except the weighted-average F1 rounding', () => {
+  // The weighted-average F1 is 0.75248 in results.json, which is 0.752 at three decimals. The spec, main.tex and
+  // CLAIMS.md printed 0.753 (a double rounding of results.md's 0.7525) until 2026-11-28; this test pins the true value.
+  it('match the spec truth sheet (section 3.2)', () => {
     const m = (k: 'wa' | 'advanced' | 'bayesian' | 'igdctf') => facts[`res.model.${k}`].value;
     expect([r3(m('wa').accuracy), r3(m('wa').recall), r3(m('wa').f1), m('wa').fp]).toEqual([
       0.792, 0.603, 0.752, 0,
@@ -115,10 +115,60 @@ describe('manual facts', () => {
     const t = manualFacts['eval.tests'].value;
     expect(t.backend_passed + t.video_pipeline_passed + t.eval_passed).toBe(t.passed);
     expect(t.passed + t.skipped).toBe(t.python_collected);
-    expect(t.frontend_suites).toBe(11);
-    expect(t.frontend_tests).toBe(82);
+    expect(t.frontend_suites).toBe(10);
+    expect(t.frontend_tests).toBe(76);
     expect(t.frontend_unit_suites).toBe(7);
-    expect(t.frontend_unit_tests).toBe(43);
+    expect(t.frontend_unit_tests).toBe(46);
     expect(t.golden_vectors).toBe(265);
+  });
+});
+
+// Merged from the former tests/facts.test.ts (its hash and source checks duplicated the ones above).
+describe('facts on the site', () => {
+  it('covers every key listed in spec 3.2', () => {
+    for (const key of [
+      'res.model.wa', 'res.model.advanced', 'res.model.bayesian', 'res.model.igdctf', 'res.mcnemar',
+      'res.strat.with_b', 'res.strat.without_b', 'res.ablation', 'res.sweep', 'res.tier1', 'res.tier2',
+      'res.t2.end2end', 'res.overhead', 'eval.tests',
+    ]) {
+      expect(FACT_KEYS, key).toContain(key);
+    }
+  });
+
+  it('matches the numbers printed in paper/results.md (4 decimals there, 3 decimals on the site)', () => {
+    const wa = fact('res.model.wa');
+    const adv = fact('res.model.advanced');
+    const bay = fact('res.model.bayesian');
+    const ig = fact('res.model.igdctf');
+    // results.md section 1: WA F1 0.7525, Advanced 0.8113, Bayesian 0.8319, IG-DCTF 0.9756
+    expect(wa.f1.toFixed(4)).toBe('0.7525');
+    expect(adv.f1.toFixed(4)).toBe('0.8113');
+    expect(bay.f1.toFixed(4)).toBe('0.8319');
+    expect(ig.f1.toFixed(4)).toBe('0.9756');
+    // Rounded once from the stored value: WA F1 is 0.752, not 0.753 (0.7525 rounded twice).
+    expect([wa, adv, bay, ig].map((m) => fmt3(m.f1))).toEqual(['0.752', '0.811', '0.832', '0.976']);
+    expect([ig.tp, ig.fp, ig.tn, ig.fn]).toEqual([60, 0, 57, 3]);
+    expect(fact('res.corpus')).toEqual({ n_direct: 120, n_fabricated: 63, n_genuine: 57, n_with_signal_fields: 30 });
+    expect(fact('res.mcnemar').igdctf_only_correct).toBe(17);
+    expect(fact('res.tier1').distinct_cases).toBe(13);
+    expect(fact('res.overhead').igdctf_us.toFixed(2)).toBe('4.69');
+  });
+
+  it('renders no hard-coded digits in section components', () => {
+    // Heuristic for ground rule 1: JSX text between tags must not contain decimals or multi-digit numbers
+    // (result figures). Single-digit method constants such as "G(s) = 1" are allowed.
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const e of readdirSync(dir)) {
+        const p = join(dir, e);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (p.endsWith('.tsx')) {
+          const text = readFileSync(p, 'utf8');
+          for (const m of text.matchAll(/>([^<>{}]*(?:\d+\.\d+|\d{2,})[^<>{}]*)</g)) offenders.push(`${p}: ${m[1]?.trim()}`);
+        }
+      }
+    };
+    walk(resolve(__dirname, '../../src/components/sections'));
+    expect(offenders).toEqual([]);
   });
 });

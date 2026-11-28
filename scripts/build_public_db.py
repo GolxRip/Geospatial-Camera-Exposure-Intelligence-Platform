@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """
-build_public_db.py — Sanitize & verify `data/public.db` (Master Plan Rule 7)
+build_public_db.py — Sanitize & verify `data/public.db`
 ============================================================================
-Master plan (`MASTER_PLAN_REVIEW2.md`):
-  "Only public.db leaves Adi's machine. Never the original database."
+Data rule (CLAUDE.md, README "Data Governance"): only the sanitized public.db is ever shared; a working database
+with unmasked addresses never leaves the machine it was built on. To create the demo fixture from a fresh clone,
+use scripts/build_demo_fixture.py, which generates simulated devices and then calls this script.
 
 What this script does cleanly & deterministically:
   1. Reads the current SQLite DB (default `data/surveillancewatch.db`).
   2. Writes a new SQLite DB (default `data/public.db`).
-  3. Masks every IP address in `devices.ip` to its `/24` prefix (`a.b.c.0` / `a:b:c::`)
-     and strips raw unmasked IPs from `raw_data`.
+  3. Masks every IP address in `devices.ip` to its `/24` prefix (`a.b.c.0` / `a:b:c::`), and in the stored
+     scanner JSON (`raw_data`) masks `ip` / `ip_str` and drops `hostnames` (which can identify a host).
   4. Removes leftover `SIM_*` temporary rows created by simulator runs.
   5. Rebuilds a valid, cryptographically continuous `audit_ledger` Merkle chain
      over existing alerts (so `/api/audit/verify` passes cleanly instead of
@@ -41,6 +42,23 @@ def mask_ip(ip: str | None) -> str:
     return "0.0.0.0"
 
 
+def _sanitize_raw(raw: str | None) -> str | None:
+    """Mask addresses and drop hostnames inside the stored scanner JSON; leave anything unparseable empty."""
+    if not raw:
+        return raw
+    try:
+        data = json.loads(raw)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    for key in ("ip", "ip_str"):
+        if isinstance(data.get(key), str):
+            data[key] = mask_ip(data[key])
+    data.pop("hostnames", None)
+    return json.dumps(data)
+
+
 def compute_entry_hash(previous_hash: str, payload: dict) -> str:
     serialized = json.dumps(payload, sort_keys=True)
     return hashlib.sha256(f"{previous_hash}{serialized}".encode("utf-8")).hexdigest()
@@ -64,11 +82,14 @@ def build_public_db(src: Path, dst: Path) -> dict[str, int]:
     cur.execute("DELETE FROM alerts WHERE camera_id LIKE 'SIM_%'")
     cur.execute("DELETE FROM alerts WHERE camera_id NOT IN (SELECT id FROM devices)")
 
-    # 2. Mask all device IPs
-    cur.execute("SELECT id, ip FROM devices")
+    # 2. Mask all device IPs, including any copy inside the stored scanner JSON
+    cur.execute("SELECT id, ip, raw_data FROM devices")
     device_rows = cur.fetchall()
     for row in device_rows:
-        cur.execute("UPDATE devices SET ip = ? WHERE id = ?", (mask_ip(row["ip"]), row["id"]))
+        cur.execute(
+            "UPDATE devices SET ip = ?, raw_data = ? WHERE id = ?",
+            (mask_ip(row["ip"]), _sanitize_raw(row["raw_data"]), row["id"]),
+        )
 
     # 3. Rebuild continuous Merkle chain in audit_ledger from remaining alerts
     cur.execute("DELETE FROM audit_ledger")

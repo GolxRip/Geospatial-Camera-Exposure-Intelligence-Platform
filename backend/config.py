@@ -12,6 +12,10 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 NVD_API_KEY = os.getenv("NVD_API_KEY", "")  # Optional: keyless CISA KEV + CCTV vulnerability catalog used automatically
 DATABASE_PATH = os.getenv("DATABASE_PATH") or os.path.join(BASE_DIR, "data", "surveillancewatch.db")
+# Read-only research artifacts served by routes/censys_router.py. Defaults follow the repository layout;
+# the Docker image only contains backend/, so docker-compose.yml mounts them and sets these two paths.
+CENSYS_DIR = os.getenv("CENSYS_DIR") or os.path.join(BASE_DIR, "data", "censys")
+RESULTS_JSON_PATH = os.getenv("RESULTS_JSON_PATH") or os.path.join(BASE_DIR, "paper", "data", "results.json")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
 EXPOSE_FULL_IP = os.getenv("EXPOSE_FULL_IP", "false").lower() == "true"
 

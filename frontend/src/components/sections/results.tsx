@@ -175,7 +175,7 @@ export function Results() {
             <Stat
               value={tests.passed}
               label="Python tests passed"
-              detail={`Run ${tests.date} (${tests.backend_passed} backend, ${tests.video_pipeline_passed} video, ${tests.eval_passed} eval); ${tests.frontend_tests} Vitest across ${tests.frontend_suites} suites`}
+              detail={`Run ${tests.date} (${tests.backend_passed} backend, ${tests.video_pipeline_passed} video, ${tests.eval_passed} eval); ${tests.frontend_tests} Vitest across ${tests.frontend_suites} suites, run ${tests.frontend_date}`}
             />
           </li>
         </ul>

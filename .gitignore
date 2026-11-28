@@ -70,3 +70,10 @@ tmp/
 *.synctex.gz
 # Large generated hand-off bundles
 *.zip
+
+# Owned-camera testbed: device credentials, recordings and banner logs stay local (testbed/README.md)
+testbed/devices.json
+testbed/recordings/
+testbed/logs/
+# Per-frame liveness scores from tier2_real_footage.py --save-scores (regenerable, can be large)
+eval/scores/

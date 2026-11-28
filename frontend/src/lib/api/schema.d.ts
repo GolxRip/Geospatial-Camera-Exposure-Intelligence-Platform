@@ -12,7 +12,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Devices */
-        get: operations["get_devices_api_devices_get"];
+        get: operations["get_devices"];
         put?: never;
         post?: never;
         delete?: never;
@@ -29,7 +29,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get News */
-        get: operations["get_news_api_news_get"];
+        get: operations["get_news"];
         put?: never;
         post?: never;
         delete?: never;
@@ -51,7 +51,7 @@ export interface paths {
          * Get Brief
          * @description Generate a risk brief for a device cluster.
          */
-        post: operations["get_brief_api_brief_post"];
+        post: operations["get_brief"];
         delete?: never;
         options?: never;
         head?: never;
@@ -71,7 +71,7 @@ export interface paths {
          * Get Brief Stream
          * @description Stream a risk brief via SSE for typewriter effect.
          */
-        post: operations["get_brief_stream_api_brief_stream_post"];
+        post: operations["get_brief_stream"];
         delete?: never;
         options?: never;
         head?: never;
@@ -86,7 +86,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Heatmap */
-        get: operations["get_heatmap_api_heatmap_get"];
+        get: operations["get_heatmap"];
         put?: never;
         post?: never;
         delete?: never;
@@ -103,7 +103,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Stats */
-        get: operations["get_stats_api_stats_get"];
+        get: operations["get_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -145,7 +145,7 @@ export interface paths {
          *     11. Broadcast over WebSocket
          *     12. Return full enriched AlertResponse
          */
-        post: operations["receive_detection_event_api_detection_event_post"];
+        post: operations["receive_detection_event"];
         delete?: never;
         options?: never;
         head?: never;
@@ -164,7 +164,7 @@ export interface paths {
          * @description Recent alerts, newest first.
          *     If decayed=True, re-evaluates exponential decay dynamically relative to current server time.
          */
-        get: operations["get_alerts_api_alerts_get"];
+        get: operations["get_alerts"];
         put?: never;
         post?: never;
         delete?: never;
@@ -190,7 +190,7 @@ export interface paths {
          *     Requires X-API-Key authentication — unprotected verdict labelling would allow
          *     adversaries to poison the live precision/recall metrics (GET /api/eval/live).
          */
-        post: operations["record_operator_verdict_api_alerts__alert_id__verdict_post"];
+        post: operations["record_operator_verdict"];
         delete?: never;
         options?: never;
         head?: never;
@@ -209,7 +209,7 @@ export interface paths {
          * @description Rolling Live Precision/Recall & Tier Efficacy Evaluation (Luna 2018).
          *     Computes performance metrics across all operator-labelled alerts in the system.
          */
-        get: operations["get_live_evaluation_metrics_api_eval_live_get"];
+        get: operations["get_live_evaluation_metrics"];
         put?: never;
         post?: never;
         delete?: never;
@@ -230,7 +230,7 @@ export interface paths {
          * @description On-demand full Major Project trust score for a specific device.
          *     Returns WA, probabilistic, and decayed scores alongside all factor breakdowns.
          */
-        get: operations["get_device_trust_score_api_devices__camera_id__trust_score_get"];
+        get: operations["get_device_trust_score"];
         put?: never;
         post?: never;
         delete?: never;
@@ -259,7 +259,7 @@ export interface paths {
          *
          *     Used by the frontend AnalyticsPanel "Audit Chain" tab.
          */
-        get: operations["get_audit_ledger_api_audit_ledger_get"];
+        get: operations["get_audit_ledger"];
         put?: never;
         post?: never;
         delete?: never;
@@ -283,7 +283,7 @@ export interface paths {
          *     camera_id. Each entry keeps its real sequence_id and hashes, so the trail can still be
          *     checked against `/api/audit/verify`.
          */
-        get: operations["get_device_audit_trail_api_devices__camera_id__audit_trail_get"];
+        get: operations["get_device_audit_trail"];
         put?: never;
         post?: never;
         delete?: never;
@@ -303,7 +303,7 @@ export interface paths {
          * Verify Audit Integrity
          * @description Run cryptographic integrity verification over the full hash chain.
          */
-        get: operations["verify_audit_integrity_api_audit_verify_get"];
+        get: operations["verify_audit_integrity"];
         put?: never;
         post?: never;
         delete?: never;
@@ -323,7 +323,7 @@ export interface paths {
          * Get Audit Stats
          * @description Return audit chain summary statistics for the dashboard.
          */
-        get: operations["get_audit_stats_api_audit_stats_get"];
+        get: operations["get_audit_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -343,7 +343,7 @@ export interface paths {
          * Get Chain Proof
          * @description Generate an immutable cryptographic chain proof for an alert (BIoT SLR 2026).
          */
-        get: operations["get_chain_proof_api_audit_chain_proof_get"];
+        get: operations["get_chain_proof"];
         put?: never;
         post?: never;
         delete?: never;
@@ -382,7 +382,7 @@ export interface paths {
          *     This upgrades the ledger from "operator-witnessed" to "externally-anchored"
          *     tamper detection, as recommended by Zhang et al. (IoT Botnet Forensics, 2020).
          */
-        get: operations["get_audit_anchor_api_audit_anchor_get"];
+        get: operations["get_audit_anchor"];
         put?: never;
         post?: never;
         delete?: never;
@@ -413,7 +413,7 @@ export interface paths {
          *
          *     An empty list means no suspicious velocity patterns are currently active.
          */
-        get: operations["get_corroboration_velocity_api_audit_velocity_get"];
+        get: operations["get_corroboration_velocity"];
         put?: never;
         post?: never;
         delete?: never;
@@ -436,7 +436,7 @@ export interface paths {
          *     from the normal TRUST_DECISION entries (which only carry the trip as a
          *     factor string). Newest first.
          */
-        get: operations["get_integrity_gate_trips_api_audit_integrity_trips_get"];
+        get: operations["get_integrity_gate_trips"];
         put?: never;
         post?: never;
         delete?: never;
@@ -465,7 +465,7 @@ export interface paths {
          *
          *     An empty list means no distributed collusion pattern is currently active.
          */
-        get: operations["get_collusion_clusters_api_audit_collusion_get"];
+        get: operations["get_collusion_clusters"];
         put?: never;
         post?: never;
         delete?: never;
@@ -491,7 +491,7 @@ export interface paths {
          *     (see GNN_TRAINING_GUIDE.md). Returns HTTP 503 with setup instructions if
          *     no trained weights exist yet — this endpoint never trains a model itself.
          */
-        get: operations["get_collusion_gnn_scores_api_audit_collusion_gnn_get"];
+        get: operations["get_collusion_gnn_scores"];
         put?: never;
         post?: never;
         delete?: never;
@@ -513,7 +513,7 @@ export interface paths {
          *     Returns the entry with its hash, previous_hash, and full payload.
          *     404 if alert_id not found in the chain.
          */
-        get: operations["get_audit_entry_for_alert_api_audit_ledger__alert_id__get"];
+        get: operations["get_audit_entry_for_alert"];
         put?: never;
         post?: never;
         delete?: never;
@@ -539,7 +539,7 @@ export interface paths {
          *     The decay model: S(t) = S0 * exp(-ln(2)/T_half * t)
          *     where T_half = 48 hours (Griffioen & Doerr 2020 empirical finding).
          */
-        get: operations["get_decay_curve_api_decay_curve_get"];
+        get: operations["get_decay_curve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -560,7 +560,7 @@ export interface paths {
          * @description Preview the decay curve for an arbitrary base_score without referencing a specific camera.
          *     Useful for the AnalyticsPanel slider UI.
          */
-        get: operations["preview_decay_api_decay_preview_get"];
+        get: operations["preview_decay"];
         put?: never;
         post?: never;
         delete?: never;
@@ -582,7 +582,7 @@ export interface paths {
          *     Real and demo alerts are counted separately (`real_total_alerts`, `demo_total_alerts`)
          *     so simulated traffic is never confused with real traffic.
          */
-        get: operations["get_trust_distribution_api_analytics_trust_distribution_get"];
+        get: operations["get_trust_distribution"];
         put?: never;
         post?: never;
         delete?: never;
@@ -605,7 +605,7 @@ export interface paths {
          *     Returns `{hour, count, real_count, demo_count, high_trust, medium_trust, low_trust}`
          *     buckets using the actual `alerts.is_demo` flag.
          */
-        get: operations["get_alert_timeline_api_analytics_alert_timeline_get"];
+        get: operations["get_alert_timeline"];
         put?: never;
         post?: never;
         delete?: never;
@@ -625,7 +625,7 @@ export interface paths {
          * Get Score Comparison
          * @description Per-alert comparison of WA, Probabilistic, and Decayed trust scores.
          */
-        get: operations["get_score_comparison_api_analytics_score_comparison_get"];
+        get: operations["get_score_comparison"];
         put?: never;
         post?: never;
         delete?: never;
@@ -647,7 +647,7 @@ export interface paths {
          *     Returns total devices, total alerts (24h, split real vs demo), tier distribution,
          *     and integrity status.
          */
-        get: operations["get_analytics_summary_api_analytics_summary_get"];
+        get: operations["get_analytics_summary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -675,7 +675,7 @@ export interface paths {
          *     - Top-5 most anomalous devices by drift score
          *     - City-level breakdown
          */
-        get: operations["get_integrity_fleet_stats_api_integrity_stats_get"];
+        get: operations["get_integrity_fleet_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -704,7 +704,7 @@ export interface paths {
          *     - Paper evaluation: comparing CVE-only vs IG-DCTF scores for labeled scenarios
          *     - Forensic audit (cross-reference with audit_ledger entries for same camera)
          */
-        get: operations["get_device_integrity_state_api_integrity__device_id__get"];
+        get: operations["get_device_integrity_state"];
         put?: never;
         post?: never;
         delete?: never;
@@ -727,7 +727,7 @@ export interface paths {
          * @description Send the identical `idempotency_key` twice for the same camera.
          *     Expected defense: second attempt → HTTP 409 (see alerts.py Step 0).
          */
-        post: operations["simulate_replay_attack_api_simulate_replay_attack_post"];
+        post: operations["simulate_replay_attack"];
         delete?: never;
         options?: never;
         head?: never;
@@ -748,7 +748,7 @@ export interface paths {
          * @description Send a detection event backdated well beyond MAX_TIMESTAMP_SKEW_SECONDS.
          *     Expected defense: HTTP 400 (see alerts.py Step 0).
          */
-        post: operations["simulate_timestamp_skew_api_simulate_timestamp_skew_post"];
+        post: operations["simulate_timestamp_skew"];
         delete?: never;
         options?: never;
         head?: never;
@@ -769,7 +769,7 @@ export interface paths {
          * @description Fire MAX_EVENTS_PER_MINUTE + 3 detection events at the same camera back to back.
          *     Expected defense: requests beyond the per-minute cap → HTTP 429.
          */
-        post: operations["simulate_rate_flood_api_simulate_rate_flood_post"];
+        post: operations["simulate_rate_flood"];
         delete?: never;
         options?: never;
         head?: never;
@@ -793,7 +793,7 @@ export interface paths {
          *     single-pair velocity threshold (5/60min) — exactly the distributed-collusion
          *     blind spot §5.3 was built to catch. Then runs the real graph detector.
          */
-        post: operations["simulate_collusion_ring_api_simulate_collusion_ring_post"];
+        post: operations["simulate_collusion_ring"];
         delete?: never;
         options?: never;
         head?: never;
@@ -813,7 +813,7 @@ export interface paths {
          * Reset Simulation State
          * @description Clear simulator-created devices/adjacency/velocity state for a clean re-run.
          */
-        post: operations["reset_simulation_state_api_simulate_reset_post"];
+        post: operations["reset_simulation_state"];
         delete?: never;
         options?: never;
         head?: never;
@@ -835,7 +835,7 @@ export interface paths {
          *     `search_text` set to the raw query if Groq is unavailable/unparseable —
          *     the frontend then just falls back to a plain text search, never a hard error.
          */
-        post: operations["parse_natural_language_query_api_nl_query_post"];
+        post: operations["parse_natural_language_query"];
         delete?: never;
         options?: never;
         head?: never;
@@ -850,7 +850,27 @@ export interface paths {
             cookie?: never;
         };
         /** Get Thresholds */
-        get: operations["get_thresholds_api_config_thresholds_get"];
+        get: operations["get_thresholds"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scenarios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Scenarios
+         * @description Demo scenarios that POST /api/scenarios/run accepts (all synthetic and labelled demo).
+         */
+        get: operations["list_scenarios"];
         put?: never;
         post?: never;
         delete?: never;
@@ -869,7 +889,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Run Scenario */
-        post: operations["run_scenario_api_scenarios_run_post"];
+        post: operations["run_scenario"];
         delete?: never;
         options?: never;
         head?: never;
@@ -889,7 +909,7 @@ export interface paths {
          *     Never fabricates data: returns an empty list with `available: false` when
          *     no snapshot has been saved yet.
          */
-        get: operations["list_censys_snapshots_api_censys_snapshots_get"];
+        get: operations["list_censys_snapshots"];
         put?: never;
         post?: never;
         delete?: never;
@@ -911,7 +931,7 @@ export interface paths {
          *     Used by the UI to tell operators plainly what fraction of points come from
          *     Censys metadata, OpenStreetMap nodes, live scanner results, or demo fill.
          */
-        get: operations["get_device_provenance_api_devices_provenance_get"];
+        get: operations["get_device_provenance"];
         put?: never;
         post?: never;
         delete?: never;
@@ -931,7 +951,7 @@ export interface paths {
          * Get Paper Results
          * @description Serve `paper/data/results.json` read-only (FRONTEND_SPEC.md section 16 B8).
          */
-        get: operations["get_paper_results_api_results_get"];
+        get: operations["get_paper_results"];
         put?: never;
         post?: never;
         delete?: never;
@@ -948,7 +968,7 @@ export interface paths {
             cookie?: never;
         };
         /** Health */
-        get: operations["health_health_get"];
+        get: operations["health"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1146,7 +1166,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    get_devices_api_devices_get: {
+    get_devices: {
         parameters: {
             query?: {
                 city?: string;
@@ -1177,7 +1197,7 @@ export interface operations {
             };
         };
     };
-    get_news_api_news_get: {
+    get_news: {
         parameters: {
             query?: {
                 city?: string;
@@ -1208,7 +1228,7 @@ export interface operations {
             };
         };
     };
-    get_brief_api_brief_post: {
+    get_brief: {
         parameters: {
             query?: never;
             header?: never;
@@ -1241,7 +1261,7 @@ export interface operations {
             };
         };
     };
-    get_brief_stream_api_brief_stream_post: {
+    get_brief_stream: {
         parameters: {
             query?: never;
             header?: never;
@@ -1274,7 +1294,7 @@ export interface operations {
             };
         };
     };
-    get_heatmap_api_heatmap_get: {
+    get_heatmap: {
         parameters: {
             query?: {
                 city?: string;
@@ -1305,7 +1325,7 @@ export interface operations {
             };
         };
     };
-    get_stats_api_stats_get: {
+    get_stats: {
         parameters: {
             query?: {
                 city?: string;
@@ -1336,7 +1356,7 @@ export interface operations {
             };
         };
     };
-    receive_detection_event_api_detection_event_post: {
+    receive_detection_event: {
         parameters: {
             query?: never;
             header?: {
@@ -1371,7 +1391,7 @@ export interface operations {
             };
         };
     };
-    get_alerts_api_alerts_get: {
+    get_alerts: {
         parameters: {
             query?: {
                 city?: string | null;
@@ -1404,7 +1424,7 @@ export interface operations {
             };
         };
     };
-    record_operator_verdict_api_alerts__alert_id__verdict_post: {
+    record_operator_verdict: {
         parameters: {
             query?: never;
             header?: {
@@ -1441,7 +1461,7 @@ export interface operations {
             };
         };
     };
-    get_live_evaluation_metrics_api_eval_live_get: {
+    get_live_evaluation_metrics: {
         parameters: {
             query?: never;
             header?: never;
@@ -1461,7 +1481,7 @@ export interface operations {
             };
         };
     };
-    get_device_trust_score_api_devices__camera_id__trust_score_get: {
+    get_device_trust_score: {
         parameters: {
             query?: never;
             header?: never;
@@ -1492,7 +1512,7 @@ export interface operations {
             };
         };
     };
-    get_audit_ledger_api_audit_ledger_get: {
+    get_audit_ledger: {
         parameters: {
             query?: {
                 /** @description Max entries to return */
@@ -1526,7 +1546,7 @@ export interface operations {
             };
         };
     };
-    get_device_audit_trail_api_devices__camera_id__audit_trail_get: {
+    get_device_audit_trail: {
         parameters: {
             query?: {
                 limit?: number;
@@ -1559,7 +1579,7 @@ export interface operations {
             };
         };
     };
-    verify_audit_integrity_api_audit_verify_get: {
+    verify_audit_integrity: {
         parameters: {
             query?: never;
             header?: never;
@@ -1579,7 +1599,7 @@ export interface operations {
             };
         };
     };
-    get_audit_stats_api_audit_stats_get: {
+    get_audit_stats: {
         parameters: {
             query?: never;
             header?: never;
@@ -1599,7 +1619,7 @@ export interface operations {
             };
         };
     };
-    get_chain_proof_api_audit_chain_proof_get: {
+    get_chain_proof: {
         parameters: {
             query: {
                 /** @description Alert ID to generate cryptographic proof for */
@@ -1631,7 +1651,7 @@ export interface operations {
             };
         };
     };
-    get_audit_anchor_api_audit_anchor_get: {
+    get_audit_anchor: {
         parameters: {
             query?: never;
             header?: never;
@@ -1651,7 +1671,7 @@ export interface operations {
             };
         };
     };
-    get_corroboration_velocity_api_audit_velocity_get: {
+    get_corroboration_velocity: {
         parameters: {
             query?: never;
             header?: never;
@@ -1671,7 +1691,7 @@ export interface operations {
             };
         };
     };
-    get_integrity_gate_trips_api_audit_integrity_trips_get: {
+    get_integrity_gate_trips: {
         parameters: {
             query?: {
                 /** @description Max entries to return */
@@ -1703,7 +1723,7 @@ export interface operations {
             };
         };
     };
-    get_collusion_clusters_api_audit_collusion_get: {
+    get_collusion_clusters: {
         parameters: {
             query?: never;
             header?: never;
@@ -1723,7 +1743,7 @@ export interface operations {
             };
         };
     };
-    get_collusion_gnn_scores_api_audit_collusion_gnn_get: {
+    get_collusion_gnn_scores: {
         parameters: {
             query?: never;
             header?: never;
@@ -1743,7 +1763,7 @@ export interface operations {
             };
         };
     };
-    get_audit_entry_for_alert_api_audit_ledger__alert_id__get: {
+    get_audit_entry_for_alert: {
         parameters: {
             query?: never;
             header?: never;
@@ -1774,7 +1794,7 @@ export interface operations {
             };
         };
     };
-    get_decay_curve_api_decay_curve_get: {
+    get_decay_curve: {
         parameters: {
             query: {
                 /** @description Camera device ID */
@@ -1808,7 +1828,7 @@ export interface operations {
             };
         };
     };
-    preview_decay_api_decay_preview_get: {
+    preview_decay: {
         parameters: {
             query: {
                 /** @description Trust score to decay from */
@@ -1843,7 +1863,7 @@ export interface operations {
             };
         };
     };
-    get_trust_distribution_api_analytics_trust_distribution_get: {
+    get_trust_distribution: {
         parameters: {
             query?: {
                 /** @description Time window in hours (default 24h) */
@@ -1877,7 +1897,7 @@ export interface operations {
             };
         };
     };
-    get_alert_timeline_api_analytics_alert_timeline_get: {
+    get_alert_timeline: {
         parameters: {
             query?: {
                 /** @description Time window in hours */
@@ -1910,7 +1930,7 @@ export interface operations {
             };
         };
     };
-    get_score_comparison_api_analytics_score_comparison_get: {
+    get_score_comparison: {
         parameters: {
             query?: {
                 city?: string | null;
@@ -1942,7 +1962,7 @@ export interface operations {
             };
         };
     };
-    get_analytics_summary_api_analytics_summary_get: {
+    get_analytics_summary: {
         parameters: {
             query?: {
                 city?: string | null;
@@ -1973,7 +1993,7 @@ export interface operations {
             };
         };
     };
-    get_integrity_fleet_stats_api_integrity_stats_get: {
+    get_integrity_fleet_stats: {
         parameters: {
             query?: {
                 /** @description Optional city filter */
@@ -2005,7 +2025,7 @@ export interface operations {
             };
         };
     };
-    get_device_integrity_state_api_integrity__device_id__get: {
+    get_device_integrity_state: {
         parameters: {
             query?: never;
             header?: never;
@@ -2036,7 +2056,7 @@ export interface operations {
             };
         };
     };
-    simulate_replay_attack_api_simulate_replay_attack_post: {
+    simulate_replay_attack: {
         parameters: {
             query?: never;
             header?: never;
@@ -2056,7 +2076,7 @@ export interface operations {
             };
         };
     };
-    simulate_timestamp_skew_api_simulate_timestamp_skew_post: {
+    simulate_timestamp_skew: {
         parameters: {
             query?: never;
             header?: never;
@@ -2076,7 +2096,7 @@ export interface operations {
             };
         };
     };
-    simulate_rate_flood_api_simulate_rate_flood_post: {
+    simulate_rate_flood: {
         parameters: {
             query?: never;
             header?: never;
@@ -2096,7 +2116,7 @@ export interface operations {
             };
         };
     };
-    simulate_collusion_ring_api_simulate_collusion_ring_post: {
+    simulate_collusion_ring: {
         parameters: {
             query?: never;
             header?: never;
@@ -2116,7 +2136,7 @@ export interface operations {
             };
         };
     };
-    reset_simulation_state_api_simulate_reset_post: {
+    reset_simulation_state: {
         parameters: {
             query?: never;
             header?: never;
@@ -2136,7 +2156,7 @@ export interface operations {
             };
         };
     };
-    parse_natural_language_query_api_nl_query_post: {
+    parse_natural_language_query: {
         parameters: {
             query?: never;
             header?: never;
@@ -2169,7 +2189,7 @@ export interface operations {
             };
         };
     };
-    get_thresholds_api_config_thresholds_get: {
+    get_thresholds: {
         parameters: {
             query?: never;
             header?: never;
@@ -2189,7 +2209,27 @@ export interface operations {
             };
         };
     };
-    run_scenario_api_scenarios_run_post: {
+    list_scenarios: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    run_scenario: {
         parameters: {
             query?: never;
             header?: never;
@@ -2222,7 +2262,7 @@ export interface operations {
             };
         };
     };
-    list_censys_snapshots_api_censys_snapshots_get: {
+    list_censys_snapshots: {
         parameters: {
             query?: never;
             header?: never;
@@ -2242,7 +2282,7 @@ export interface operations {
             };
         };
     };
-    get_device_provenance_api_devices_provenance_get: {
+    get_device_provenance: {
         parameters: {
             query?: {
                 city?: string | null;
@@ -2273,7 +2313,7 @@ export interface operations {
             };
         };
     };
-    get_paper_results_api_results_get: {
+    get_paper_results: {
         parameters: {
             query?: never;
             header?: never;
@@ -2293,7 +2333,7 @@ export interface operations {
             };
         };
     };
-    health_health_get: {
+    health: {
         parameters: {
             query?: never;
             header?: never;

@@ -7,20 +7,29 @@
 
 ## 0. Pre-Flight Startup (2 Minutes Before Panel)
 
+Run everything from the repository root (the folder that contains `backend/`, `frontend/` and `data/`).
+
 ```powershell
-# Terminal 1 — Backend API (passive mode on sanitized public DB)
-cd c:\Users\goldi\Downloads\COBRA-WATCH-Project
+# Once per machine: build the simulated console fixture (data/*.db is git-ignored, so a fresh clone has none).
+# 9,320 devices, fixed seed, private 10.x addresses masked to /24, labelled synthetic_demo. Takes a few seconds.
+python scripts/build_demo_fixture.py
+
+# Terminal 1 — Backend API (passive mode on the sanitized public DB). Leave SHODAN_API_KEY empty for the demo.
 $env:DATABASE_PATH = "data/public.db"
 python backend/main.py
 # Verify: http://localhost:8000/health -> {"status": "ok"}
 
 # Terminal 2 — Frontend production server (enable console-preview fallback cleanly in build)
-cd c:\Users\goldi\Downloads\COBRA-WATCH-Project\frontend
+cd frontend
 $env:NEXT_PUBLIC_DESIGN_PREVIEW = "true"
 npm run build
 npm run start
 # Verify: http://localhost:3000 (and fallback http://localhost:3000/console-preview)
 ```
+
+Docker alternative: `docker compose up --build` uses `data/public.db` by default and mounts `data/censys/`, `paper/data/` and
+`eval/results/` into the containers, so `/research` and `/api/censys/snapshots` show the real artifacts. Build the fixture first
+(above). Not rehearsed end to end yet: run it once on the demo laptop before Review 2.
 
 Check once before starting:
 - `/api/censys/snapshots` returns `available: true` (`104,218` real India camera hosts).
@@ -65,7 +74,7 @@ Check once before starting:
 - **Explicitly state what is simulated:**  
   > "All 9,320 device markers here are intentionally simulated (`synthetic_demo`) with `/24` IP masking so the demo never exposes real third-party camera targets."
 - **Click 1 (City Filter):** Change **All India** -> **Mumbai** -> show map smooth zoom over India/South Asia OpenStreetMap-attributed boundary layer + cluster badges.
-- **Click 2 (Alert Stream -> Inspector):** If the feed starts empty after a clean `scripts/build_public_db.py` rebuild, click **Run scenario** to stream labeled `demo: true` events; then click any device marker or alert row in **Alert Stream** to inspect the right-hand **Inspector**:
+- **Click 2 (Alert Stream -> Inspector):** If the feed starts empty after a clean `scripts/build_demo_fixture.py` rebuild, click **Run scenario** to stream labeled `demo: true` events; then click any device marker or alert row in **Alert Stream** to inspect the right-hand **Inspector**:
   - Point to the **`Simulated fixture`** badge and `Provenance` row (`geoProvenance`), Channel A CVE factors, Channel B status (`Tier 2 unavailable: no authorized footage` for internet cameras), and **Gate** curve.
 - **Click 3 (Device Forensics + Analytics Drawer):** Click **Open forensics** (`/console/devices/...`) -> verify **`SimulatedBanner`** persists at the top! Return/open **Analytics** bottom drawer -> show `Ledger` tab (`Verify full chain` cryptographic Merkle check) and `Alerts` tab (`Real` vs `Demo` dashed series kept apart).
 
@@ -81,10 +90,11 @@ Use these immediate fallbacks if Wi-Fi, FastAPI (`:8000`), or database state fai
 1. **If backend API (`localhost:8000`) is down or crashes during demo:**
    - Open **`http://localhost:3000/console-preview`** directly! It renders the identical 3-pane console layout, city filters, inspector, Gate curve, and interactive scenario runner locally in React using RFC 5737 (`192.0.2.x`) scripted fixtures under a persistent **"Demo data"** banner — zero backend required.
    - Note `/research` and `/lab` and `/ethics` are server/client Next.js pages backed by local files (`eval/results/`, `gate.ts`), so **`/` , `/research`, `/ethics`, and `/lab` keep working 100% offline** even if FastAPI stops!
-2. **If `data/public.db` becomes locked or altered during rehearsal:**
+2. **If `data/public.db` becomes locked or altered during rehearsal:** stop the backend (so the file is not locked), then
    ```powershell
-   python scripts/build_public_db.py
+   python scripts/build_demo_fixture.py --force
    ```
-   This rebuilds `data/public.db` deterministically with clean `/24` masking and a valid Merkle chain in a few seconds.
+   This rebuilds `data/public.db` deterministically (same seed, same 9,320 simulated devices) with clean `/24` masking and a
+   valid, empty Merkle chain in a few seconds.
 3. **If local map server or localhost ports are blocked altogether:**
    - Show saved static artifacts directly from `docs/figures/*.svg` (`CAPTIONS.md`), `docs/diagrams/architecture.svg`, `docs/diagrams/igdctf-pipeline.svg`, `eval/results/*/summary.md`, and `data/censys/2026-11-26/README.md`.

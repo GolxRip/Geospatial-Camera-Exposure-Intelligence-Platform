@@ -39,6 +39,7 @@ To adhere to national cyber law and international research ethics, the platform 
 2. **Vulnerability Catalogs**: National Vulnerability Database (NVD) CVE entries, CWE classifications, and CISA Known Exploited Vulnerabilities (KEV) catalog.
 3. **Autonomous System & WHOIS Data**: Public ARIN/APNIC IP allocation records used exclusively for broad categorization (`government`, `telecom`, `corporate`, `unknown`).
 4. **Authorized Recorded Footage**: Video pipeline evaluation executed **only on pre-authorized, non-live benchmark datasets** (AVSS, PETS, labeled lab footage) to test rule-based spatio-temporal reasoning.
+5. **Researcher-Owned Lab Devices (added 2026-11-28)**: The optional testbed in `testbed/` may stream from, inject into and read the HTTP/RTSP banner of cameras the team owns, on a private lab network only. `testbed/banner_log.py` refuses any address that is not private or not listed in the git-ignored `testbed/devices.json`. This is the only code that opens connections to a camera; it is never pointed at a discovered or third-party device.
 
 ### 2.2 Strictly Prohibited Activities (Out-of-Scope)
 - **Zero Active Exploitation**: The platform never executes exploits, shell injection, or credential attacks against identified IP cameras.
